@@ -3,9 +3,37 @@ extends Node
 # DEBUG MODE: Set to false for shipping build
 const DEBUG_MODE = false
 
-# Game constants from design brief
-const ROUND_TIME = 45.0
-const WIN_QUOTA = 8
+# SHIFT CONFIG: Data-driven level design
+class ShiftConfig:
+	var shift_number: int
+	var name: String
+	var timer: float
+	var quota: int
+	var bay_period_start: float
+	var bay_period_end: float
+	var allowed_packages: Array
+	
+	func _init(num: int, n: String, t: float, q: int, bay_start: float, bay_end: float, packages: Array):
+		shift_number = num
+		name = n
+		timer = t
+		quota = q
+		bay_period_start = bay_start
+		bay_period_end = bay_end
+		allowed_packages = packages
+
+var SHIFTS: Array[ShiftConfig] = [
+	ShiftConfig.new(1, "Dock Warmup", 40.0, 5, 3.6, 3.2, ["box"]),
+	ShiftConfig.new(6, "Full Crew", 45.0, 8, 3.2, 2.4, ["box", "crate", "barrel"]),
+	ShiftConfig.new(12, "Night Shift", 38.0, 11, 2.3, 1.8, ["box", "crate", "barrel"])
+]
+
+var current_shift_index: int = 1
+var current_shift: ShiftConfig = SHIFTS[1]
+
+# Game constants from design brief (driven by shift config)
+var ROUND_TIME: float = 45.0
+var WIN_QUOTA: int = 8
 const SPAWN_DELAY = 0.35
 const LERP_TIME = 30.0
 
@@ -26,10 +54,10 @@ var loads_completed: int = 0
 var current_score: int = 0
 var streak: int = 0
 var is_paused: bool = false
-var tab_hidden_paused: bool = false  # Dedicated flag for tab visibility pause
 var is_game_over: bool = false
 var can_spawn: bool = true
 var spawn_timer: float = 0.0
+var qa_mode: bool = false  # QA flag: slower bay, longer juice
 
 # CRITICAL: Track credited packages by instance_id to prevent double-counting
 var credited_ids: Dictionary = {}
@@ -39,9 +67,9 @@ var score_cooldown_until: int = 0
 
 # BUBBLE-SHOOTER SPAWN: One current + one preview
 var current_package: RigidBody2D = null  # Only this is flickable
-var next_preview: Node2D = null  # Display only visual
-var next_type: String = ""  # ALWAYS stores the next package type
-var is_advancing: bool = false  # Tween in progress
+var next_preview: Node2D = null  # Display only, no physics
+var next_preview_type: String = ""  # Track the type that will become current
+var advance_lock_until: float = 0.0  # 0.3s lock after resolve
 
 # Signals
 signal score_changed(new_score: int)
@@ -52,12 +80,61 @@ signal game_lost
 signal streak_changed(streak: int)
 
 func _ready():
-	# SELF-TEST: Verify credit system works (after frame delay, debug mode only)
-	if DEBUG_MODE:
-		await get_tree().process_frame
-		run_self_test()
+	call_deferred("_init_shift_config")
+	
+	# Detect QA mode from URL parameter ?qa=1
+	if OS.has_feature("web"):
+		var search_string = JavaScriptBridge.eval("location.search || ''")
+		if search_string and search_string is String:
+			qa_mode = search_string.contains("qa=1")
+	
+	# Always log QA mode status at boot
+	print("═══════════════════════════════════════")
+	print("🔧 QA MODE: ", "ACTIVE (0.25x bay, 3x juice)" if qa_mode else "OFF (normal speed)")
+	print("═══════════════════════════════════════")
+	
+	# Hide debug UI in release builds
+	if not OS.is_debug_build():
+		var debug_label = get_node_or_null("/root/Main/UIManager/UI/DebugLabel")
+		if debug_label:
+			debug_label.visible = false
+		var debug_button = get_node_or_null("/root/Main/UIManager/UI/DebugButton")
+		if debug_button:
+			debug_button.visible = false
+	
+	# SELF-TEST: Verify credit system works (after frame delay)
+	await get_tree().process_frame
+	run_self_test()
+	
+	# Set bay speed if QA mode is active
+	if qa_mode:
+		var truck_bay = get_tree().root.get_node_or_null("Main/World/TruckBay")
+		if truck_bay and truck_bay.has_method("set_speed_multiplier"):
+			truck_bay.set_speed_multiplier(0.25)
 	
 	spawn_package()
+
+func _init_shift_config():
+	# Initialize shift config after tree is ready
+	load_shift(current_shift_index, false)
+
+func _input(event):
+	# Shift keys work in browser via _input (not _unhandled_input)
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_1:
+			load_shift(0)  # Shift 1
+			get_viewport().set_input_as_handled()  # Prevent further processing
+		elif event.keycode == KEY_6:
+			load_shift(1)  # Shift 6
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_2:
+			load_shift(2)  # Shift 12
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_F2:
+			# Cycle: 1→6→12→1 (shift indices 0→1→2→0)
+			var next_index = (current_shift_index + 1) % SHIFTS.size()
+			load_shift(next_index)
+			get_viewport().set_input_as_handled()
 
 func run_self_test():
 	print("═══════════════════════════════════════")
@@ -107,7 +184,7 @@ func run_self_test():
 	
 	var result_text = ""
 	if all_pass:
-		result_text = "✅ SELFTEST_OK loads=%d" % loads_completed
+		result_text = "✅ SELFTEST_OK"
 		print("✅ SELFTEST_OK: First credit succeeded, second rejected")
 	else:
 		result_text = "❌ SELFTEST_FAIL"
@@ -118,9 +195,9 @@ func run_self_test():
 	
 	# Update debug label with self-test result
 	await get_tree().process_frame
-	var ui_manager = get_node_or_null("/root/Main/UIManager")
-	if ui_manager and ui_manager.has_method("update_debug_label"):
-		ui_manager.update_debug_label(result_text)
+	var debug_label = get_node_or_null("/root/Main/UIManager/UI/DebugLabel")
+	if debug_label:
+		debug_label.text = result_text
 	
 	print("═══════════════════════════════════════")
 	
@@ -136,19 +213,23 @@ func test_register_credit(key: String, points: int) -> bool:
 	return true
 
 func _process(delta: float):
-	# FIRST CHECK: Tab hidden pause (highest priority)
-	if tab_hidden_paused or is_paused or is_game_over:
+	if is_game_over or is_paused:
 		return
 	
-	# DEBUG: F1 key to test credit system (only in debug mode)
-	if DEBUG_MODE and (Input.is_action_just_pressed("ui_select") or Input.is_key_pressed(KEY_F1)):
+	# DEBUG: F1 key to test credit system
+	if Input.is_action_just_pressed("ui_select") or Input.is_key_pressed(KEY_F1):
 		debug_add_credit()
 	
-	# INVARIANT CHECK: Max 1 package in group at any time
+	# INVARIANT CHECK: Max 1 package in group at any time (excluding queued deletions)
 	var packages_in_group = get_tree().get_nodes_in_group("packages")
-	if packages_in_group.size() > 1:
-		print("⚠️ INVARIANT VIOLATION: ", packages_in_group.size(), " packages in group!")
-		for pkg in packages_in_group:
+	var active_packages = []
+	for pkg in packages_in_group:
+		if not pkg.is_queued_for_deletion():
+			active_packages.append(pkg)
+	
+	if active_packages.size() > 1:
+		print("⚠️ INVARIANT VIOLATION: ", active_packages.size(), " active packages!")
+		for pkg in active_packages:
 			print("  - ", pkg.name, " id:", pkg.get_instance_id())
 	
 	# Update timer
@@ -164,40 +245,63 @@ func _process(delta: float):
 		return
 	
 	# Handle spawn timer
-	if !can_spawn:
+	if !can_spawn and spawn_timer > 0:
 		spawn_timer -= delta
 		if spawn_timer <= 0:
-			can_spawn = true
+			spawn_timer = 0.0  # CRITICAL: Reset timer to prevent spawning every frame
 			spawn_package()
 
 func spawn_package():
-	# Called at round start to initialize CURRENT + NEXT
-	if current_package != null or is_advancing:
+	# BUBBLE-SHOOTER: Only spawn if no current package exists
+	if current_package != null and is_instance_valid(current_package):
+		return  # Already have a package in throw slot
+	
+	if is_game_over:
 		return
 	
-	# ROUND START ONLY: Create first CURRENT + NEXT
-	print("📦 ROUND START: Creating initial CURRENT + NEXT")
+	# Calculate spawn weights based on time elapsed
+	var elapsed = ROUND_TIME - time_remaining
+	var lerp_factor = clamp(elapsed / LERP_TIME, 0.0, 1.0)
 	
-	# Roll types for both
-	var current_type = select_random_type()
-	next_type = select_random_type()
+	var weights = {}
+	for key in EARLY_WEIGHTS.keys():
+		weights[key] = lerp(EARLY_WEIGHTS[key], LATE_WEIGHTS[key], lerp_factor)
 	
-	# Create CURRENT package
-	current_package = package_scenes[current_type].instantiate()
-	get_tree().root.get_node("Main/World").add_child(current_package)
-	current_package.position = Vector2(360, 1150)  # Throw slot
-	current_package.freeze = true  # Start frozen
+	# Select package type based on weighted random
+	var rand_val = randf()
+	var cumulative = 0.0
+	var selected_type = "box"
 	
-	print("  ✅ CURRENT created: type=", current_type, " id=", current_package.get_instance_id())
+	for type in ["box", "crate", "barrel"]:
+		cumulative += weights[type]
+		if rand_val <= cumulative:
+			selected_type = type
+			break
 	
-	# Generate NEXT preview visual
-	generate_preview(next_type)
+	# BUBBLE-SHOOTER: If we have a preview, advance it to current
+	if next_preview != null and is_instance_valid(next_preview):
+		print("📦 ADVANCING preview to current slot")
+		advance_preview_to_current()
+		# Generate new preview
+		generate_preview(selected_type)
+	else:
+		# First spawn or no preview: create current directly
+		print("📦 SPAWNING initial current package:", selected_type)
+		current_package = package_scenes[selected_type].instantiate()
+		get_tree().root.get_node("Main/World").add_child(current_package)
+		
+		# CRITICAL: Connect missed signal to advance conveyor on misses
+		current_package.missed.connect(_on_package_missed)
+		
+		print("  Current package ID:", current_package.get_instance_id())
+		
+		# Generate first preview
+		var preview_type = select_random_type()
+		generate_preview(preview_type)
 	
-	print("  ✅ NEXT preview: type=", next_type)
-	print("═══════════════════════════════════════")
+	can_spawn = false
 
 func select_random_type() -> String:
-	# Apply weights lerped by elapsed round time
 	var elapsed = ROUND_TIME - time_remaining
 	var lerp_factor = clamp(elapsed / LERP_TIME, 0.0, 1.0)
 	
@@ -222,123 +326,75 @@ func generate_preview(type: String):
 	if next_preview != null and is_instance_valid(next_preview):
 		next_preview.queue_free()
 	
-	# Store type for advance (CRITICAL: this is the source of truth)
-	next_type = type
+	# Store the type for truthful preview
+	next_preview_type = type
 	
-	# Create NEXT preview BIGGER (48-64px min for portal readability)
-	# Position: Left of throw slot
+	# Create DISPLAY-ONLY preview (no physics)
 	next_preview = Node2D.new()
 	next_preview.name = "NextPreview"
-	next_preview.position = Vector2(280, 1150)  # Left of throw slot
-	next_preview.scale = Vector2(0.8, 0.8)  # 80% scale (was 60%)
-	next_preview.modulate = Color(0.75, 0.75, 0.75, 1.0)  # 75% brightness (was 70%)
+	next_preview.position = Vector2(600, 500)  # Right side, mid-screen
 	
-	# Add visual based on type (larger colored rect + label)
-	var visual = ColorRect.new()
-	if type == "box":
-		visual.size = Vector2(48, 48)
-		visual.color = Color(0.961, 0.773, 0.259, 1)  # Amber
-		visual.position = Vector2(-24, -24)
-	elif type == "crate":
-		visual.size = Vector2(64, 64)
-		visual.color = Color(0.769, 0.478, 0.227, 1)  # Brown
-		visual.position = Vector2(-32, -32)
-	else:  # barrel
-		visual.size = Vector2(56, 72)
-		visual.color = Color(0.227, 0.549, 0.769, 1)  # Blue
-		visual.position = Vector2(-28, -36)
+	# Add visual container (background panel)
+	var panel = ColorRect.new()
+	panel.size = Vector2(100, 80)
+	panel.color = Color(0.2, 0.2, 0.3, 0.8)  # Semi-transparent dark background
+	panel.position = Vector2(-50, -40)  # Center on preview position
+	next_preview.add_child(panel)
 	
-	next_preview.add_child(visual)
+	# Add "NEXT" label
+	var next_label = Label.new()
+	next_label.text = "NEXT"
+	next_label.add_theme_font_size_override("font_size", 14)
+	next_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+	next_label.position = Vector2(-40, -30)
+	next_preview.add_child(next_label)
 	
-	# Add label (bigger font)
-	var label = Label.new()
-	label.text = type.to_upper()
-	label.add_theme_font_size_override("font_size", 18)  # Was 16
-	label.position = Vector2(-20, -10)
-	next_preview.add_child(label)
-	
-	# Add "NEXT" caption above (bigger)
-	var caption = Label.new()
-	caption.text = "NEXT"
-	caption.add_theme_font_size_override("font_size", 16)  # Was 14
-	caption.position = Vector2(-15, -55)  # Adjusted for bigger preview
-	next_preview.add_child(caption)
+	# Add package type label
+	var type_label = Label.new()
+	type_label.text = type.to_upper()
+	type_label.add_theme_font_size_override("font_size", 18)
+	type_label.add_theme_color_override("font_color", Color(1, 1, 1))
+	type_label.position = Vector2(-40, -10)
+	next_preview.add_child(type_label)
 	
 	get_tree().root.get_node("Main/World").add_child(next_preview)
 	
-	print("  Generated NEXT preview:", type, " (80% scale, portal readable)")
+	print("  Generated preview:", type, "(truthful: will become CURRENT)")
 
-func on_package_resolved():
-	# CRITICAL: Called when current package lands (hit OR miss)
-	# MUST advance NEXT → CURRENT with 0.3s tween
-	
-	print("═══════════════════════════════════════")
-	print("🚨 RESOLVE CALLED")
-	print("═══════════════════════════════════════")
-	
-	# Use call_deferred to ensure this runs even if caller is freed
-	if !is_advancing:
-		is_advancing = true
-		call_deferred("_do_advance_async")
-	else:
-		print("⚠️ RESOLVE SKIPPED: Already advancing")
-
-func _do_advance_async():
-	# Async advance function that runs via deferred call
-	
-	print("═══════════════════════════════════════")
-	print("🔄 ADVANCE START")
-	
-	# Clear current package reference
-	if current_package != null and is_instance_valid(current_package):
-		current_package.queue_free()
-	current_package = null
-	
-	# Remove preview visual
-	if next_preview != null and is_instance_valid(next_preview):
-		next_preview.queue_free()
-		next_preview = null
-	
-	# Wait 0.3s tween
-	print("  ⏳ Waiting 0.3s for tween...")
-	await get_tree().create_timer(0.3).timeout
-	
-	# Create new CURRENT from next_type
-	if next_type == "":
-		print("  ❌ ERROR: next_type is empty!")
-		is_advancing = false
+func advance_preview_to_current():
+	# Move preview to current slot (becomes real physics package)
+	if next_preview == null or !is_instance_valid(next_preview):
 		return
 	
-	print("  📦 Creating new CURRENT: type =", next_type)
-	current_package = package_scenes[next_type].instantiate()
+	# Use the stored preview type (truthful preview)
+	var type_name = next_preview_type if next_preview_type != "" else "box"
+	
+	# Remove preview
+	next_preview.queue_free()
+	next_preview = null
+	next_preview_type = ""
+	
+	# Create actual physics package
+	current_package = package_scenes[type_name].instantiate()
 	get_tree().root.get_node("Main/World").add_child(current_package)
-	current_package.position = Vector2(360, 1150)  # Throw slot position
-	current_package.freeze = true  # Start frozen for stability, unfreezed on start_drag
 	
-	print("═══════════════════════════════════════")
-	print("✅ NEW CURRENT SPAWNED")
-	print("  Type:", next_type)
-	print("  ID:", current_package.get_instance_id())
-	print("  freeze:", current_package.freeze, " (true = stable until drag)")
-	print("  position:", current_package.position)
-	print("═══════════════════════════════════════")
+	# CRITICAL: Connect missed signal to advance conveyor on misses
+	current_package.missed.connect(_on_package_missed)
 	
-	# Roll NEW next_type + rebuild preview
-	var new_next = select_random_type()
-	generate_preview(new_next)
+	print("  Advanced to current, ID:", current_package.get_instance_id(), "type:", type_name)
 	
-	# Unlock input
-	is_advancing = false
+	# Set advance lock
+	advance_lock_until = Time.get_ticks_msec() / 1000.0 + 0.3
+
+func on_package_resolved():
+	# Called when current package lands or misses
+	current_package = null
 	
-	# VERIFICATION LOGGING
-	var packages_in_group = get_tree().get_nodes_in_group("packages")
-	print("  ✅ ADVANCE COMPLETE:")
-	print("    New CURRENT path:", current_package.get_path())
-	print("    New CURRENT ID:", current_package.get_instance_id())
-	print("    Packages in group:", packages_in_group.size(), " (must be 1)")
-	print("    is_advancing:", is_advancing, " (must be false)")
-	print("    next_type:", next_type)
-	print("═══════════════════════════════════════")
+	# Start spawn timer to advance next
+	can_spawn = false  # FIXED: was true, should be false so timer decrements
+	spawn_timer = SPAWN_DELAY
+	
+	print("📦 Package resolved, will advance preview in", SPAWN_DELAY, "s")
 
 # DIRECT CREDIT PATH - No signals for load counting
 # Called directly by TruckBay when valid hit occurs
@@ -414,6 +470,11 @@ func register_successful_load(package: Node, base_points: int) -> bool:
 	print("  Loads:", old_loads, "→", loads_completed, " (+1)")
 	print("  Streak:", old_streak, "→", streak, " (+1)")
 	print("  Score: +", total_points, " = ", current_score)
+	
+	# JUICE: Hit effect (particles + score pop)
+	var pkg_color = package.modulate if package.get("modulate") != null else Color(1, 1, 1)
+	spawn_hit_juice(package.global_position, total_points, pkg_color)
+	
 	print("═══════════════════════════════════════")
 	
 	# Emit UI update signals ONCE
@@ -433,7 +494,6 @@ func register_successful_load(package: Node, base_points: int) -> bool:
 		return true
 	
 	# Package resolved - advance conveyor
-	print("✅ LOAD SUCCESSFUL - Calling on_package_resolved()")
 	on_package_resolved()
 	
 	return true
@@ -444,8 +504,11 @@ func _on_package_missed():
 	streak_changed.emit(streak)
 	print("❌ MISS: Streak reset to 0")
 	
+	# JUICE: Miss dust particles
+	if current_package != null and is_instance_valid(current_package):
+		spawn_miss_juice(current_package.global_position)
+	
 	# Package resolved - advance conveyor
-	print("✅ MISS REGISTERED - Calling on_package_resolved()")
 	on_package_resolved()
 
 func game_over(won: bool):
@@ -460,29 +523,203 @@ func toggle_pause():
 	get_tree().paused = is_paused
 
 func restart_game():
-	get_tree().reload_current_scene()
+	# Stop timer during restart
+	var was_game_over = is_game_over
+	is_game_over = true
+	
+	# Clear current and preview
+	if current_package != null and is_instance_valid(current_package):
+		current_package.queue_free()
+	current_package = null
+	
+	if next_preview != null and is_instance_valid(next_preview):
+		next_preview.queue_free()
+	next_preview = null
+	next_preview_type = ""
+	
+	# Clear any other packages in group
+	var packages = get_tree().get_nodes_in_group("packages")
+	for pkg in packages:
+		if is_instance_valid(pkg):
+			pkg.queue_free()
+	
+	# Wait for queue_free to complete
+	await get_tree().process_frame
+	
+	# Reset game state AFTER cleanup
+	time_remaining = ROUND_TIME
+	loads_completed = 0
+	current_score = 0
+	streak = 0
+	is_game_over = false
+	can_spawn = true
+	spawn_timer = 0.0
+	credited_ids.clear()
+	score_cooldown_until = 0
+	
+	# Emit signals to update UI
+	score_changed.emit(current_score)
+	loads_changed.emit(loads_completed, WIN_QUOTA)
+	timer_changed.emit(time_remaining)
+	streak_changed.emit(streak)
+	
+	# Spawn new package
+	spawn_package()
+	
+	# Reset truck bay to center
+	var truck_bay = get_tree().root.get_node_or_null("Main/World/TruckBay")
+	if truck_bay and truck_bay.has_method("reset_position"):
+		truck_bay.reset_position()
+
+func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color):
+	"""Spawn hit particles + score pop"""
+	var world = get_tree().root.get_node_or_null("Main/World")
+	if !world:
+		return
+	
+	# QA mode: 3x duration for all effects
+	var duration_mult = 3.0 if qa_mode else 1.0
+	
+	# Cargo-tinted particle burst
+	var particles = CPUParticles2D.new()
+	particles.position = pos
+	particles.emitting = true
+	particles.one_shot = true
+	particles.amount = 15
+	particles.lifetime = 0.6 * duration_mult
+	particles.explosiveness = 0.95
+	particles.direction = Vector2(0, -1)
+	particles.spread = 45
+	particles.gravity = Vector2(0, 450)
+	particles.initial_velocity_min = 180.0
+	particles.initial_velocity_max = 320.0
+	particles.scale_amount_min = 2.5
+	particles.scale_amount_max = 5.0
+	particles.color = cargo_color
+	world.add_child(particles)
+	
+	# Auto-cleanup after particles finish
+	var cleanup_particles = particles  # Copy reference to avoid capture issues
+	get_tree().create_timer(1.0 * duration_mult).timeout.connect(func(): 
+		if is_instance_valid(cleanup_particles):
+			cleanup_particles.queue_free()
+	)
+	
+	# Score pop label
+	var score_label = Label.new()
+	score_label.position = pos - Vector2(30, 50)
+	score_label.text = "+%d" % score_value
+	score_label.add_theme_font_size_override("font_size", 36)
+	score_label.add_theme_color_override("font_color", Color(1, 1, 0.2, 1))
+	score_label.z_index = 100
+	world.add_child(score_label)
+	
+	# Animate pop: scale + fade + rise
+	var tween = create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(score_label, "position:y", pos.y - 100, 0.9 * duration_mult)
+	tween.tween_property(score_label, "scale", Vector2(1.5, 1.5), 0.2 * duration_mult).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.chain().tween_property(score_label, "modulate:a", 0.0, 0.4 * duration_mult)
+	
+	var cleanup_label = score_label  # Copy reference
+	tween.finished.connect(func(): 
+		if is_instance_valid(cleanup_label):
+			cleanup_label.queue_free()
+	)
+
+func spawn_miss_juice(pos: Vector2):
+	"""Spawn gray dust particles on miss - enhanced visibility"""
+	var world = get_tree().root.get_node_or_null("Main/World")
+	if !world:
+		return
+	
+	# QA mode: 3x duration for all effects
+	var duration_mult = 3.0 if qa_mode else 1.0
+	
+	# Enhanced gray dust burst (2x particles, bigger, longer-lived)
+	var particles = CPUParticles2D.new()
+	particles.position = pos
+	particles.emitting = true
+	particles.one_shot = true
+	particles.amount = 16  # Doubled from 8
+	particles.lifetime = 0.6 * duration_mult  # Increased from 0.5s, 3x in QA mode
+	particles.explosiveness = 0.8
+	particles.direction = Vector2(0, -1)
+	particles.spread = 60
+	particles.gravity = Vector2(0, 300)
+	particles.initial_velocity_min = 80.0
+	particles.initial_velocity_max = 180.0
+	particles.scale_amount_min = 4.0  # Increased from 3.0
+	particles.scale_amount_max = 8.0  # Increased from 6.0
+	particles.color = Color(0.5, 0.5, 0.5, 0.8)  # Lighter and more opaque
+	world.add_child(particles)
+	
+	# Auto-cleanup
+	var cleanup_particles = particles  # Copy reference
+	get_tree().create_timer(1.0 * duration_mult).timeout.connect(func(): 
+		if is_instance_valid(cleanup_particles):
+			cleanup_particles.queue_free()
+	)
+	
+	# Dull flash effect on miss
+	var flash = ColorRect.new()
+	flash.size = Vector2(720, 1280)
+	flash.color = Color(0.4, 0.4, 0.4, 0.15)  # Dull gray flash
+	flash.z_index = 50
+	world.add_child(flash)
+	
+	var tween = create_tween()
+	tween.tween_property(flash, "modulate:a", 0.0, 0.3 * duration_mult)  # Short fade, 3x in QA mode
+	
+	var cleanup_flash = flash  # Copy reference
+	tween.finished.connect(func():
+		if is_instance_valid(cleanup_flash):
+			cleanup_flash.queue_free()
+	)
+
+func load_shift(index: int, restart: bool = true):
+	# Apply shift config and optionally restart game
+	if index < 0 or index >= SHIFTS.size():
+		print("⚠️ Invalid shift index: %d" % index)
+		return
+	
+	current_shift_index = index
+	current_shift = SHIFTS[index]
+	ROUND_TIME = current_shift.timer
+	WIN_QUOTA = current_shift.quota
+	
+	print("🎮 SHIFT %d: %s | %ds | Quota %d" % [
+		current_shift.shift_number,
+		current_shift.name,
+		int(ROUND_TIME),
+		WIN_QUOTA
+	])
+	
+	if restart:
+		restart_game()
 
 # DEBUG FUNCTION: Test credit system with F1 key
 func debug_add_credit():
 	print("═══════════════════════════════════════")
 	print("🔧 DEBUG +1 LOAD (F1 pressed)")
 	
+	# Get or create test package
+	var test_package = get_tree().root.find_children("Package*", "RigidBody2D", true, false)
 	var package_to_use = null
 	
-	# PRIORITY: Use CURRENT package if available
-	if current_package != null and is_instance_valid(current_package):
-		package_to_use = current_package
-		print("  Using CURRENT package:", package_to_use.name)
+	if test_package.size() > 0:
+		package_to_use = test_package[0]
+		print("  Using existing package:", package_to_use.name)
 	else:
-		# No current package, create dummy
+		# Create dummy package for testing
 		var dummy = Node.new()
-		dummy.name = "DebugDummy"
-		dummy.set("credit_key", "debug_dummy_" + str(Time.get_ticks_msec()))
+		dummy.name = "DebugPackage"
+		dummy.set("credit_key", "debug_" + str(Time.get_ticks_usec()))
 		get_tree().root.add_child(dummy)
 		package_to_use = dummy
-		print("  No CURRENT package, created dummy")
+		print("  Created dummy package")
 	
-	# Get credit key
+	# Ensure package has credit_key
 	var test_key = ""
 	if package_to_use.has_method("get_credit_key"):
 		test_key = package_to_use.get_credit_key()
@@ -490,9 +727,14 @@ func debug_add_credit():
 		test_key = package_to_use.get("credit_key")
 	else:
 		test_key = "debug_" + str(package_to_use.get_instance_id())
+		package_to_use.set("credit_key", test_key)
 	
 	print("  Credit key:", test_key)
 	print("  Loads before:", loads_completed)
+	
+	# Create mock package node with necessary methods
+	var mock = Node.new()
+	mock.set("credit_key", test_key)
 	
 	# Call register_successful_load
 	var old_loads = loads_completed
@@ -500,25 +742,17 @@ func debug_add_credit():
 	
 	print("  Success:", success)
 	print("  Loads after:", loads_completed)
+	print("  Expected:", old_loads + (1 if success else 0))
 	
-	# Update DebugLabel
-	var ui_manager = get_node_or_null("/root/Main/UIManager")
-	var result_text = ""
+	# Verify
 	if success and loads_completed == old_loads + 1:
-		result_text = "✅ DEBUG +1 OK: loads=%d" % loads_completed
 		print("✅ DEBUG CREDIT OK: loads incremented +1")
 	elif !success and loads_completed == old_loads:
-		result_text = "⚠ REJECTED: loads=%d (same key or quota)" % loads_completed
 		print("⚠ DEBUG CREDIT REJECTED: Same package or at quota")
 	else:
-		result_text = "❌ ERROR: loads=%d" % loads_completed
 		print("❌ DEBUG CREDIT ERROR: Unexpected state")
-	
-	if ui_manager and ui_manager.has_method("update_debug_label"):
-		ui_manager.update_debug_label(result_text)
 	
 	print("═══════════════════════════════════════")
 	
-	# Clean up dummy if created
-	if package_to_use != current_package and is_instance_valid(package_to_use):
-		package_to_use.queue_free()
+	if mock:
+		mock.queue_free()

@@ -37,37 +37,37 @@ mouse_filter = 2
 offset_left = 0.0
 offset_top = 0.0
 offset_right = 48.0
-offset_bottom = 4.0
-color = Color(0.15, 0.15, 0.15, 1)
+offset_bottom = 2.0
+color = Color(0.2, 0.2, 0.2, 1)
 
 [node name="OutlineBottom" type="ColorRect" parent="Visual"]
 offset_left = 0.0
-offset_top = 44.0
+offset_top = 46.0
 offset_right = 48.0
 offset_bottom = 48.0
-color = Color(0.15, 0.15, 0.15, 1)
+color = Color(0.2, 0.2, 0.2, 1)
 
 [node name="OutlineLeft" type="ColorRect" parent="Visual"]
 offset_left = 0.0
 offset_top = 0.0
-offset_right = 4.0
+offset_right = 2.0
 offset_bottom = 48.0
-color = Color(0.15, 0.15, 0.15, 1)
+color = Color(0.2, 0.2, 0.2, 1)
 
 [node name="OutlineRight" type="ColorRect" parent="Visual"]
-offset_left = 44.0
+offset_left = 46.0
 offset_top = 0.0
 offset_right = 48.0
 offset_bottom = 48.0
-color = Color(0.15, 0.15, 0.15, 1)
+color = Color(0.2, 0.2, 0.2, 1)
 
 [node name="Label" type="Label" parent="."]
 offset_left = -24.0
 offset_top = -18.0
 offset_right = 24.0
 offset_bottom = 18.0
-theme_override_colors/font_color = Color(0.1, 0.1, 0.1, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.15, 0.15, 0.15, 1)
+theme_override_font_sizes/font_size = 12
 text = "BOX"
 horizontal_alignment = 1
 vertical_alignment = 1

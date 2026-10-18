@@ -37,68 +37,76 @@ mouse_filter = 2
 offset_left = 0.0
 offset_top = 0.0
 offset_right = 64.0
-offset_bottom = 4.0
-color = Color(0.15, 0.15, 0.15, 1)
+offset_bottom = 2.0
+color = Color(0.2, 0.2, 0.2, 1)
 
 [node name="OutlineBottom" type="ColorRect" parent="Visual"]
 offset_left = 0.0
-offset_top = 60.0
+offset_top = 62.0
 offset_right = 64.0
 offset_bottom = 64.0
-color = Color(0.15, 0.15, 0.15, 1)
+color = Color(0.2, 0.2, 0.2, 1)
 
 [node name="OutlineLeft" type="ColorRect" parent="Visual"]
 offset_left = 0.0
 offset_top = 0.0
-offset_right = 4.0
+offset_right = 2.0
 offset_bottom = 64.0
-color = Color(0.15, 0.15, 0.15, 1)
+color = Color(0.2, 0.2, 0.2, 1)
 
 [node name="OutlineRight" type="ColorRect" parent="Visual"]
-offset_left = 60.0
+offset_left = 62.0
 offset_top = 0.0
 offset_right = 64.0
 offset_bottom = 64.0
-color = Color(0.15, 0.15, 0.15, 1)
+color = Color(0.2, 0.2, 0.2, 1)
+
+[node name="LabelBacking" type="ColorRect" parent="."]
+offset_left = -32.0
+offset_top = -18.0
+offset_right = 32.0
+offset_bottom = 18.0
+color = Color(0.1, 0.1, 0.1, 0.7)
+z_index = -1
 
 [node name="Label" type="Label" parent="."]
 offset_left = -32.0
 offset_top = -18.0
 offset_right = 32.0
 offset_bottom = 18.0
-theme_override_colors/font_color = Color(0.1, 0.1, 0.1, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.15, 0.15, 0.15, 1)
+theme_override_font_sizes/font_size = 12
 text = "CRATE"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="PlankH1" type="ColorRect" parent="."]
 offset_left = -32.0
-offset_top = -18.0
+offset_top = -16.0
 offset_right = 32.0
-offset_bottom = -14.0
-color = Color(0.25, 0.15, 0.05, 1)
+offset_bottom = -12.0
+color = Color(0.3, 0.2, 0.1, 1)
 
 [node name="PlankH2" type="ColorRect" parent="."]
 offset_left = -32.0
-offset_top = 14.0
+offset_top = 12.0
 offset_right = 32.0
-offset_bottom = 18.0
-color = Color(0.25, 0.15, 0.05, 1)
+offset_bottom = 16.0
+color = Color(0.3, 0.2, 0.1, 1)
 
 [node name="PlankV1" type="ColorRect" parent="."]
-offset_left = -18.0
+offset_left = -16.0
 offset_top = -32.0
-offset_right = -14.0
+offset_right = -12.0
 offset_bottom = 32.0
-color = Color(0.25, 0.15, 0.05, 1)
+color = Color(0.3, 0.2, 0.1, 1)
 
 [node name="PlankV2" type="ColorRect" parent="."]
-offset_left = 14.0
+offset_left = 12.0
 offset_top = -32.0
-offset_right = 18.0
+offset_right = 16.0
 offset_bottom = 32.0
-color = Color(0.25, 0.15, 0.05, 1)
+color = Color(0.3, 0.2, 0.1, 1)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_1")

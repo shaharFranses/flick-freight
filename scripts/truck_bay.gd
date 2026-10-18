@@ -2,7 +2,7 @@ extends Area2D
 
 # Bay constants from design brief
 const OPENING_WIDTH = 110.0
-const TRAVEL_RANGE = 180.0
+const TRAVEL_RANGE = 180.0  # Design spec: ±180px
 const PERIOD_START = 3.2
 const PERIOD_END = 2.0
 const LERP_TIME = 30.0
@@ -10,6 +10,7 @@ const LERP_TIME = 30.0
 var start_time: float = 0.0
 var center_x: float = 360.0  # Half of 720px dock width
 var scored_packages: Array = []  # Track packages that have already scored
+var speed_multiplier: float = 1.0  # QA mode: 0.25 for slower bay
 
 func _ready():
 	start_time = Time.get_ticks_msec() / 1000.0
@@ -18,13 +19,29 @@ func _ready():
 	# Connect to detect packages entering
 	body_entered.connect(_on_body_entered)
 
+func reset_position():
+	"""Reset truck to center position"""
+	position.x = center_x
+	start_time = Time.get_ticks_msec() / 1000.0
+	scored_packages.clear()
+
+func set_speed_multiplier(multiplier: float):
+	"""Set bay speed multiplier (QA mode: 0.25 for 4x slower)"""
+	speed_multiplier = multiplier
+
+
 func _process(delta: float):
 	var elapsed = (Time.get_ticks_msec() / 1000.0) - start_time
-	var lerp_factor = clamp(elapsed / LERP_TIME, 0.0, 1.0)
+	
+	# Apply speed multiplier (QA mode: 0.25 = 4x slower)
+	# Multiply elapsed by multiplier to slow down: 0.25 makes time pass 4x slower
+	var adjusted_elapsed = elapsed * speed_multiplier
+	
+	var lerp_factor = clamp(adjusted_elapsed / LERP_TIME, 0.0, 1.0)
 	var current_period = lerp(PERIOD_START, PERIOD_END, lerp_factor)
 	
 	# Calculate sine wave position
-	var angle = (elapsed / current_period) * TAU
+	var angle = (adjusted_elapsed / current_period) * TAU
 	var offset = sin(angle) * TRAVEL_RANGE
 	
 	position.x = center_x + offset
@@ -85,10 +102,6 @@ func _on_body_entered(body: Node2D):
 		print("  ❌ REJECT: Could not resolve package root")
 		print("  → Body not in group, not RigidBody2D, no valid parent/owner")
 		print("═══════════════════════════════════════")
-		# Update DebugLabel
-		var ui_manager = get_node_or_null("/root/Main/UIManager")
-		if ui_manager and ui_manager.has_method("update_debug_label"):
-			ui_manager.update_debug_label("❌ REJECT: Not a package")
 		return
 	
 	print("  ✅ Resolved package root:", package_root.name)
@@ -104,64 +117,44 @@ func _on_body_entered(body: Node2D):
 	if !package_root.has_method("is_package_flicked") or !package_root.is_package_flicked():
 		print("  ⚠ REJECT: Package not flicked yet")
 		print("═══════════════════════════════════════")
-		# Update DebugLabel
-		var ui_manager = get_node_or_null("/root/Main/UIManager")
-		if ui_manager and ui_manager.has_method("update_debug_label"):
-			ui_manager.update_debug_label("⚠ REJECT: Not flicked")
 		return
 	
 	# Mark as processed IMMEDIATELY
 	scored_packages.append(package_root)
 	
-	# HIT VALIDATION: Accept if package was flicked and center is in opening
+	# HIT VALIDATION: Use global coordinates for both package and bay
 	var package_center = package_root.global_position
-	var velocity = package_root.linear_velocity if package_root.has("linear_velocity") else Vector2.ZERO
-	var bay_hitbox_scale = package_root.bay_hitbox_scale if package_root.get("bay_hitbox_scale") else 1.0
-	var effective_width = 110.0 * bay_hitbox_scale
+	var velocity = package_root.linear_velocity if package_root is RigidBody2D else Vector2.ZERO
+	var bay_hitbox_scale = package_root.bay_hitbox_scale if package_root.get("bay_hitbox_scale") != null else 1.0
+	var effective_width = OPENING_WIDTH * bay_hitbox_scale
 	
-	# Check if package center is in opening
-	var bay_left = global_position.x - effective_width / 2
-	var bay_right = global_position.x + effective_width / 2
+	# Bay opening rect in GLOBAL space
+	var bay_global_x = global_position.x
+	var bay_left = bay_global_x - effective_width / 2
+	var bay_right = bay_global_x + effective_width / 2
+	
+	# Check if package center is within bay opening (X-range)
 	var x_in_range = package_center.x >= bay_left and package_center.x <= bay_right
 	
-	# Get flick direction (use last_flick_direction if velocity is near zero)
-	var direction_to_check = velocity
-	if velocity.length() < 10 and package_root.has_method("get_last_flick_direction"):
-		direction_to_check = package_root.get_last_flick_direction() * 100  # Scale for dot product
-		print("  Using stored flick direction (velocity near zero)")
+	# Check velocity (moving with reasonable speed, not drifting)
+	var vel_ok = velocity.length() > 200
 	
-	# Check if direction is toward bay
-	var to_bay = global_position - package_center
-	var toward_truck = direction_to_check.dot(to_bay.normalized()) > 0
+	print("BAY: Hit check - x_range:%s vel_ok:%s width:%.1f" % [x_in_range, vel_ok, effective_width])
+	print("  Package global x: %.1f, Bay global x: %.1f (range %.1f to %.1f)" % [package_center.x, bay_global_x, bay_left, bay_right])
+	print("  Velocity: %.1f px/s" % velocity.length())
 	
-	# ACCEPT if: in opening AND (velocity toward truck OR was flicked in right direction)
-	var hit_valid = x_in_range and toward_truck
-	
-	print("  Position check:")
-	print("    Bay range: [%.1f, %.1f]" % [bay_left, bay_right])
-	print("    Package X: %.1f" % package_center.x)
-	print("    X in range:", x_in_range)
-	print("  Direction check:")
-	print("    Velocity:", velocity, " (mag: %.1f)" % velocity.length())
-	print("    Toward truck:", toward_truck)
-	print("  HIT VALID:", hit_valid)
-	
-	if !hit_valid:
-		print("  ❌ REJECT: Invalid hit")
+	# STRICT: Both checks must pass
+	if !x_in_range or !vel_ok:
+		if !x_in_range:
+			print("  ❌ REJECT: Package outside bay opening (x=%.1f not in [%.1f, %.1f])" % [package_center.x, bay_left, bay_right])
+		if !vel_ok:
+			print("  ❌ REJECT: Velocity too low (%.1f px/s < 200 px/s)" % velocity.length())
 		scored_packages.erase(package_root)
 		print("═══════════════════════════════════════")
-		# Update DebugLabel
-		var ui_manager = get_node_or_null("/root/Main/UIManager")
-		if ui_manager and ui_manager.has_method("update_debug_label"):
-			var reason = "X out" if !x_in_range else "Wrong dir"
-			ui_manager.update_debug_label("❌ REJECT: %s (v=%.0f)" % [reason, velocity.length()])
 		return
 	
-	print("  ✅ HIT VALID! Calling GameManager.register_successful_load")
-	
-	# Mark package as resolved BEFORE credit attempt
-	if package_root.has("resolved"):
-		package_root.resolved = true
+	print("  ✅ HIT VALID! Package in range with good velocity")
+	print("  ✅ Calling GameManager.register_successful_load")
 	
 	# Get package data
 	var points = package_root.get_package_points() if package_root.has_method("get_package_points") else 1
@@ -174,7 +167,7 @@ func _on_body_entered(body: Node2D):
 	var credited = game_manager.register_successful_load(package_root, points)
 	
 	if credited:
-		print("✅ Load credited - calling on_package_resolved from register")
+		print("✅ Load credited - disabling package")
 		# Disable package physics and queue for deletion
 		if package_root.has_method("set_physics_process"):
 			package_root.set_physics_process(false)
@@ -183,16 +176,10 @@ func _on_body_entered(body: Node2D):
 		package_root.collision_layer = 0
 		package_root.collision_mask = 0
 		package_root.queue_free()
-		# Note: on_package_resolved is called FROM GameManager.register_successful_load
+		# Note: Package stays in scored_packages list but won't re-enter (queued for deletion)
 	else:
 		print("❌ Load rejected by GameManager")
 		scored_packages.erase(package_root)
-	
-	# Clean up scored packages list after a delay
-	get_tree().create_timer(1.0).timeout.connect(func(): 
-		if package_root in scored_packages:
-			scored_packages.erase(package_root)
-	)
 
 func is_hit_valid(package_center: Vector2, velocity: Vector2, effective_width: float) -> bool:
 	# Check if package center is within opening width (scaled by package's bay hitbox scale)

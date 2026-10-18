@@ -38,7 +38,7 @@ offset_bottom = 1280.0
 color = Color(0.3, 0.3, 0.35, 1)
 
 [node name="TruckBody" type="StaticBody2D" parent="World"]
-position = Vector2(360, 150)
+position = Vector2(360, 200)
 collision_layer = 1
 collision_mask = 2
 
@@ -55,7 +55,7 @@ position = Vector2(80, 0)
 shape = SubResource("RectangleShape2D_5")
 
 [node name="TruckBay" type="Area2D" parent="World"]
-position = Vector2(360, 150)
+position = Vector2(360, 200)
 collision_layer = 4
 collision_mask = 2
 monitoring = true
@@ -88,6 +88,7 @@ shape = SubResource("RectangleShape2D_2")
 
 [node name="UIManager" type="CanvasLayer" parent="."]
 process_mode = 3
+layer = 10
 script = ExtResource("2_1")
 
 [node name="UI" type="Control" parent="UIManager"]
@@ -98,11 +99,22 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
+[node name="HUDBacking" type="ColorRect" parent="UIManager/UI"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 140.0
+color = Color(0.1, 0.1, 0.15, 0.85)
+z_index = -1
+
 [node name="TopBar" type="VBoxContainer" parent="UIManager/UI"]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 150.0
+offset_bottom = 140.0
 grow_horizontal = 2
 
 [node name="ScoreLabel" type="Label" parent="UIManager/UI/TopBar"]
@@ -147,28 +159,30 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -150.0
-offset_top = -80.0
-offset_right = 150.0
-offset_bottom = -10.0
+offset_left = -100.0
+offset_top = -60.0
+offset_right = 100.0
+offset_bottom = -20.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 16
 text = "DEBUG +1 Load (F1)"
 
-[node name="Controls" type="HBoxContainer" parent="UIManager/UI/TopBar"]
-layout_mode = 2
-alignment = 1
+[node name="PauseButton" type="Button" parent="UIManager/UI"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 68.0
+offset_bottom = 68.0
+text = "⏸"
 
-[node name="PauseButton" type="Button" parent="UIManager/UI/TopBar/Controls"]
-custom_minimum_size = Vector2(100, 40)
-layout_mode = 2
-text = "Pause"
-
-[node name="MuteButton" type="Button" parent="UIManager/UI/TopBar/Controls"]
-custom_minimum_size = Vector2(100, 40)
-layout_mode = 2
-text = "Mute"
+[node name="MuteButton" type="Button" parent="UIManager/UI"]
+layout_mode = 0
+offset_left = 652.0
+offset_top = 20.0
+offset_right = 700.0
+offset_bottom = 68.0
+text = "🔊"
 
 [node name="GameOverPanel" type="Panel" parent="UIManager/UI"]
 layout_mode = 1

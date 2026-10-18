@@ -4,30 +4,21 @@ extends CanvasLayer
 @onready var loads_label = $UI/TopBar/LoadsLabel
 @onready var timer_label = $UI/TopBar/TimerLabel
 @onready var streak_label = $UI/TopBar/StreakLabel
-@onready var pause_button = $UI/TopBar/Controls/PauseButton
-@onready var mute_button = $UI/TopBar/Controls/MuteButton
+@onready var pause_button = $UI/PauseButton
+@onready var mute_button = $UI/MuteButton
 @onready var game_over_panel = $UI/GameOverPanel
 @onready var result_label = $UI/GameOverPanel/ResultLabel
 @onready var final_score_label = $UI/GameOverPanel/FinalScoreLabel
 @onready var retry_button = $UI/GameOverPanel/RetryButton
 @onready var debug_button = $UI/DebugButton
-@onready var debug_label = $UI/DebugLabel
 
 var game_manager: Node
-var visibility_callback  # Untyped - JavaScriptBridge.create_callback returns JavaScriptObject
 
 func _ready():
 	# Set process mode to always for pause UI
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	
 	game_manager = get_node("/root/Main/GameManager")
-	
-	# Hide debug UI in shipping/release builds
-	if !game_manager.DEBUG_MODE or !OS.is_debug_build():
-		if debug_button:
-			debug_button.hide()
-		if debug_label:
-			debug_label.hide()
 	
 	# Connect signals
 	game_manager.score_changed.connect(_on_score_changed)
@@ -50,65 +41,14 @@ func _ready():
 	_on_timer_changed(game_manager.ROUND_TIME)
 	_on_streak_changed(0)
 	
-	# Hook visibility change for pause+mute (web platform) - CALLBACK not polling
-	if OS.has_feature("web"):
-		# DEFER callback registration to after first frame to avoid boot freeze
-		# (if page loads with tab hidden, immediate visibilitychange would pause before start)
-		await get_tree().process_frame
-		
-		# Create JavaScriptBridge callback (Godot 4.3 pattern)
-		visibility_callback = JavaScriptBridge.create_callback(_on_visibility_callback)
-		
-		# Register callback with document.visibilitychange event
-		var js_setup = """
-		(function(callback) {
-			window._godot_vis_cb = callback;
-			document.addEventListener('visibilitychange', function() {
-				if (window._godot_vis_cb) {
-					window._godot_vis_cb.call(null, [document.hidden]);
-				}
-			});
-			console.log('Godot visibility callback registered (non-polling)');
-		})
-		"""
-		# FIXED: Pass callback as argument, not as 'this' context
-		JavaScriptBridge.eval(js_setup, true).call(null, visibility_callback)
-		print("🔍 Visibility: JavaScriptBridge callback registered")
-	else:
-		# Fallback for desktop
-		get_tree().root.focus_exited.connect(_on_visibility_lost)
-
-func _on_visibility_callback(args):
-	# Called from JS via JavaScriptBridge - args[0] is document.hidden boolean
-	var is_hidden = args[0] if args.size() > 0 else false
-	
-	if is_hidden:
-		_on_visibility_lost()
-		print("📴 Callback: Tab hidden")
-	else:
-		print("📱 Callback: Tab visible (stay paused)")
+	# Hook visibility change for pause+mute
+	get_tree().root.focus_exited.connect(_on_visibility_lost)
 
 func _on_visibility_lost():
-	# Auto-pause with TRIPLE GUARD
-	print("🔇 TAB HIDDEN: Pausing SceneTree + muting audio")
-	
-	# GUARD 1: Pause scene tree
-	get_tree().paused = true
-	
-	# GUARD 2: Time scale (belt & suspenders)
-	Engine.time_scale = 0.0
-	
-	# GUARD 3: Game manager flags
-	if !game_manager.is_game_over:
-		game_manager.is_paused = true
-		if game_manager.has("tab_hidden_paused"):
-			game_manager.set("tab_hidden_paused", true)
-		pause_button.text = "Resume"
-	
-	# Mute audio
-	AudioServer.set_bus_mute(0, true)
-	mute_button.text = "Unmute"
-
+	# Stub: pause and mute on visibility loss
+	if !game_manager.is_game_over and !game_manager.is_paused:
+		_on_pause_pressed()
+	print("VISIBILITY LOST: Auto-pause+mute stub")
 
 func _on_score_changed(new_score: int):
 	score_label.text = "Score: %d" % new_score
@@ -135,26 +75,12 @@ func _on_timer_changed(time: float):
 	timer_label.text = "Time: %d" % seconds
 
 func _on_streak_changed(streak: int):
-	if streak > 0:
-		streak_label.text = "Streak: +%d" % streak
-		streak_label.show()
-	else:
-		streak_label.hide()
+	# Always show streak label
+	streak_label.text = "Streak: +%d" % streak
+	streak_label.show()
 
 func _on_pause_pressed():
-	# Resume also clears tab_hidden_paused
-	if game_manager.is_paused:
-		# Resuming
-		get_tree().paused = false
-		Engine.time_scale = 1.0
-		game_manager.is_paused = false
-		if game_manager.has("tab_hidden_paused"):
-			game_manager.set("tab_hidden_paused", false)
-	else:
-		# Pausing
-		get_tree().paused = true
-		game_manager.is_paused = true
-	
+	game_manager.toggle_pause()
 	pause_button.text = "Resume" if game_manager.is_paused else "Pause"
 
 func _on_mute_pressed():
@@ -174,15 +100,27 @@ func show_game_over(result: String, final_score: int):
 	final_score_label.text = "Final Score: %d" % final_score
 	game_over_panel.show()
 	
+	# Re-enable retry button (may have been disabled from previous retry)
+	retry_button.disabled = false
+	
 	# Midroll ad stub - would trigger here
 	print("MIDROLL AD SLOT: Attempt ended")
 
 func _on_retry_pressed():
+	# Disable button to prevent double-clicks during async restart
+	retry_button.disabled = true
+	
+	# Free any in-flight packages immediately
+	var packages = get_tree().get_nodes_in_group("packages")
+	for pkg in packages:
+		if is_instance_valid(pkg):
+			pkg.queue_free()
+	
+	# Hide game over panel
+	game_over_panel.hide()
+	
+	# Restart game (async)
 	game_manager.restart_game()
 
 func _on_debug_pressed():
 	game_manager.debug_add_credit()
-
-func update_debug_label(text: String):
-	if debug_label:
-		debug_label.text = text
