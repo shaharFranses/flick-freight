@@ -1,0 +1,111 @@
+[gd_scene load_steps=3 format=3 uid="uid://barrel789"]
+
+[ext_resource type="Script" path="res://scripts/package_base.gd" id="1_1"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
+size = Vector2(56, 72)
+
+[node name="PackageBarrel" type="RigidBody2D"]
+collision_layer = 2
+collision_mask = 5
+contact_monitor = true
+max_contacts_reported = 5
+mass = 1.7
+gravity_scale = 0.918
+linear_damp = 0.02
+script = ExtResource("1_1")
+package_mass = 1.7
+bay_hitbox_scale = 0.7
+points = 3
+
+[node name="Visual" type="ColorRect" parent="."]
+offset_left = -28.0
+offset_top = -30.0
+offset_right = 28.0
+offset_bottom = 30.0
+color = Color(0.227, 0.549, 0.769, 1)
+
+[node name="CapTop" type="ColorRect" parent="."]
+offset_left = -20.0
+offset_top = -36.0
+offset_right = 20.0
+offset_bottom = -30.0
+color = Color(0.227, 0.549, 0.769, 1)
+
+[node name="CapBottom" type="ColorRect" parent="."]
+offset_left = -20.0
+offset_top = 30.0
+offset_right = 20.0
+offset_bottom = 36.0
+color = Color(0.227, 0.549, 0.769, 1)
+
+[node name="CapTopSmall" type="ColorRect" parent="."]
+offset_left = -14.0
+offset_top = -38.0
+offset_right = 14.0
+offset_bottom = -36.0
+color = Color(0.227, 0.549, 0.769, 1)
+
+[node name="CapBottomSmall" type="ColorRect" parent="."]
+offset_left = -14.0
+offset_top = 36.0
+offset_right = 14.0
+offset_bottom = 38.0
+color = Color(0.227, 0.549, 0.769, 1)
+
+[node name="Outline" type="ColorRect" parent="."]
+offset_left = -28.0
+offset_top = -30.0
+offset_right = 28.0
+offset_bottom = 30.0
+color = Color(0, 0, 0, 0)
+mouse_filter = 2
+
+[node name="OutlineLeft" type="ColorRect" parent="Visual"]
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 4.0
+offset_bottom = 60.0
+color = Color(0.15, 0.15, 0.15, 1)
+
+[node name="OutlineRight" type="ColorRect" parent="Visual"]
+offset_left = 52.0
+offset_top = 0.0
+offset_right = 56.0
+offset_bottom = 60.0
+color = Color(0.15, 0.15, 0.15, 1)
+
+[node name="Label" type="Label" parent="."]
+offset_left = -28.0
+offset_top = -18.0
+offset_right = 28.0
+offset_bottom = 18.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 12
+text = "BARREL"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Hoop1" type="ColorRect" parent="."]
+offset_left = -28.0
+offset_top = -26.0
+offset_right = 28.0
+offset_bottom = -20.0
+color = Color(0.1, 0.1, 0.15, 1)
+
+[node name="Hoop2" type="ColorRect" parent="."]
+offset_left = -28.0
+offset_top = 20.0
+offset_right = 28.0
+offset_bottom = 26.0
+color = Color(0.1, 0.1, 0.15, 1)
+
+[node name="Hoop3" type="ColorRect" parent="."]
+offset_left = -28.0
+offset_top = -2.0
+offset_right = 28.0
+offset_bottom = 2.0
+color = Color(0.1, 0.1, 0.15, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_1")

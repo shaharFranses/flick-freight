@@ -1,0 +1,28 @@
+# Godot 4
+.godot/
+*.translation
+export.cfg
+export_credentials.cfg
+.import/
+mono_crash.*.json
+
+# Web export output (build artifacts, not source) - never commit
+export/
+build/
+*.wasm
+*.pck
+*.zip
+*.tpz
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+*.log
+
+# Deploy tool state
+.vercel/
+.netlify/
