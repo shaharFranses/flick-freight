@@ -58,6 +58,7 @@ var is_game_over: bool = false
 var can_spawn: bool = true
 var spawn_timer: float = 0.0
 var qa_mode: bool = false  # QA flag: slower bay, longer juice
+var has_spawned_first: bool = false  # A: Timer must not tick before first spawn
 
 # CRITICAL: Track credited packages by instance_id to prevent double-counting
 var credited_ids: Dictionary = {}
@@ -80,6 +81,9 @@ signal game_lost
 signal streak_changed(streak: int)
 
 func _ready():
+	# QA ITEM 2: Set clear color for letterbox bars
+	RenderingServer.set_default_clear_color(Color(0.122, 0.149, 0.2, 1))
+	
 	call_deferred("_init_shift_config")
 	
 	# Detect QA mode from URL parameter ?qa=1
@@ -140,12 +144,6 @@ func run_self_test():
 	print("═══════════════════════════════════════")
 	print("🧪 SELF-TEST: Credit system with forced same key")
 	
-	# Create two dummy nodes with SAME forced credit_key
-	var dummy1 = Node.new()
-	dummy1.name = "TestDummy1"
-	var dummy2 = Node.new()
-	dummy2.name = "TestDummy2"
-	
 	# Mock get_credit_key to return SAME string for both
 	var test_key = "test_forced_key_123"
 	
@@ -200,9 +198,6 @@ func run_self_test():
 		debug_label.text = result_text
 	
 	print("═══════════════════════════════════════")
-	
-	dummy1.queue_free()
-	dummy2.queue_free()
 
 func test_register_credit(key: String, points: int) -> bool:
 	# Simulate register_successful_load check
@@ -232,9 +227,10 @@ func _process(delta: float):
 		for pkg in active_packages:
 			print("  - ", pkg.name, " id:", pkg.get_instance_id())
 	
-	# Update timer
-	time_remaining -= delta
-	timer_changed.emit(time_remaining)
+	# A: Update timer only after first spawn
+	if has_spawned_first:
+		time_remaining -= delta
+		timer_changed.emit(time_remaining)
 	
 	# Check lose condition
 	if time_remaining <= 0:
@@ -281,14 +277,17 @@ func spawn_package():
 	# BUBBLE-SHOOTER: If we have a preview, advance it to current
 	if next_preview != null and is_instance_valid(next_preview):
 		print("📦 ADVANCING preview to current slot")
-		advance_preview_to_current()
-		# Generate new preview
-		generate_preview(selected_type)
+		advance_preview_to_current(selected_type)
+		# r3: new preview pops in when the slide finishes (see _finish_advance_anim)
+		next_preview_type = selected_type
 	else:
 		# First spawn or no preview: create current directly
 		print("📦 SPAWNING initial current package:", selected_type)
 		current_package = package_scenes[selected_type].instantiate()
 		get_tree().root.get_node("Main/World").add_child(current_package)
+		
+		# Add CURRENT chip (ITEM (a): visible immediately)
+		add_current_chip_to_package(current_package)
 		
 		# CRITICAL: Connect missed signal to advance conveyor on misses
 		current_package.missed.connect(_on_package_missed)
@@ -298,6 +297,9 @@ func spawn_package():
 		# Generate first preview
 		var preview_type = select_random_type()
 		generate_preview(preview_type)
+		
+		# A: Start timer after first spawn (deferred to next frame)
+		call_deferred("_start_timer")
 	
 	can_spawn = false
 
@@ -321,70 +323,175 @@ func select_random_type() -> String:
 	
 	return selected
 
-func generate_preview(type: String):
+# r3: NEXT preview sits beside the flick spot and shows the real cargo art
+const FLICK_SPOT = Vector2(360, 1150)
+const NEXT_POS = Vector2(530, 1160)
+const NEXT_ART_SCALE = 0.75
+const NEXT_SLIDE_TIME = 0.25
+var advance_ghost: Node2D = null  # r3: transient cargo art sliding NEXT -> flick spot
+var advance_tween: Tween = null
+var next_pop_tween: Tween = null
+var shake_tween_ref: Tween = null
+
+func make_cargo_art(type: String) -> Node2D:
+	"""r3: Display-only copy of a package scene's visuals (same art as in play)"""
+	var art = Node2D.new()
+	var package_instance = package_scenes[type].instantiate()
+	for child in package_instance.get_children():
+		if child is CanvasItem:
+			art.add_child(child.duplicate())
+	package_instance.free()
+	return art
+
+func generate_preview(type: String, pop_in: bool = false):
 	# Remove old preview if exists
 	if next_preview != null and is_instance_valid(next_preview):
 		next_preview.queue_free()
+	if next_pop_tween != null and next_pop_tween.is_valid():
+		next_pop_tween.kill()
 	
 	# Store the type for truthful preview
 	next_preview_type = type
 	
-	# Create DISPLAY-ONLY preview (no physics)
+	# Create DISPLAY-ONLY preview (no physics), right beside the flick spot
 	next_preview = Node2D.new()
 	next_preview.name = "NextPreview"
-	next_preview.position = Vector2(600, 500)  # Right side, mid-screen
+	next_preview.position = NEXT_POS
+	next_preview.z_index = 5
 	
-	# Add visual container (background panel)
 	var panel = ColorRect.new()
-	panel.size = Vector2(100, 80)
-	panel.color = Color(0.2, 0.2, 0.3, 0.8)  # Semi-transparent dark background
-	panel.position = Vector2(-50, -40)  # Center on preview position
+	panel.name = "Panel"
+	panel.size = Vector2(96, 112)
+	panel.position = Vector2(-48, -64)
+	panel.color = Color(0.1, 0.12, 0.18, 0.85)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	next_preview.add_child(panel)
 	
-	# Add "NEXT" label
+	# Caption "NEXT" above the art
 	var next_label = Label.new()
+	next_label.name = "NextCaption"
 	next_label.text = "NEXT"
-	next_label.add_theme_font_size_override("font_size", 14)
-	next_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
-	next_label.position = Vector2(-40, -30)
+	next_label.add_theme_font_size_override("font_size", 16)
+	next_label.add_theme_color_override("font_color", Color(1, 0.9, 0.4))
+	next_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	next_label.position = Vector2(-48, -62)
+	next_label.size = Vector2(96, 20)
+	next_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	next_preview.add_child(next_label)
 	
-	# Add package type label
-	var type_label = Label.new()
-	type_label.text = type.to_upper()
-	type_label.add_theme_font_size_override("font_size", 18)
-	type_label.add_theme_color_override("font_color", Color(1, 1, 1))
-	type_label.position = Vector2(-40, -10)
-	next_preview.add_child(type_label)
+	# Small arrow pointing at the flick spot ("up next" reads left)
+	var arrow = Polygon2D.new()
+	arrow.name = "NextArrow"
+	arrow.polygon = PackedVector2Array([Vector2(-50, -6), Vector2(-62, 0), Vector2(-50, 6)])
+	arrow.color = Color(1, 0.9, 0.4, 0.9)
+	next_preview.add_child(arrow)
+	
+	# Real cargo art, scaled down
+	var art = make_cargo_art(type)
+	art.name = "CargoArt"
+	art.scale = Vector2(NEXT_ART_SCALE, NEXT_ART_SCALE)
+	art.position = Vector2(0, 4)
+	next_preview.add_child(art)
 	
 	get_tree().root.get_node("Main/World").add_child(next_preview)
 	
-	print("  Generated preview:", type, "(truthful: will become CURRENT)")
+	if pop_in:
+		next_preview.scale = Vector2(0.2, 0.2)
+		next_pop_tween = next_preview.create_tween()
+		next_pop_tween.tween_property(next_preview, "scale", Vector2(1.1, 1.1), 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		next_pop_tween.tween_property(next_preview, "scale", Vector2(1.0, 1.0), 0.08)
+	
+	print("  Generated preview:", type, "(truthful: will become CURRENT, real art beside flick spot)")
 
-func advance_preview_to_current():
+func add_current_chip_to_package(package: RigidBody2D):
+	"""(3): Add CURRENT chip with bigger label (>=14px effective) and high-contrast backing"""
+	# (3): Add dark backing plate first (drawn behind label)
+	var label_backing = ColorRect.new()
+	label_backing.size = Vector2(90, 28)
+	label_backing.color = Color(0.05, 0.05, 0.1, 0.95)  # Very dark, high opacity
+	label_backing.position = Vector2(-45, -75)  # Above package
+	label_backing.z_index = 99
+	package.add_child(label_backing)
+	
+	# (3): Add CURRENT label with bigger font and bright color
+	var current_label = Label.new()
+	current_label.name = "CurrentChip"
+	current_label.text = "CURRENT"
+	current_label.add_theme_font_size_override("font_size", 20)  # Bigger for >= 14px effective
+	current_label.add_theme_color_override("font_color", Color(1, 1, 0.3, 1))  # Bright yellow
+	current_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	current_label.position = Vector2(-45, -72)  # Centered on backing
+	current_label.size = Vector2(90, 24)
+	current_label.z_index = 100
+	package.add_child(current_label)
+
+func advance_preview_to_current(new_preview_type: String = ""):
 	# Move preview to current slot (becomes real physics package)
 	if next_preview == null or !is_instance_valid(next_preview):
 		return
 	
 	# Use the stored preview type (truthful preview)
 	var type_name = next_preview_type if next_preview_type != "" else "box"
+	var from_pos = next_preview.position
 	
 	# Remove preview
 	next_preview.queue_free()
 	next_preview = null
 	next_preview_type = ""
 	
-	# Create actual physics package
+	# Create actual physics package (same as before: spot, CURRENT chip, missed signal)
 	current_package = package_scenes[type_name].instantiate()
 	get_tree().root.get_node("Main/World").add_child(current_package)
-	
-	# CRITICAL: Connect missed signal to advance conveyor on misses
+	add_current_chip_to_package(current_package)
 	current_package.missed.connect(_on_package_missed)
-	
 	print("  Advanced to current, ID:", current_package.get_instance_id(), "type:", type_name)
 	
 	# Set advance lock
 	advance_lock_until = Time.get_ticks_msec() / 1000.0 + 0.3
+	
+	# r3: slide/pop animation. The real package is hidden + input-locked while a ghost
+	# copy of its art slides from NEXT into the flick spot with a scale bounce.
+	_clear_advance_anim()
+	var pkg = current_package
+	pkg.modulate.a = 0.0
+	pkg.set_process_input(false)
+	advance_ghost = make_cargo_art(type_name)
+	advance_ghost.name = "AdvanceGhost"
+	advance_ghost.position = from_pos + Vector2(0, 4)
+	advance_ghost.scale = Vector2(0.8, 0.8)
+	advance_ghost.z_index = 6
+	get_tree().root.get_node("Main/World").add_child(advance_ghost)
+	var ghost = advance_ghost
+	advance_tween = ghost.create_tween()
+	advance_tween.set_parallel(true)
+	advance_tween.tween_property(ghost, "position", FLICK_SPOT, NEXT_SLIDE_TIME).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	advance_tween.tween_property(ghost, "scale", Vector2(1.1, 1.1), NEXT_SLIDE_TIME * 0.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	advance_tween.chain().tween_property(ghost, "scale", Vector2(1.0, 1.0), 0.08)
+	advance_tween.chain().tween_callback(func():
+		_finish_advance_anim(pkg, new_preview_type)
+	)
+
+func _finish_advance_anim(pkg, new_preview_type: String):
+	if is_instance_valid(advance_ghost):
+		advance_ghost.queue_free()
+	advance_ghost = null
+	advance_tween = null
+	if is_instance_valid(pkg):
+		pkg.modulate.a = 1.0
+		pkg.set_process_input(true)
+		if is_game_over:
+			pkg.visible = false
+	# Refresh NEXT with a pop-in (type was decided at advance time)
+	if new_preview_type != "" and !is_game_over and (next_preview == null or !is_instance_valid(next_preview)):
+		generate_preview(new_preview_type, true)
+
+func _clear_advance_anim():
+	if advance_tween != null and advance_tween.is_valid():
+		advance_tween.kill()
+	advance_tween = null
+	if advance_ghost != null and is_instance_valid(advance_ghost):
+		advance_ghost.queue_free()
+	advance_ghost = null
 
 func on_package_resolved():
 	# Called when current package lands or misses
@@ -511,8 +618,33 @@ func _on_package_missed():
 	# Package resolved - advance conveyor
 	on_package_resolved()
 
+func _start_timer():
+	"""A: Deferred timer start after first spawn"""
+	has_spawned_first = true
+	print("⏱️ Timer started after first spawn")
+
 func game_over(won: bool):
 	is_game_over = true
+	
+	# MEDIUM 3 FIX: Hide NEXT/CURRENT on game over
+	if next_preview != null and is_instance_valid(next_preview):
+		next_preview.visible = false
+	if current_package != null and is_instance_valid(current_package):
+		current_package.visible = false
+	_clear_advance_anim()
+	
+	# LOW FIX: Freeze bay on game over
+	var truck_bay = get_tree().root.get_node_or_null("Main/World/TruckBay")
+	if truck_bay:
+		truck_bay.set_process(false)
+	
+	# ITEM 5 FIX: Hide Pause button during game over
+	var ui_manager = get_tree().root.get_node_or_null("Main/UIManager")
+	if ui_manager:
+		var pause_plate = ui_manager.get_node_or_null("UI/PausePlate")
+		if pause_plate:
+			pause_plate.visible = false
+	
 	if won:
 		game_won.emit()
 	else:
@@ -523,6 +655,10 @@ func toggle_pause():
 	get_tree().paused = is_paused
 
 func restart_game():
+	# ITEM 5 FIX: ALWAYS unpause on restart, regardless of previous state
+	if is_paused:
+		toggle_pause()  # Unpause
+	
 	# Stop timer during restart
 	var was_game_over = is_game_over
 	is_game_over = true
@@ -536,6 +672,7 @@ func restart_game():
 		next_preview.queue_free()
 	next_preview = null
 	next_preview_type = ""
+	_clear_advance_anim()
 	
 	# Clear any other packages in group
 	var packages = get_tree().get_nodes_in_group("packages")
@@ -556,6 +693,7 @@ func restart_game():
 	spawn_timer = 0.0
 	credited_ids.clear()
 	score_cooldown_until = 0
+	has_spawned_first = false  # A: Reset timer gate on restart
 	
 	# Emit signals to update UI
 	score_changed.emit(current_score)
@@ -566,13 +704,45 @@ func restart_game():
 	# Spawn new package
 	spawn_package()
 	
-	# Reset truck bay to center
+	# Reset truck bay to center and resume processing
 	var truck_bay = get_tree().root.get_node_or_null("Main/World/TruckBay")
-	if truck_bay and truck_bay.has_method("reset_position"):
-		truck_bay.reset_position()
+	if truck_bay:
+		if truck_bay.has_method("reset_position"):
+			truck_bay.reset_position()
+		truck_bay.set_process(true)  # Resume bay movement
+	
+	# ITEM 5 FIX: Show Pause button again and ensure PAUSED overlay hidden
+	var ui_manager = get_tree().root.get_node_or_null("Main/UIManager")
+	if ui_manager:
+		var pause_plate = ui_manager.get_node_or_null("UI/PausePlate")
+		if pause_plate:
+			pause_plate.visible = true
+		# Force update paused overlay to hidden state
+		if ui_manager.has_method("_update_paused_overlay"):
+			ui_manager._update_paused_overlay()
+	
+	# (5): Restart flash CLEARLY white-blue (different hue from green hit flash)
+	var world = get_tree().root.get_node_or_null("Main/World")
+	if world:
+		var flash = ColorRect.new()
+		flash.size = Vector2(720, 1280)
+		# (5): Pure WHITE with slight blue tint (RGB all high, blue highest)
+		flash.color = Color(0.95, 0.95, 1.0, 1.0)  # Almost pure white with blue tint
+		flash.modulate = Color(1, 1, 1, 1)  # Reset modulate explicitly (no inherited alpha)
+		flash.z_index = 50
+		world.add_child(flash)
+		
+		var tween = create_tween()
+		tween.tween_property(flash, "modulate:a", 0.0, 0.4)  # Slower fade for clarity
+		
+		var cleanup_flash = flash
+		tween.finished.connect(func():
+			if is_instance_valid(cleanup_flash):
+				cleanup_flash.queue_free()
+		)
 
 func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color):
-	"""Spawn hit particles + score pop"""
+	"""Spawn hit particles + score pop + LOCALIZED green flash"""
 	var world = get_tree().root.get_node_or_null("Main/World")
 	if !world:
 		return
@@ -580,12 +750,29 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color):
 	# QA mode: 3x duration for all effects
 	var duration_mult = 3.0 if qa_mode else 1.0
 	
-	# Cargo-tinted particle burst
+	# D: Small localized green flash at truck bay (150x150), very faint
+	var hit_flash = ColorRect.new()
+	hit_flash.position = Vector2(pos.x - 75, pos.y - 75)
+	hit_flash.size = Vector2(150, 150)
+	hit_flash.color = Color(0.2, 1.0, 0.3, 0.05)  # Very faint green tint (alpha 0.05)
+	hit_flash.z_index = 55
+	world.add_child(hit_flash)
+	
+	var flash_tween = create_tween()
+	flash_tween.tween_property(hit_flash, "modulate:a", 0.0, 0.2 * duration_mult)
+	
+	var cleanup_hit_flash = hit_flash
+	flash_tween.finished.connect(func():
+		if is_instance_valid(cleanup_hit_flash):
+			cleanup_hit_flash.queue_free()
+	)
+	
+	# ITEM (b): Larger/brighter hit particles (doubled amount, bigger scale)
 	var particles = CPUParticles2D.new()
 	particles.position = pos
 	particles.emitting = true
 	particles.one_shot = true
-	particles.amount = 15
+	particles.amount = 30  # Doubled from 15
 	particles.lifetime = 0.6 * duration_mult
 	particles.explosiveness = 0.95
 	particles.direction = Vector2(0, -1)
@@ -593,8 +780,8 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color):
 	particles.gravity = Vector2(0, 450)
 	particles.initial_velocity_min = 180.0
 	particles.initial_velocity_max = 320.0
-	particles.scale_amount_min = 2.5
-	particles.scale_amount_max = 5.0
+	particles.scale_amount_min = 4.0  # Increased from 2.5
+	particles.scale_amount_max = 8.0  # Increased from 5.0
 	particles.color = cargo_color
 	world.add_child(particles)
 	
@@ -628,48 +815,94 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color):
 	)
 
 func spawn_miss_juice(pos: Vector2):
-	"""Spawn gray dust particles on miss - enhanced visibility"""
+	"""Spawn gray dust particles on miss - STRONG visibility + SHAKE"""
 	var world = get_tree().root.get_node_or_null("Main/World")
 	if !world:
+		return
+	
+	# ITEM 2: Skip shake if paused or game over
+	if is_paused or is_game_over:
+		print("⚠️ MISS SHAKE SKIPPED: paused=%s game_over=%s" % [is_paused, is_game_over])
 		return
 	
 	# QA mode: 3x duration for all effects
 	var duration_mult = 3.0 if qa_mode else 1.0
 	
-	# Enhanced gray dust burst (2x particles, bigger, longer-lived)
+	# QA ITEM 6: DETERMINISTIC SHAKE - 6-5-4-3 game units, ~0.25s, decaying
+	# Kill any existing position tweens to prevent overlap/drift
+	# r3: only kill the previous SHAKE tween (killing every tween broke hint/NEXT anims)
+	if shake_tween_ref != null and shake_tween_ref.is_valid():
+		shake_tween_ref.kill()
+	
+	# CRITICAL: Always start from (0,0) to prevent drift accumulation
+	# Force world to origin before shake
+	world.position = Vector2.ZERO
+	var shake_start_pos = Vector2.ZERO
+	
+	var shake_duration = 0.25 * duration_mult
+	
+	# Create deterministic shake with decaying amplitude
+	var shake_tween = create_tween()
+	shake_tween_ref = shake_tween
+	shake_tween.set_process_mode(Tween.TWEEN_PROCESS_IDLE)  # Don't shake while paused
+	
+	# QA ITEM 6: Higher amplitude shake (6-5-4-3 game units, visible at small scales)
+	# At scale 0.3: 6 * 0.3 = ~2 CSS px displacement
+	var offsets = [
+		Vector2(6, 0),    # 6 game units horizontal
+		Vector2(-5, 0),   # 5 game units horizontal
+		Vector2(4, 0),    # 4 game units horizontal
+		Vector2(-3, 0),   # 3 game units horizontal
+	]
+	
+	# Animate through offsets quickly
+	var step_duration = shake_duration / offsets.size()
+	for offset in offsets:
+		shake_tween.tween_property(world, "position", shake_start_pos + offset, step_duration)
+	
+	# CRITICAL: Force exact return to start position (no drift)
+	var final_pos = shake_start_pos  # Capture in closure
+	shake_tween.tween_property(world, "position", final_pos, 0.0)
+	shake_tween.tween_callback(func():
+		if is_instance_valid(world):
+			world.position = final_pos  # Force exact position in callback
+			print("✅ MISS SHAKE COMPLETE: position reset to", final_pos)
+	)
+	
+	# STRONGER dust burst (4x particles, much bigger, longer-lived)
 	var particles = CPUParticles2D.new()
 	particles.position = pos
 	particles.emitting = true
 	particles.one_shot = true
-	particles.amount = 16  # Doubled from 8
-	particles.lifetime = 0.6 * duration_mult  # Increased from 0.5s, 3x in QA mode
-	particles.explosiveness = 0.8
+	particles.amount = 32  # Quadrupled from 8
+	particles.lifetime = 0.8 * duration_mult  # Increased further
+	particles.explosiveness = 0.9  # More explosive
 	particles.direction = Vector2(0, -1)
-	particles.spread = 60
+	particles.spread = 80  # Wider spread
 	particles.gravity = Vector2(0, 300)
-	particles.initial_velocity_min = 80.0
-	particles.initial_velocity_max = 180.0
-	particles.scale_amount_min = 4.0  # Increased from 3.0
-	particles.scale_amount_max = 8.0  # Increased from 6.0
-	particles.color = Color(0.5, 0.5, 0.5, 0.8)  # Lighter and more opaque
+	particles.initial_velocity_min = 120.0  # Faster
+	particles.initial_velocity_max = 250.0  # Faster
+	particles.scale_amount_min = 6.0  # Much bigger
+	particles.scale_amount_max = 12.0  # Much bigger
+	particles.color = Color(0.6, 0.6, 0.6, 0.9)  # More opaque
 	world.add_child(particles)
 	
 	# Auto-cleanup
 	var cleanup_particles = particles  # Copy reference
-	get_tree().create_timer(1.0 * duration_mult).timeout.connect(func(): 
+	get_tree().create_timer(1.2 * duration_mult).timeout.connect(func(): 
 		if is_instance_valid(cleanup_particles):
 			cleanup_particles.queue_free()
 	)
 	
-	# Dull flash effect on miss
+	# STRONGER gray flash on miss
 	var flash = ColorRect.new()
 	flash.size = Vector2(720, 1280)
-	flash.color = Color(0.4, 0.4, 0.4, 0.15)  # Dull gray flash
+	flash.color = Color(0.5, 0.5, 0.5, 0.25)  # Brighter gray flash
 	flash.z_index = 50
 	world.add_child(flash)
 	
 	var tween = create_tween()
-	tween.tween_property(flash, "modulate:a", 0.0, 0.3 * duration_mult)  # Short fade, 3x in QA mode
+	tween.tween_property(flash, "modulate:a", 0.0, 0.4 * duration_mult)  # Longer fade
 	
 	var cleanup_flash = flash  # Copy reference
 	tween.finished.connect(func():

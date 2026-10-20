@@ -11,18 +11,21 @@ var start_time: float = 0.0
 var center_x: float = 360.0  # Half of 720px dock width
 var scored_packages: Array = []  # Track packages that have already scored
 var speed_multiplier: float = 1.0  # QA mode: 0.25 for slower bay
+var round_start_time: float = 0.0  # Track round start for speed ramp
 
 func _ready():
 	start_time = Time.get_ticks_msec() / 1000.0
+	round_start_time = start_time
 	position.x = center_x
 	
 	# Connect to detect packages entering
 	body_entered.connect(_on_body_entered)
 
 func reset_position():
-	"""Reset truck to center position"""
+	"""Reset truck to center position and restart speed ramp"""
 	position.x = center_x
 	start_time = Time.get_ticks_msec() / 1000.0
+	round_start_time = start_time
 	scored_packages.clear()
 
 func set_speed_multiplier(multiplier: float):
@@ -33,9 +36,20 @@ func set_speed_multiplier(multiplier: float):
 func _process(delta: float):
 	var elapsed = (Time.get_ticks_msec() / 1000.0) - start_time
 	
-	# Apply speed multiplier (QA mode: 0.25 = 4x slower)
-	# Multiply elapsed by multiplier to slow down: 0.25 makes time pass 4x slower
-	var adjusted_elapsed = elapsed * speed_multiplier
+	# ITEM 1: Speed ramp from 0.6 to 1.0 over first 7 seconds of each round
+	var round_elapsed = (Time.get_ticks_msec() / 1000.0) - round_start_time
+	var ramp_duration = 7.0
+	var ramp_multiplier = 1.0
+	if round_elapsed < ramp_duration:
+		# Ramp from 0.6 to 1.0 over ramp_duration seconds
+		ramp_multiplier = lerp(0.6, 1.0, round_elapsed / ramp_duration)
+	
+	# Compose ramp with QA mode: final_multiplier = speed_multiplier * ramp_multiplier
+	# QA mode (0.25) stays 0.25x of the ramped speed
+	var final_multiplier = speed_multiplier * ramp_multiplier
+	
+	# Apply final multiplier to elapsed time
+	var adjusted_elapsed = elapsed * final_multiplier
 	
 	var lerp_factor = clamp(adjusted_elapsed / LERP_TIME, 0.0, 1.0)
 	var current_period = lerp(PERIOD_START, PERIOD_END, lerp_factor)

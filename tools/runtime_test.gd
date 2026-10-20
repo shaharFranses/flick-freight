@@ -400,13 +400,29 @@ func test_real_flick_start():
 	test_data["flick_initial_loads"] = game_manager.loads_completed
 	test_data["flick_resolved"] = false
 	
-	# Report bay movement
+	# Report bay movement (accounting for speed ramp)
 	var elapsed = (Time.get_ticks_msec() / 1000.0) - truck_bay.start_time
-	var lerp_factor = clamp(elapsed / truck_bay.LERP_TIME, 0.0, 1.0)
+	var round_elapsed = (Time.get_ticks_msec() / 1000.0) - truck_bay.round_start_time
+	
+	# Calculate speed ramp multiplier (same logic as truck_bay.gd)
+	var ramp_duration = 7.0
+	var ramp_multiplier = 1.0
+	if round_elapsed < ramp_duration:
+		ramp_multiplier = lerp(0.6, 1.0, round_elapsed / ramp_duration)
+	
+	# Get bay speed multiplier (QA mode)
+	var bay_speed_mult = truck_bay.speed_multiplier if truck_bay.speed_multiplier != null else 1.0
+	var final_multiplier = bay_speed_mult * ramp_multiplier
+	
+	# Adjusted elapsed accounts for speed ramp
+	var adjusted_elapsed = elapsed * final_multiplier
+	var lerp_factor = clamp(adjusted_elapsed / truck_bay.LERP_TIME, 0.0, 1.0)
 	var current_period = lerp(truck_bay.PERIOD_START, truck_bay.PERIOD_END, lerp_factor)
 	var current_speed = truck_bay.TRAVEL_RANGE * 2.0 / current_period
 	
 	print("  Bay info:")
+	print("    Ramp multiplier: %.2f" % ramp_multiplier)
+	print("    Final multiplier: %.2f" % final_multiplier)
 	print("    Current period: %.2f seconds" % current_period)
 	print("    Speed: %.1f px/s" % current_speed)
 	print("    Current position: x=%.1f" % truck_bay.position.x)
@@ -430,9 +446,16 @@ func test_real_flick_start():
 	var discriminant = b*b - 4*a*c
 	var est_flight_time = (-b - sqrt(discriminant)) / (2*a)  # Use the smaller positive root
 	
-	# Predict bay x at arrival
-	var bay_angle_now = (elapsed / current_period) * TAU
-	var bay_angle_at_arrival = bay_angle_now + (est_flight_time / current_period) * TAU
+	# Predict bay x at arrival (using adjusted elapsed time with ramp multiplier)
+	var bay_angle_now = (adjusted_elapsed / current_period) * TAU
+	# At arrival time, calculate new adjusted_elapsed and ramp_multiplier
+	var round_elapsed_at_arrival = round_elapsed + est_flight_time
+	var ramp_mult_at_arrival = 1.0
+	if round_elapsed_at_arrival < ramp_duration:
+		ramp_mult_at_arrival = lerp(0.6, 1.0, round_elapsed_at_arrival / ramp_duration)
+	var final_mult_at_arrival = bay_speed_mult * ramp_mult_at_arrival
+	var adjusted_elapsed_at_arrival = (elapsed + est_flight_time) * final_mult_at_arrival
+	var bay_angle_at_arrival = (adjusted_elapsed_at_arrival / current_period) * TAU
 	var bay_x_predicted = truck_bay.center_x + sin(bay_angle_at_arrival) * truck_bay.TRAVEL_RANGE
 	
 	print("  Prediction:")

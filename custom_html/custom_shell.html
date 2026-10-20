@@ -11,15 +11,35 @@ html, body, #canvas {
 	border: 0;
 }
 
+html, body {
+	width: 100%;
+	height: 100%;
+}
+
+#stage {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: #1f2633;
+}
+
 body {
 	color: white;
-	background-color: black;
+	background: #1f2633;
 	overflow: hidden;
 	touch-action: none;
 }
 
+html {
+	background-color: #1f2633;
+}
+
 #canvas {
 	display: block;
+	flex: none;
+	background-color: #1f2633;
 }
 
 #canvas:focus {
@@ -81,9 +101,11 @@ body {
 
 	</head>
 	<body>
-		<canvas id="canvas">
+		<div id="stage">
+		<canvas id="canvas" width="720" height="1280">
 			Your browser does not support the canvas tag.
 		</canvas>
+		</div>
 
 		<noscript>
 			Your browser does not support JavaScript.
@@ -97,9 +119,33 @@ body {
 
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":61152,"index.wasm":35376909},"focusCanvas":true,"gdextensionLibs":[]};
+const GODOT_CONFIG = $GODOT_CONFIG;
+GODOT_CONFIG.ensureCrossOriginIsolationHeaders = false;
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
+
+// r3 letterbox: canvasResizePolicy 0 (Godot never touches the canvas). We size the
+// canvas to the 9:16 box ourselves: CSS size AND backing buffer together, so input maps 1:1.
+(function () {
+	const canvas = document.getElementById('canvas');
+	function fitCanvas() {
+		const vw = window.innerWidth;
+		const vh = window.innerHeight;
+		const cssH = Math.min(vh, vw * 16 / 9);
+		const cssW = cssH * 9 / 16;
+		const dpr = window.devicePixelRatio || 1;
+		canvas.style.width = cssW + 'px';
+		canvas.style.height = cssH + 'px';
+		const bw = Math.max(1, Math.round(cssW * dpr));
+		const bh = Math.max(1, Math.round(cssH * dpr));
+		if (canvas.width !== bw) canvas.width = bw;
+		if (canvas.height !== bh) canvas.height = bh;
+	}
+	fitCanvas();
+	window.addEventListener('resize', fitCanvas);
+	window.addEventListener('orientationchange', function () { setTimeout(fitCanvas, 50); });
+	window.__ffFitCanvas = fitCanvas;
+}());
 
 (function () {
 	const statusOverlay = document.getElementById('status');

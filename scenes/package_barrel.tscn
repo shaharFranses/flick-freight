@@ -19,94 +19,120 @@ bay_hitbox_scale = 0.7
 points = 3
 
 [node name="Visual" type="ColorRect" parent="."]
+offset_left = -24.0
+offset_top = -32.0
+offset_right = 24.0
+offset_bottom = 32.0
+color = Color(0.227, 0.549, 0.769, 1)
+
+[node name="BulgeTop" type="ColorRect" parent="."]
+offset_left = -26.0
+offset_top = -24.0
+offset_right = 26.0
+offset_bottom = -16.0
+color = Color(0.227, 0.549, 0.769, 1)
+
+[node name="BulgeMiddle" type="ColorRect" parent="."]
 offset_left = -28.0
-offset_top = -30.0
+offset_top = -8.0
 offset_right = 28.0
-offset_bottom = 30.0
+offset_bottom = 8.0
+color = Color(0.227, 0.549, 0.769, 1)
+
+[node name="BulgeBottom" type="ColorRect" parent="."]
+offset_left = -26.0
+offset_top = 16.0
+offset_right = 26.0
+offset_bottom = 24.0
 color = Color(0.227, 0.549, 0.769, 1)
 
 [node name="CapTop" type="ColorRect" parent="."]
-offset_left = -20.0
+offset_left = -18.0
 offset_top = -36.0
-offset_right = 20.0
-offset_bottom = -30.0
-color = Color(0.227, 0.549, 0.769, 1)
+offset_right = 18.0
+offset_bottom = -32.0
+color = Color(0.2, 0.45, 0.65, 1)
 
 [node name="CapBottom" type="ColorRect" parent="."]
-offset_left = -20.0
-offset_top = 30.0
-offset_right = 20.0
+offset_left = -18.0
+offset_top = 32.0
+offset_right = 18.0
 offset_bottom = 36.0
-color = Color(0.227, 0.549, 0.769, 1)
-
-[node name="CapTopSmall" type="ColorRect" parent="."]
-offset_left = -14.0
-offset_top = -38.0
-offset_right = 14.0
-offset_bottom = -36.0
-color = Color(0.227, 0.549, 0.769, 1)
-
-[node name="CapBottomSmall" type="ColorRect" parent="."]
-offset_left = -14.0
-offset_top = 36.0
-offset_right = 14.0
-offset_bottom = 38.0
-color = Color(0.227, 0.549, 0.769, 1)
+color = Color(0.2, 0.45, 0.65, 1)
 
 [node name="Outline" type="ColorRect" parent="."]
 offset_left = -28.0
-offset_top = -30.0
+offset_top = -36.0
 offset_right = 28.0
-offset_bottom = 30.0
+offset_bottom = 36.0
 color = Color(0, 0, 0, 0)
 mouse_filter = 2
 
 [node name="OutlineLeft" type="ColorRect" parent="Visual"]
 offset_left = 0.0
 offset_top = 0.0
-offset_right = 2.0
-offset_bottom = 60.0
-color = Color(0.2, 0.2, 0.2, 1)
+offset_right = 1.0
+offset_bottom = 64.0
+color = Color(0.15, 0.15, 0.2, 1)
 
 [node name="OutlineRight" type="ColorRect" parent="Visual"]
-offset_left = 54.0
+offset_left = 47.0
 offset_top = 0.0
-offset_right = 56.0
-offset_bottom = 60.0
-color = Color(0.2, 0.2, 0.2, 1)
+offset_right = 48.0
+offset_bottom = 64.0
+color = Color(0.15, 0.15, 0.2, 1)
 
 [node name="LabelBacking" type="ColorRect" parent="."]
-offset_left = -28.0
-offset_top = -18.0
-offset_right = 28.0
-offset_bottom = 18.0
-color = Color(0.1, 0.1, 0.1, 0.7)
-z_index = -1
+offset_left = -24.0
+offset_top = -12.0
+offset_right = 24.0
+offset_bottom = 12.0
+color = Color(0.05, 0.05, 0.1, 0.9)
+z_index = 2
 
 [node name="Label" type="Label" parent="."]
-offset_left = -28.0
-offset_top = -18.0
-offset_right = 28.0
-offset_bottom = 18.0
+offset_left = -24.0
+offset_top = -12.0
+offset_right = 24.0
+offset_bottom = 12.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 10
 text = "BARREL"
 horizontal_alignment = 1
 vertical_alignment = 1
+z_index = 3
 
 [node name="Hoop1" type="ColorRect" parent="."]
 offset_left = -28.0
-offset_top = -24.0
+offset_top = -28.0
 offset_right = 28.0
-offset_bottom = -18.0
-color = Color(0.15, 0.15, 0.2, 1)
+offset_bottom = -24.0
+color = Color(0.12, 0.12, 0.18, 1)
+z_index = 1
 
 [node name="Hoop2" type="ColorRect" parent="."]
 offset_left = -28.0
-offset_top = 18.0
+offset_top = -16.0
 offset_right = 28.0
-offset_bottom = 24.0
-color = Color(0.15, 0.15, 0.2, 1)
+offset_bottom = -14.0
+color = Color(0.12, 0.12, 0.18, 1)
+z_index = 1
+
+[node name="Hoop3" type="ColorRect" parent="."]
+offset_left = -28.0
+offset_top = 14.0
+offset_right = 28.0
+offset_bottom = 16.0
+color = Color(0.12, 0.12, 0.18, 1)
+z_index = 1
+
+[node name="Hoop4" type="ColorRect" parent="."]
+offset_left = -28.0
+offset_top = 24.0
+offset_right = 28.0
+offset_bottom = 28.0
+color = Color(0.12, 0.12, 0.18, 1)
+z_index = 1
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_1")
