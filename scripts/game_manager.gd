@@ -424,7 +424,7 @@ func spawn_package():
 		add_current_chip_to_package(current_package)
 		
 		# CRITICAL: Connect missed signal to advance conveyor on misses
-		current_package.missed.connect(_on_package_missed)
+		current_package.missed.connect(_on_package_missed.bind(current_package))
 		
 		print("  Current package ID:", current_package.get_instance_id())
 		
@@ -574,7 +574,7 @@ func advance_preview_to_current(new_preview_type: String = ""):
 	current_package = package_scenes[type_name].instantiate()
 	get_tree().root.get_node("Main/World").add_child(current_package)
 	add_current_chip_to_package(current_package)
-	current_package.missed.connect(_on_package_missed)
+	current_package.missed.connect(_on_package_missed.bind(current_package))
 	print("  Advanced to current, ID:", current_package.get_instance_id(), "type:", type_name)
 	
 	# Set advance lock
@@ -767,7 +767,12 @@ func _apply_bay_level():
 	if bay and bay.has_method("set_period"):
 		bay.set_period(bay_period_for_level(level_index()))
 
-func _on_package_missed():
+func _on_package_missed(pkg = null):
+	# r5: a credited package can still touch the truck's static body on its way out and
+	# emit `missed` in the same frame; that phantom miss reset the streak (no x2/on-fire ever).
+	if pkg != null and is_instance_valid(pkg) and pkg.has_method("get_credit_key") and credited_ids.has(pkg.get_credit_key()):
+		print("IGNORED phantom miss from credited package")
+		return
 	# r5 TIMER: miss penalty (0 during grace levels)
 	var pos = current_package.global_position if (current_package != null and is_instance_valid(current_package)) else Vector2(360, 600)
 	add_time(-miss_time_penalty(loads_completed), pos)
