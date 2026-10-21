@@ -810,7 +810,8 @@ func _on_fire_changed(on: bool):
 			glow.color = Color(Art.AMBER, 0.22)
 			fire_glow.add_child(glow)
 			var fl = CPUParticles2D.new()
-			fl.texture = Art.TEX_FLAME
+			fl.texture = Art.TEX_STAR
+			fl.local_coords = false
 			fl.amount = 30
 			fl.lifetime = 0.5
 			fl.z_index = 4
@@ -822,11 +823,11 @@ func _on_fire_changed(on: bool):
 			fl.gravity = Vector2(0, -220)
 			fl.initial_velocity_min = 20
 			fl.initial_velocity_max = 70
-			fl.scale_amount_min = 0.9
-			fl.scale_amount_max = 1.5
+			fl.scale_amount_min = 0.25
+			fl.scale_amount_max = 0.45
 			var g = Gradient.new()
-			g.set_color(0, Color(Art.AMBER, 0.95))
-			g.set_color(1, Color(Art.CORAL, 0.0))
+			g.set_color(0, Color(1.0, 0.85, 0.35, 1.0))
+			g.set_color(1, Color(0.9, 0.35, 0.18, 0.0))
 			fl.color_ramp = g
 			fire_glow.add_child(fl)
 			bay.add_child(fire_glow)
