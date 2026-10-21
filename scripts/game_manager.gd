@@ -936,29 +936,35 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color, ctype: 
 		"crate":  # wooden splinters
 			Art.burst(world, pos, null, Art.BROWN.lightened(0.15), 16, 0.5 * dm, 160, 340, 5, 9, Vector2(0, 900))
 			Art.burst(world, pos, null, Art.AMBER.darkened(0.25), 8, 0.5 * dm, 140, 300, 4, 7, Vector2(0, 900))
-		"barrel":  # metal clang: blue shock ring + star glints
-			var ring = Sprite2D.new()
-			ring.texture = Art.TEX_RING
-			ring.modulate = Color(Art.BLUE.lightened(0.3), 0.9)
-			ring.position = pos
-			ring.scale = Vector2(0.4, 0.25)
-			ring.z_index = 69
-			world.add_child(ring)
-			var rt = ring.create_tween()
-			rt.set_parallel(true)
-			rt.tween_property(ring, "scale", Vector2(3.2, 2.0), 0.35 * dm)
-			rt.tween_property(ring, "modulate:a", 0.0, 0.35 * dm)
-			rt.chain().tween_callback(ring.queue_free)
-			Art.burst(world, pos, Art.TEX_STAR, Art.WHITE, 6, 0.4 * dm, 120, 260, 0.3, 0.55, Vector2.ZERO)
+		"barrel":  # metal clang: bright blue double shock ring + white star glints (~0.5 s)
+			print("FF vfx: barrel hit")
+			for k in 2:
+				var ring = Sprite2D.new()
+				ring.texture = Art.TEX_RING
+				ring.modulate = Color(0.55, 0.8, 1.0, 1.0) if k == 0 else Color(1, 1, 1, 0.9)
+				ring.position = pos
+				ring.scale = Vector2(0.6, 0.45)
+				ring.z_index = 69
+				world.add_child(ring)
+				var rt = ring.create_tween()
+				if k == 1:
+					rt.tween_interval(0.08 * dm)
+				rt.set_parallel(true)
+				rt.tween_property(ring, "scale", Vector2(4.6, 3.2) * (1.0 if k == 0 else 0.75), 0.5 * dm).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+				rt.tween_property(ring, "modulate:a", 0.0, 0.5 * dm).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+				rt.chain().tween_callback(ring.queue_free)
+			Art.burst(world, pos, Art.TEX_STAR, Art.WHITE, 12, 0.5 * dm, 160, 340, 0.5, 0.9, Vector2.ZERO)
+			Art.burst(world, pos, Art.TEX_STAR, Color(0.55, 0.8, 1.0), 8, 0.5 * dm, 120, 260, 0.4, 0.7, Vector2(0, 200))
 		_:  # box: cardboard flecks + amber stars
-			Art.burst(world, pos, Art.TEX_STAR, Art.AMBER, 10, 0.45 * dm, 150, 320, 0.3, 0.55, Vector2(0, 500))
+			Art.burst(world, pos, Art.TEX_STAR, Color(1.0, 0.85, 0.4), 16, 0.5 * dm, 170, 360, 0.45, 0.8, Vector2(0, 450))
+			Art.burst(world, pos, Art.TEX_SPARK, Art.WHITE, 8, 0.35 * dm, 200, 380, 0.4, 0.7, Vector2(0, 300))
 	var bay = get_tree().root.get_node_or_null("Main/World/TruckBay")
 	if bay:
 		var hero = bay.get_node_or_null("HeroTruck")
 		if hero and hero.has_method("hit_pulse"):
 			hero.hit_pulse(Art.MINT)
 	var score_label = Label.new()
-	score_label.position = pos - Vector2(40, 60)
+	score_label.position = pos - Vector2(120, 70)
 	score_label.text = "+%d" % score_value
 	score_label.add_theme_font_size_override("font_size", 40)
 	score_label.add_theme_color_override("font_color", Art.MINT)
@@ -968,7 +974,7 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color, ctype: 
 	world.add_child(score_label)
 	var tween = score_label.create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(score_label, "position:y", pos.y - 120, 0.5 * dm)
+	tween.tween_property(score_label, "position", pos - Vector2(170, 150), 0.5 * dm).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_property(score_label, "scale", Vector2(1.3, 1.3), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.chain().tween_property(score_label, "modulate:a", 0.0, 0.2 * dm)
 	tween.chain().tween_callback(score_label.queue_free)
@@ -1000,7 +1006,7 @@ func spawn_perfect_juice(pos: Vector2):
 	l.add_theme_color_override("font_outline_color", Color(0.9, 0.3, 0.1))
 	l.add_theme_constant_override("outline_size", 12)
 	l.size = Vector2(360, 80)
-	l.position = Vector2(clamp(bay.global_position.x - 180, 0, 360), 330)
+	l.position = Vector2(clamp(bay.global_position.x - 180, 0, 360), bay.global_position.y + 175)  # below the ticket
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.pivot_offset = Vector2(180, 40)
 	l.scale = Vector2(0.3, 0.3)
@@ -1087,6 +1093,11 @@ func spawn_miss_juice(pos: Vector2):
 		Art.burst(world, pos, Art.TEX_SPARK, Art.BLUE.lightened(0.3), 8, 0.4 * duration_mult, 150, 300, 0.3, 0.5, Vector2(0, 600))
 	var xmark = Node2D.new()
 	xmark.position = Vector2(clamp(pos.x, 60, 660), clamp(pos.y, 200, 1100))
+	var bay_n = get_tree().root.get_node_or_null("Main/World/TruckBay")
+	if bay_n:
+		var tr = Rect2(bay_n.global_position + Vector2(-200, 50), Vector2(400, 120))
+		if tr.has_point(xmark.position):
+			xmark.position.y = bay_n.global_position.y + 210  # keep the order ticket readable
 	xmark.z_index = 90
 	for d in [[Vector2(-26, -26), Vector2(26, 26)], [Vector2(26, -26), Vector2(-26, 26)]]:
 		Art.line(xmark, PackedVector2Array(d), Art.NAVY, 18)

@@ -668,11 +668,16 @@ func _on_time_delta(amount: float, from_pos: Vector2):
 	l.add_theme_color_override("font_outline_color", Color(0.05, 0.07, 0.12))
 	l.add_theme_constant_override("outline_size", 8)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	l.position = from_pos - Vector2(40, 30)
+	l.position = from_pos + (Vector2(50, -40) if amount > 0 else Vector2(-40, -30))
 	$UI.add_child(l)
 	var target = timer_bar_bg.position + Vector2((timer_bar_bg.size.x - 6) * clamp(game_manager.time_remaining / game_manager.T.clock_cap, 0.0, 1.0) - 40, -6)
 	var dur = 0.6 * (3.0 if game_manager.qa_mode else 1.0)
 	var tw = l.create_tween()
+	if amount > 0:
+		l.modulate.a = 0.0
+		tw.tween_interval(0.15 * (3.0 if game_manager.qa_mode else 1.0))
+		tw.tween_property(l, "modulate:a", 1.0, 0.05)
+		tw.tween_property(l, "position:y", l.position.y - 40, 0.15)
 	tw.tween_property(l, "position", target, dur).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tw.tween_property(l, "modulate:a", 0.0, 0.15)
 	tw.tween_callback(l.queue_free)
@@ -713,6 +718,12 @@ func _on_ticket_changed(t: Array):
 		if left.has(k):
 			parts.append("%d %s" % [left[k], k.to_upper() + ("ES" if k == "box" and left[k] > 1 else ("S" if left[k] > 1 else ""))])
 	ticket_label.text = "ORDER: " + ", ".join(parts) + ("  %d/%d" % [done, t.size()] if done > 0 else "")
+	# fit: shrink font until the text fits the ticket (no truncation)
+	var fsz = 22
+	var font = ticket_label.get_theme_font("font")
+	while fsz > 13 and font.get_string_size(ticket_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz).x > ticket_panel.size.x - 16:
+		fsz -= 1
+	ticket_label.add_theme_font_size_override("font_size", fsz)
 
 # ---------------- r5: juice / run-end / first-session ----------------
 var old_best_rt: RichTextLabel = null
@@ -805,16 +816,28 @@ func _on_fire_changed(on: bool):
 			fire_glow = Node2D.new()
 			fire_glow.name = "FireGlow"
 			fire_glow.z_index = 3
-			var glow = Polygon2D.new()
-			glow.polygon = Art.rrect(-100, -60, 200, 128, 24)
-			glow.color = Color(Art.AMBER, 0.22)
-			# glow sits behind the truck so the navy outline stays navy
+			# soft additive radial glow (no box), centred low on the truck so it stays under the HUD band
+			var gt = GradientTexture2D.new()
+			gt.width = 128
+			gt.height = 128
+			gt.fill = GradientTexture2D.FILL_RADIAL
+			gt.fill_from = Vector2(0.5, 0.5)
+			gt.fill_to = Vector2(0.5, 0.0)
+			var gg = Gradient.new()
+			gg.set_color(0, Color(1.0, 0.62, 0.2, 0.75))
+			gg.set_color(1, Color(1.0, 0.45, 0.1, 0.0))
+			gg.add_point(0.55, Color(1.0, 0.55, 0.15, 0.3))
+			gt.gradient = gg
+			var glow = Sprite2D.new()
+			glow.texture = gt
+			glow.position = Vector2(30, 10)
+			glow.scale = Vector2(3.0, 1.35)
+			var mat = CanvasItemMaterial.new()
+			mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+			glow.material = mat
 			var glow_holder = Node2D.new()
 			glow_holder.z_index = -3  # net z 0 inside bay: above field, below hero truck (z 1)
-			glow_holder.z_as_relative = true
 			glow_holder.add_child(glow)
-			glow.color = Color(Art.AMBER, 0.45)
-			glow.polygon = Art.rrect(-110, -70, 280, 148, 28)
 			fire_glow.add_child(glow_holder)
 			# embers as tweened sprites (CPUParticles color_ramp tinted randomly on web compat)
 			var tm = Timer.new()
@@ -841,8 +864,8 @@ func _on_fire_changed(on: bool):
 			)
 			bay.add_child(fire_glow)
 			var tw = glow.create_tween().set_loops()
-			tw.tween_property(glow, "color:a", 0.6, 0.18)
-			tw.tween_property(glow, "color:a", 0.3, 0.18)
+			tw.tween_property(glow, "modulate:a", 0.7, 0.25)
+			tw.tween_property(glow, "modulate:a", 1.0, 0.25)
 		fire_glow.visible = true
 	elif fire_glow:
 		var fg = fire_glow
@@ -899,26 +922,30 @@ func _on_ticket_completed(score_bonus: int, time_bonus: float):
 		return
 	var st = Label.new()
 	st.text = "DELIVERED +%d" % score_bonus
-	st.add_theme_font_size_override("font_size", 30)
-	st.add_theme_color_override("font_color", Color(0.85, 0.12, 0.12))
+	st.add_theme_font_size_override("font_size", 34)
+	st.add_theme_color_override("font_color", Color(0.9, 0.15, 0.12))
 	st.add_theme_color_override("font_outline_color", Color(1, 1, 1))
-	st.add_theme_constant_override("outline_size", 6)
+	st.add_theme_constant_override("outline_size", 8)
 	st.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	st.size = Vector2(340, 44)
-	st.pivot_offset = Vector2(170, 22)
-	st.position = ticket_panel.position
-	st.rotation_degrees = -8
-	st.scale = Vector2(2.2, 2.2)
+	st.size = Vector2(380, 48)
+	st.pivot_offset = Vector2(190, 24)
+	st.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var bayn = ticket_panel.get_parent()
+	# above the truck, on the UI layer so it sits over the HUD band; staggered after +N / +time
+	st.position = Vector2(clamp(bayn.global_position.x - 190, 0, 720 - 380), bayn.global_position.y - 110)
+	st.rotation_degrees = -6
+	st.scale = Vector2(1.8, 1.8)
 	st.modulate.a = 0.0
-	st.z_index = 30
-	ticket_panel.get_parent().add_child(st)
+	st.z_index = 210
+	$UI.add_child(st)
 	var dm = 3.0 if game_manager.qa_mode else 1.0
 	var tw = st.create_tween()
+	tw.tween_interval(0.3 * dm)
 	tw.set_parallel(true)
 	tw.tween_property(st, "scale", Vector2(1, 1), 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_property(st, "modulate:a", 1.0, 0.08)
-	tw.chain().tween_interval(0.5 * dm)
-	tw.chain().tween_property(st, "modulate:a", 0.0, 0.3 * dm)
+	tw.chain().tween_property(st, "position:y", st.position.y - 50, 0.6 * dm)
+	tw.tween_property(st, "modulate:a", 0.0, 0.6 * dm).set_delay(0.25 * dm)
 	tw.chain().tween_callback(st.queue_free)
 	var tp = ticket_panel.create_tween()
 	tp.tween_property(ticket_panel, "position:y", ticket_panel.position.y + 6, 0.05)
