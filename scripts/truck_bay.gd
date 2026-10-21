@@ -193,6 +193,7 @@ func _on_body_entered(body: Node2D):
 	var ctype = gm_ref._type_of(package_root) if gm_ref and gm_ref.has_method("_type_of") else "box"
 	var verdict = classify(abs(package_center.x - bay_global_x), ctype, forgiveness_override)
 	var x_in_range = verdict == "hit"
+	print("FF hit: tx=%.1f bay=%.1f dx=%.1f window=%.1f verdict=%s" % [package_center.x, bay_global_x, abs(package_center.x - bay_global_x), OPENING_WIDTH / 2.0 + forgiveness_px(ctype, forgiveness_override), verdict])
 	print("  r4 forgiveness: type=%s dx=%.1f window=+-%.1f verdict=%s" % [ctype, abs(package_center.x - bay_global_x), effective_width / 2 + forgiveness_px(ctype, forgiveness_override), verdict])
 	
 	# Check velocity (moving with reasonable speed, not drifting)

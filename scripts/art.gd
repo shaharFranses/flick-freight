@@ -169,7 +169,7 @@ static func _label_fit(parent: Node, t: String, size: int, center: Vector2, max_
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	l.size = Vector2(ceil(ts.x) + 2, ceil(h))
-	l.position = center - l.size / 2.0
+	l.position = (center - l.size / 2.0).round()  # whole pixels
 	parent.add_child(l)
 
 static func _label(parent: Node, t: String, size: int, pos: Vector2, sz: Vector2):

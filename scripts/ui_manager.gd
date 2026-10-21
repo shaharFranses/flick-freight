@@ -797,8 +797,8 @@ func pop_clear_x(l: Control):
 			any = true
 	if !any or !u.intersects(rr.grow_individual(0, 30, 0, 0)):
 		return
-	var left_x = u.position.x - sz.x - 6.0
-	var right_x = u.end.x + 6.0
+	var left_x = u.position.x - sz.x - 12.0  # r4o: a few px more air beside the truck
+	var right_x = u.end.x + 12.0
 	var left_ok = left_x >= 4.0
 	var right_ok = right_x + sz.x <= 716.0
 	var prefer_left = rr.get_center().x < u.get_center().x

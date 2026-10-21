@@ -35,3 +35,7 @@ pointing/emulate_touch_from_mouse=true
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 environment/defaults/default_clear_color=Color(0.105882, 0.164706, 0.254902, 1)
+
+[gui]
+
+theme/default_font_multichannel_signed_distance_field=true
