@@ -85,7 +85,10 @@ func _input(event):
 	
 	# Check if mouse is over package (simple circle check)
 	if is_press or (is_drag and !is_dragging):
-		var dist = global_position.distance_to(get_global_mouse_position())
+		# r5: use the event's own position (canvas space). get_global_mouse_position() can be
+		# stale on the first press after a retry / on a touch with no prior hover motion.
+		var press_world = get_canvas_transform().affine_inverse() * input_pos
+		var dist = global_position.distance_to(press_world)
 		mouse_over = dist < 50
 	
 	if is_press and mouse_over:
