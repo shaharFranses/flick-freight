@@ -674,7 +674,7 @@ func _on_time_delta(amount: float, from_pos: Vector2):
 	var l = Label.new()
 	l.text = "%+.1f" % amount
 	l.add_theme_font_size_override("font_size", 40)
-	l.add_theme_color_override("font_color", Color(0.4, 1, 0.5) if amount > 0 else Color(1, 0.35, 0.3))
+	l.add_theme_color_override("font_color", Color("#1FA673") if amount > 0 else Art.CORAL)
 	l.add_theme_color_override("font_outline_color", Color(0.05, 0.07, 0.12))
 	l.add_theme_constant_override("outline_size", 8)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE

@@ -986,7 +986,7 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color, ctype: 
 	score_label.position = pos - Vector2(120, 70)
 	score_label.text = "+%d" % score_value
 	score_label.add_theme_font_size_override("font_size", 40)
-	score_label.add_theme_color_override("font_color", Art.MINT)
+	score_label.add_theme_color_override("font_color", Color("#1FA673"))  # darker mint for the light field
 	score_label.add_theme_color_override("font_outline_color", Art.NAVY)
 	score_label.add_theme_constant_override("outline_size", 8)
 	score_label.z_index = 100
@@ -1025,7 +1025,7 @@ func spawn_perfect_juice(pos: Vector2):
 	l.name = "PerfectPop"
 	l.text = "PERFECT!"
 	l.add_theme_font_size_override("font_size", 64)
-	l.add_theme_color_override("font_color", Color(1, 1, 1))
+	l.add_theme_color_override("font_color", Art.CORAL)  # r4: reads on the light field
 	l.add_theme_color_override("font_outline_color", Art.NAVY)
 	l.add_theme_constant_override("outline_size", 12)
 	l.size = Vector2(360, 80)
