@@ -387,11 +387,24 @@ func _process(delta: float):
 	# A: Update timer only after first spawn
 	# r5 on-fire: current package glows (pulse)
 	if current_package != null and is_instance_valid(current_package) and current_package.modulate.a > 0.5:
-		if on_fire:
-			var k = 0.5 + 0.5 * sin(Time.get_ticks_msec() / 90.0)
-			current_package.modulate = Color(1.0 + 0.5 * k, 0.85 + 0.15 * k, 0.6, 1.0)
-		elif current_package.modulate != Color(1, 1, 1, 1):
+		# r4: fire glow is a pulsing amber halo behind the cargo; the cargo fill is never tinted
+		if current_package.modulate != Color(1, 1, 1, 1):
 			current_package.modulate = Color(1, 1, 1, 1)
+		var halo = current_package.get_node_or_null("FireHalo")
+		if on_fire:
+			if halo == null:
+				halo = Sprite2D.new()
+				halo.name = "FireHalo"
+				halo.texture = Art.shock_ring()
+				halo.z_index = -1
+				halo.show_behind_parent = true
+				current_package.add_child(halo)
+			var k = 0.5 + 0.5 * sin(Time.get_ticks_msec() / 120.0)
+			halo.visible = true
+			halo.modulate = Color(1.0, 0.6, 0.15, 0.55 + 0.4 * k)
+			halo.scale = Vector2.ONE * (1.25 + 0.12 * k)
+		elif halo != null:
+			halo.visible = false
 	if run_started:
 		time_remaining -= delta
 		if time_remaining < T.low_time_warning and time_remaining > 0:
@@ -482,7 +495,7 @@ func _select_random_type_real() -> String:
 # r3: NEXT preview sits beside the flick spot and shows the real cargo art
 const FLICK_SPOT = Vector2(360, 1150)
 const NEXT_POS = Vector2(530, 1160)
-const NEXT_ART_SCALE = 0.6  # r4: NEXT secondary, well under CURRENT's drawn size
+const NEXT_ART_SCALE = 0.72  # r4: NEXT secondary, well under CURRENT's drawn size
 const NEXT_SLIDE_TIME = 0.25
 var advance_ghost: Node2D = null  # r3: transient cargo art sliding NEXT -> flick spot
 var advance_tween: Tween = null
@@ -513,7 +526,7 @@ func generate_preview(type: String, pop_in: bool = false):
 	panel.name = "Panel"
 	panel.size = Vector2(104, 124)
 	panel.position = Vector2(-52, -76)
-	panel.color = Color(0.1, 0.12, 0.18, 0.85)
+	panel.color = Art.NAVY  # r4: navy plate
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	next_preview.add_child(panel)
 	
@@ -558,6 +571,7 @@ func add_current_chip_to_package(package: RigidBody2D):
 	# (3): Add dark backing plate first (drawn behind label)
 	var label_backing = ColorRect.new()
 	label_backing.size = Vector2(132, 38)
+	label_backing.name = "CurrentChipBg"
 	label_backing.color = Color(0.05, 0.05, 0.1, 0.95)  # Very dark, high opacity
 	label_backing.position = Vector2(-66, -112)  # Above the (larger) package art
 	label_backing.z_index = 99

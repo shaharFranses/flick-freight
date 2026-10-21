@@ -118,12 +118,12 @@ func _make_aim():
 	aim_root.visible = false
 	for i in AIM_DOTS:
 		var d = Polygon2D.new()
-		var r = lerp(7.0, 3.5, float(i) / AIM_DOTS)
+		var r = lerp(10.0, 5.5, float(i) / AIM_DOTS)
 		d.polygon = Art.circle(Vector2.ZERO, r, 10)
 		d.color = Color(Art.NAVY, lerp(0.95, 0.3, float(i) / AIM_DOTS))
 		var ol = Line2D.new()
 		var pts = Art.circle(Vector2.ZERO, r, 10); pts.append(pts[0])
-		ol.points = pts; ol.width = 2.0; ol.default_color = Color(1, 1, 1, d.color.a)
+		ol.points = pts; ol.width = 3.0; ol.default_color = Color(1, 1, 1, max(d.color.a, 0.8))
 		d.add_child(ol)
 		aim_root.add_child(d)
 	add_child(aim_root)
@@ -190,6 +190,9 @@ func end_drag(pos: Vector2):
 	freeze = false
 	apply_central_impulse(impulse)  # This divides by mass internally, so we get desired velocity
 	has_been_flicked = true
+	for cn in ["CurrentChip", "CurrentChipBg"]:  # r4: the CURRENT tag stays behind on launch
+		var c = get_node_or_null(cn)
+		if c: c.visible = false
 	var _gm = get_tree().root.get_node_or_null("Main/GameManager")
 	if _gm and _gm.qa_mode and _gm.qa_hold_aim and aim_root and aim_root.visible:
 		_aim_hold_until = Time.get_ticks_msec() / 1000.0 + 4.0

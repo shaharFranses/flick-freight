@@ -682,17 +682,21 @@ func _on_time_delta(amount: float, from_pos: Vector2):
 	_time_pops_live = max(_time_pops_live, 0)
 	var slot = _time_pops_live
 	_time_pops_live += 1
-	l.position = from_pos + (Vector2(-210, -20 + 46 * slot) if amount > 0 else Vector2(-40, -30))
-	l.position.x = max(l.position.x, 8.0)
+	# beside the truck on its open side (clear of FREIGHT/cab), never at the screen edge under the truck
+	var side_x = from_pos.x + 168.0 if from_pos.x < 360.0 else from_pos.x - 240.0
+	l.position = Vector2(side_x, from_pos.y - 20 + 46 * slot) if amount > 0 else from_pos + Vector2(-40, -30)
+	l.position.x = clamp(l.position.x, 8.0, 640.0)
 	$UI.add_child(l)
-	var target = timer_bar_bg.position + Vector2((timer_bar_bg.size.x - 6) * clamp(game_manager.time_remaining / game_manager.T.clock_cap, 0.0, 1.0) - 40, -6)
+	# r4: never travel into the HUD band / bar: float up to just below it and fade
+	l.position.y = max(l.position.y, 185.0)
+	var target = Vector2(l.position.x, max(l.position.y - 60.0, 175.0))
 	var dur = 0.6 * (3.0 if game_manager.qa_mode else 1.0)
 	var tw = l.create_tween()
 	if amount > 0:
 		l.modulate.a = 0.0
 		tw.tween_interval((0.15 + 0.25 * slot) * (3.0 if game_manager.qa_mode else 1.0))
 		tw.tween_property(l, "modulate:a", 1.0, 0.05)
-		tw.tween_property(l, "position:y", l.position.y - 40, 0.15)
+		tw.tween_property(l, "position:y", max(l.position.y - 40, 175.0), 0.15)
 	tw.tween_property(l, "position", target, dur).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tw.tween_property(l, "modulate:a", 0.0, 0.15)
 	tw.tween_callback(func():
@@ -923,16 +927,17 @@ func _streak_tier_pop(mult: int):
 		return
 	var col = [Art.WHITE, Art.WHITE, Art.MINT, Art.AMBER, Art.CORAL][clamp(mult, 1, 4)]
 	var ring = Sprite2D.new()
-	ring.texture = Art.TEX_RING
-	ring.modulate = Color(col, 0.9)
-	ring.position = bay.global_position
-	ring.scale = Vector2(0.6, 0.6)
+	ring.texture = Art.shock_ring()
+	ring.modulate = Color(col if mult < 4 else Art.CORAL, 1.0)
+	if mult == 2: ring.modulate = Color("#1FA673")
+	ring.position = bay.global_position + Vector2(0, 10)
+	ring.scale = Vector2(0.8, 0.6)
 	ring.z_index = 60
 	world.add_child(ring)
 	var rt = ring.create_tween()
 	rt.set_parallel(true)
-	rt.tween_property(ring, "scale", Vector2(4.5, 4.5), 0.45)
-	rt.tween_property(ring, "modulate:a", 0.0, 0.45)
+	rt.tween_property(ring, "scale", Vector2(3.2, 2.2), 0.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	rt.tween_property(ring, "modulate:a", 0.0, 0.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	rt.chain().tween_callback(ring.queue_free)
 	var l = Label.new()
 	l.text = "x%d!" % mult

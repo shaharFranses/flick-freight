@@ -123,8 +123,8 @@ static func build_cargo(type: String) -> Node2D:
 			shape(n, top, BLUE.lightened(0.15), true, 3)
 			for y in [-14.0, 16.0]:
 				line(n, PackedVector2Array([Vector2(-27, y), Vector2(27, y)]), NAVY, 4)
-			var pill = shape(n, rrect(-18, -6, 36, 14, 7), NAVY, false)
-			_label(n, "BARREL", 10, Vector2(-24, -8), Vector2(48, 18))
+			var pill = shape(n, rrect(-24, -7, 48, 15, 7), NAVY, false)
+			_label(n, "BARREL", 9, Vector2(-24, -8), Vector2(48, 17))  # fits inside the pill
 		_:
 			shape(n, rrect(-24, -24, 48, 48, 4), AMBER)
 			shape(n, PackedVector2Array([Vector2(-6, -22), Vector2(6, -22), Vector2(6, 22), Vector2(-6, 22)]), AMBER.darkened(0.2), false)

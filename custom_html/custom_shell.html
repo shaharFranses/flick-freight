@@ -58,7 +58,7 @@ html {
 }
 
 #status {
-	background-color: #242424;
+	background-color: #1B2A41;
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
@@ -66,7 +66,16 @@ html {
 	visibility: hidden;
 }
 
+#status::before {
+	content: 'FLICK FREIGHT';
+	color: #F2B134;
+	font: 800 clamp(28px, 7vmin, 64px) 'Noto Sans', 'Droid Sans', Arial, sans-serif;
+	letter-spacing: 0.06em;
+	text-shadow: 0 3px 0 #0E1726;
+}
+
 #status-splash {
+	display: none !important;
 	max-height: 100%;
 	max-width: 100%;
 	margin: auto;

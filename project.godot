@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 
 [boot_splash]
 
+show_image=false
 bg_color=Color(0.105882, 0.164706, 0.254902, 1)
 
 [display]
