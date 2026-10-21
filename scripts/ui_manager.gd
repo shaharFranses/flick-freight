@@ -164,7 +164,8 @@ func _on_timer_changed(time: float):
 
 func _on_streak_changed(streak: int):
 	# Always show streak label
-	streak_label.text = "Streak: %d" % streak
+	var m = game_manager.multiplier()
+	streak_label.text = ("Streak %d  x%d" % [streak, m]) if m > 1 else ("Streak: %d" % streak)
 	streak_label.show()
 
 func _on_pause_pressed():
@@ -232,6 +233,7 @@ func _on_retry_pressed():
 	if retry_button.disabled:
 		return
 	retry_button.disabled = true
+	print("RETRY pressed (ms=%d)" % Time.get_ticks_msec())
 	
 	# A: Clear visibility pause state on retry
 	was_paused_before_hide = false
@@ -671,8 +673,8 @@ func _create_ticket_panel():
 		return
 	ticket_panel = ColorRect.new()
 	ticket_panel.name = "OrderTicket"
-	ticket_panel.position = Vector2(-150, 86)
-	ticket_panel.size = Vector2(300, 44)
+	ticket_panel.position = Vector2(-170, 86)
+	ticket_panel.size = Vector2(340, 44)
 	ticket_panel.color = Color(0.96, 0.93, 0.82, 0.95)
 	ticket_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bay.add_child(ticket_panel)
@@ -680,7 +682,7 @@ func _create_ticket_panel():
 	ticket_label.size = ticket_panel.size
 	ticket_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	ticket_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	ticket_label.add_theme_font_size_override("font_size", 24)
+	ticket_label.add_theme_font_size_override("font_size", 22)
 	ticket_label.add_theme_color_override("font_color", Color(0.12, 0.14, 0.22))
 	ticket_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ticket_panel.add_child(ticket_label)
@@ -820,8 +822,8 @@ func _on_ticket_completed(score_bonus: int, time_bonus: float):
 	st.add_theme_color_override("font_outline_color", Color(1, 1, 1))
 	st.add_theme_constant_override("outline_size", 6)
 	st.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	st.size = Vector2(300, 44)
-	st.pivot_offset = Vector2(150, 22)
+	st.size = Vector2(340, 44)
+	st.pivot_offset = Vector2(170, 22)
 	st.position = ticket_panel.position
 	st.rotation_degrees = -8
 	st.scale = Vector2(2.2, 2.2)

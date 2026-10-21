@@ -886,6 +886,7 @@ func restart_game():
 	
 	# Spawn new package
 	spawn_package()
+	print("RUN RESTART ready (ms=%d)" % Time.get_ticks_msec())
 	
 	# Reset truck bay to center and resume processing
 	var truck_bay = get_tree().root.get_node_or_null("Main/World/TruckBay")

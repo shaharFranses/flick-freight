@@ -20,7 +20,7 @@ package_barrel.tscn::PackedScene::1812833798012::1792562995::0::1::::<><>::res:/
 package_box.tscn::PackedScene::65079122::1792562995::0::1::::<><>::res://scripts/package_base.gd
 package_crate.tscn::PackedScene::131333957535::1792562995::0::1::::<><>::res://scripts/package_base.gd
 ::res://scripts/::1792563634
-game_manager.gd::GDScript::-1::1792563580::0::1::::<>Node<>::
+game_manager.gd::GDScript::-1::1792563815::0::1::::<>Node<>::
 package_base.gd::GDScript::-1::1792563570::0::1::::<>RigidBody2D<>::
 truck_bay.gd::GDScript::-1::1792563567::0::1::::<>Area2D<>::
 ui_manager.gd::GDScript::-1::1792563634::0::1::::<>CanvasLayer<>::
