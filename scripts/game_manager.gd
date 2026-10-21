@@ -415,9 +415,8 @@ func _process(delta: float):
 				halo = Sprite2D.new()
 				halo.name = "FireHalo"
 				halo.texture = Art.soft_glow()
-				halo.z_index = -1
-				halo.show_behind_parent = true
 				current_package.add_child(halo)
+				current_package.move_child(halo, 0)  # drawn first = behind the cargo art, above the floor
 			var k = 0.5 + 0.5 * sin(Time.get_ticks_msec() / 120.0)
 			halo.visible = true
 			halo.modulate = Color(1.0, 0.55, 0.1, 0.75 + 0.25 * k)
