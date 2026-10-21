@@ -219,6 +219,8 @@ func show_game_over(result: String, final_score: int):
 		var gap = best_loads - loads
 		if old_best > 0 and gap > 0 and gap <= int(game_manager.T.get("near_miss_window", 3)):
 			result_label.text = "So close! Best +%d load%s" % [gap, "" if gap == 1 else "s"]
+	# QA low: long near-miss text overflowed the 344px panel; fit the headline font
+	result_label.add_theme_font_size_override("font_size", 42 if result_label.text.length() <= 12 else 28)
 	last_run_s = (Time.get_ticks_msec() - game_manager.run_start_ms) / 1000.0 if game_manager.run_started else 0.0
 	print("RUN END: score=%d loads=%d length=%.1fs" % [final_score, loads, last_run_s])
 	game_over_shown_ms = Time.get_ticks_msec()
