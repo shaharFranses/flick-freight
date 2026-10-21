@@ -29,7 +29,7 @@ script = ExtResource("1_1")
 [node name="Background" type="ColorRect" parent="World"]
 offset_right = 720.0
 offset_bottom = 1280.0
-color = Color(0.15, 0.18, 0.25, 1)
+color = Color(0.862745, 0.909804, 0.94902, 1)
 
 [node name="WarehouseFloorLines" type="Control" parent="World"]
 layout_mode = 3
@@ -42,34 +42,34 @@ layout_mode = 0
 offset_top = 400.0
 offset_right = 720.0
 offset_bottom = 402.0
-color = Color(0.25, 0.28, 0.35, 0.3)
+color = Color(0.105882, 0.164706, 0.254902, 0.1)
 
 [node name="Line2" type="ColorRect" parent="World/WarehouseFloorLines"]
 layout_mode = 0
 offset_top = 600.0
 offset_right = 720.0
 offset_bottom = 602.0
-color = Color(0.25, 0.28, 0.35, 0.3)
+color = Color(0.105882, 0.164706, 0.254902, 0.1)
 
 [node name="Line3" type="ColorRect" parent="World/WarehouseFloorLines"]
 layout_mode = 0
 offset_top = 800.0
 offset_right = 720.0
 offset_bottom = 802.0
-color = Color(0.25, 0.28, 0.35, 0.3)
+color = Color(0.105882, 0.164706, 0.254902, 0.1)
 
 [node name="Line4" type="ColorRect" parent="World/WarehouseFloorLines"]
 layout_mode = 0
 offset_top = 1000.0
 offset_right = 720.0
 offset_bottom = 1002.0
-color = Color(0.25, 0.28, 0.35, 0.3)
+color = Color(0.105882, 0.164706, 0.254902, 0.1)
 
 [node name="DockFloor" type="ColorRect" parent="World"]
 offset_top = 1180.0
 offset_right = 720.0
 offset_bottom = 1280.0
-color = Color(0.3, 0.3, 0.35, 1)
+color = Color(0.72549, 0.792157, 0.854902, 1)
 
 [node name="TruckBody" type="StaticBody2D" parent="World"]
 position = Vector2(360, 210)

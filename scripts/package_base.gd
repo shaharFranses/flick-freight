@@ -53,7 +53,7 @@ func _ready():
 	for c in get_children():
 		if c is CanvasItem:
 			c.visible = false
-	add_child(Art.build_cargo(Art.type_from_points(points)))
+	add_child(Art.build_cargo_scaled(Art.type_from_points(points)))
 	_make_aim()
 	
 	# M5 FIX: Connect body_entered to detect ground/truck hits for immediate miss
@@ -107,6 +107,7 @@ func _input(event):
 
 # ---------- r4: aim / trajectory dots while dragging (display only) ----------
 const AIM_DOTS = 14
+var _aim_hold_until := 0.0
 var aim_root: Node2D = null
 
 func _make_aim():
@@ -119,10 +120,10 @@ func _make_aim():
 		var d = Polygon2D.new()
 		var r = lerp(7.0, 3.5, float(i) / AIM_DOTS)
 		d.polygon = Art.circle(Vector2.ZERO, r, 10)
-		d.color = Color(1, 1, 1, lerp(0.95, 0.25, float(i) / AIM_DOTS))
+		d.color = Color(Art.NAVY, lerp(0.95, 0.3, float(i) / AIM_DOTS))
 		var ol = Line2D.new()
 		var pts = Art.circle(Vector2.ZERO, r, 10); pts.append(pts[0])
-		ol.points = pts; ol.width = 2.0; ol.default_color = Color(Art.NAVY, d.color.a)
+		ol.points = pts; ol.width = 2.0; ol.default_color = Color(1, 1, 1, d.color.a)
 		d.add_child(ol)
 		aim_root.add_child(d)
 	add_child(aim_root)
@@ -130,6 +131,10 @@ func _make_aim():
 func _process(_delta):
 	if aim_root == null:
 		return
+	if _aim_hold_until > 0.0:
+		if Time.get_ticks_msec() / 1000.0 < _aim_hold_until:
+			return  # ?qa=1&hold_aim=1: keep the last arc on screen (display only)
+		_aim_hold_until = 0.0
 	if !is_dragging or has_been_flicked:
 		aim_root.visible = false
 		return
@@ -185,6 +190,10 @@ func end_drag(pos: Vector2):
 	freeze = false
 	apply_central_impulse(impulse)  # This divides by mass internally, so we get desired velocity
 	has_been_flicked = true
+	var _gm = get_tree().root.get_node_or_null("Main/GameManager")
+	if _gm and _gm.qa_mode and _gm.qa_hold_aim and aim_root and aim_root.visible:
+		_aim_hold_until = Time.get_ticks_msec() / 1000.0 + 4.0
+		print("QA hold_aim: arc frozen 4s")
 	
 	# Start checking for hit/miss
 	check_outcome()

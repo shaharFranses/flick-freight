@@ -32,6 +32,7 @@ func _ready():
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	
 	game_manager = get_node("/root/Main/GameManager")
+	_r4_hud_style()
 	
 	# Connect signals
 	game_manager.score_changed.connect(_on_score_changed)
@@ -309,7 +310,7 @@ func _create_hint_label():
 	hint_label = Label.new()
 	hint_label.text = "Flick the package into the truck"
 	hint_label.add_theme_font_size_override("font_size", 22)
-	hint_label.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+	hint_label.add_theme_color_override("font_color", Art.NAVY)  # r4: light field
 	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	hint_label.set_anchors_preset(Control.PRESET_CENTER)
@@ -700,6 +701,40 @@ func _on_time_delta(amount: float, from_pos: Vector2):
 
 var _time_pops_live := 0
 
+func _r4_hud_style():
+	"""r4: palette HUD. Pause/Mute 98x98 world px (>= 48 CSS px down to a 632 px-tall viewport),
+	navy plates with white glyphs; navy letterbox bars; HUD texts re-laid around the bigger buttons."""
+	for n in ["LetterboxLeft", "LetterboxRight"]:
+		var b = $UI.get_node_or_null(n)
+		if b: b.color = Art.NAVY
+	var hb = $UI.get_node_or_null("HUDBacking")
+	if hb: hb.color = Color(Art.NAVY, 0.97)
+	for pair in [["PausePlate", Vector2(10, 6)], ["MutePlate", Vector2(612, 6)]]:
+		var p = $UI.get_node_or_null(pair[0])
+		if p == null: continue
+		p.position = pair[1]
+		p.size = Vector2(98, 98)
+		p.color = Color("#2C4466")
+		for c in p.get_children():
+			if c is Button:
+				c.position = Vector2.ZERO
+				c.size = p.size
+				for icon in c.get_children():
+					if icon is Control:
+						icon.pivot_offset = icon.size / 2.0
+						icon.scale = Vector2(1.6, 1.6)
+	var tl = $UI.get_node_or_null("TimerLabel")
+	if tl:
+		tl.position.x = 478
+		tl.size.x = 128
+	var ll = $UI.get_node_or_null("LoadsLabel")
+	if ll:
+		ll.position.x = 478
+		ll.size.x = 128
+	var sp = $UI.get_node_or_null("StreakPlate")
+	if sp: sp.position.y = 108
+
+
 func _create_ticket_panel():
 	# Rides with the truck (child of TruckBay), just below the bed.
 	var bay = get_node_or_null("/root/Main/World/TruckBay")
@@ -737,10 +772,10 @@ func _on_ticket_changed(t: Array):
 			parts.append("%d %s" % [left[k], k.to_upper() + ("ES" if k == "box" and left[k] > 1 else ("S" if left[k] > 1 else ""))])
 	ticket_label.text = "ORDER: " + ", ".join(parts) + ("  %d/%d" % [done, t.size()] if done > 0 else "")
 	# fit: shrink font, floor 20 (= ~14 CSS px at 500x800); if still too long drop "ORDER:", then wrap
-	var fsz = 22
+	var fsz = 26
 	var font = ticket_label.get_theme_font("font")
 	var avail = ticket_panel.size.x - 16
-	while fsz > 20 and font.get_string_size(ticket_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz).x > avail:
+	while fsz > 22 and font.get_string_size(ticket_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz).x > avail:
 		fsz -= 1
 	if font.get_string_size(ticket_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz).x > avail:
 		ticket_label.text = ticket_label.text.trim_prefix("ORDER: ")
@@ -946,18 +981,25 @@ func _on_ticket_completed(score_bonus: int, time_bonus: float):
 	if ticket_panel == null:
 		return
 	var st = Label.new()
+	st.name = "DeliveredPop"
 	st.text = "DELIVERED +%d" % score_bonus
+	var pp = $UI.get_node_or_null("PerfectPop")
+	if pp != null:
+		# one pop at a time: merge PERFECT into the delivery stamp
+		pp.name = "PerfectPopGone"
+		pp.queue_free()
+		st.text = "PERFECT DELIVERY +%d" % score_bonus
 	st.add_theme_font_size_override("font_size", 34)
-	st.add_theme_color_override("font_color", Color(0.9, 0.15, 0.12))
-	st.add_theme_color_override("font_outline_color", Color(1, 1, 1))
+	st.add_theme_color_override("font_color", Art.CORAL)
+	st.add_theme_color_override("font_outline_color", Art.NAVY)
 	st.add_theme_constant_override("outline_size", 8)
 	st.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	st.size = Vector2(380, 48)
-	st.pivot_offset = Vector2(190, 24)
+	st.size = Vector2(460, 48)
+	st.pivot_offset = Vector2(230, 24)
 	st.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var bayn = ticket_panel.get_parent()
 	# just below the order ticket (never in the HUD band); staggered after +N / +time
-	st.position = Vector2(clamp(bayn.global_position.x - 190, 0, 720 - 380), bayn.global_position.y + ticket_panel.position.y + ticket_panel.size.y + 4)
+	st.position = Vector2(clamp(bayn.global_position.x - 230, 0, 720 - 460), bayn.global_position.y + ticket_panel.position.y + ticket_panel.size.y + 4)
 	st.rotation_degrees = -6
 	st.scale = Vector2(1.8, 1.8)
 	st.modulate.a = 0.0

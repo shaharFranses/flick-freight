@@ -85,6 +85,15 @@ static func cargo_color(type: String) -> Color:
 static func type_from_points(points: int) -> String:
 	return ["box", "box", "crate", "barrel"][clamp(points, 0, 3)]
 
+# r4: DRAWN size only (collision shapes untouched): box 48->82, crate 64->90, barrel 56->78 wide.
+const DRAW_SCALE = {"box": 1.7, "crate": 1.4, "barrel": 1.4}
+
+static func build_cargo_scaled(t: String) -> Node2D:
+	var n = build_cargo(t)
+	var k = DRAW_SCALE.get(t, 1.0)
+	n.scale = Vector2(k, k)
+	return n
+
 static func build_cargo(type: String) -> Node2D:
 	"""Visual matches each package's existing collision box (hit logic untouched):
 	BOX 48x48, CRATE 64x64, BARREL 56x72."""

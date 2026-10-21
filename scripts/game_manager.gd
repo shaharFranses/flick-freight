@@ -126,6 +126,13 @@ func _ready():
 		tb.ramp_enabled = qa_mode and int(T.ramp) == 1
 	
 	spawn_package()
+	if qa_force_fire:
+		call_deferred("_set_on_fire", true)
+
+var qa_force_fire := false
+var qa_cargo := ""
+var qa_hold_aim := false
+var _qa_cycle_i := 0
 
 func _parse_query(q: String):
 	var params = {}
@@ -135,6 +142,12 @@ func _parse_query(q: String):
 	qa_mode = params.get("qa", "") == "1"
 	if !qa_mode:
 		return
+	# r4 Visuals debug toggles (?qa=1 only; display/test aids)
+	qa_force_fire = params.get("fire", "") == "1"
+	qa_cargo = params.get("cargo", "")
+	qa_hold_aim = params.get("hold_aim", "") == "1"
+	if qa_force_fire or qa_cargo != "" or qa_hold_aim:
+		print("QA TOGGLES fire=", qa_force_fire, " cargo=", qa_cargo, " hold_aim=", qa_hold_aim)
 	for k in params:
 		if T.has(k) and params[k].is_valid_float():
 			T[k] = int(params[k]) if typeof(T[k]) == TYPE_INT else float(params[k])
@@ -442,6 +455,14 @@ func spawn_package():
 	can_spawn = false
 
 func select_random_type() -> String:
+	if qa_mode and qa_cargo in ["box", "crate", "barrel"]:
+		return qa_cargo
+	if qa_mode and qa_cargo == "cycle":
+		_qa_cycle_i += 1
+		return ["box", "crate", "barrel"][(_qa_cycle_i - 1) % 3]
+	return _select_random_type_real()
+
+func _select_random_type_real() -> String:
 	# r5: unlock order (BOX 0-4, +CRATE 5-9, all from 10) + ticket tilt (+15% per open type)
 	var types = unlocked_types()
 	var open = _open_ticket_types()
@@ -461,7 +482,7 @@ func select_random_type() -> String:
 # r3: NEXT preview sits beside the flick spot and shows the real cargo art
 const FLICK_SPOT = Vector2(360, 1150)
 const NEXT_POS = Vector2(530, 1160)
-const NEXT_ART_SCALE = 0.75
+const NEXT_ART_SCALE = 0.6  # r4: NEXT secondary, well under CURRENT's drawn size
 const NEXT_SLIDE_TIME = 0.25
 var advance_ghost: Node2D = null  # r3: transient cargo art sliding NEXT -> flick spot
 var advance_tween: Tween = null
@@ -500,7 +521,7 @@ func generate_preview(type: String, pop_in: bool = false):
 	var next_label = Label.new()
 	next_label.name = "NextCaption"
 	next_label.text = "NEXT"
-	next_label.add_theme_font_size_override("font_size", 24)
+	next_label.add_theme_font_size_override("font_size", 20)
 	next_label.add_theme_color_override("font_color", Color(1, 0.9, 0.4))
 	next_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	next_label.position = Vector2(-52, -78)
@@ -536,9 +557,9 @@ func add_current_chip_to_package(package: RigidBody2D):
 	"""(3): Add CURRENT chip with bigger label (>=14px effective) and high-contrast backing"""
 	# (3): Add dark backing plate first (drawn behind label)
 	var label_backing = ColorRect.new()
-	label_backing.size = Vector2(90, 28)
+	label_backing.size = Vector2(132, 38)
 	label_backing.color = Color(0.05, 0.05, 0.1, 0.95)  # Very dark, high opacity
-	label_backing.position = Vector2(-45, -75)  # Above package
+	label_backing.position = Vector2(-66, -112)  # Above the (larger) package art
 	label_backing.z_index = 99
 	package.add_child(label_backing)
 	
@@ -546,11 +567,12 @@ func add_current_chip_to_package(package: RigidBody2D):
 	var current_label = Label.new()
 	current_label.name = "CurrentChip"
 	current_label.text = "CURRENT"
-	current_label.add_theme_font_size_override("font_size", 20)  # Bigger for >= 14px effective
+	current_label.add_theme_font_size_override("font_size", 28)  # r4: CURRENT dominant over NEXT
 	current_label.add_theme_color_override("font_color", Color(1, 1, 0.3, 1))  # Bright yellow
 	current_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	current_label.position = Vector2(-45, -72)  # Centered on backing
-	current_label.size = Vector2(90, 24)
+	current_label.position = Vector2(-66, -112)  # Centered on backing
+	current_label.size = Vector2(132, 38)
+	current_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	current_label.z_index = 100
 	package.add_child(current_label)
 
@@ -594,8 +616,9 @@ func advance_preview_to_current(new_preview_type: String = ""):
 	advance_tween = ghost.create_tween()
 	advance_tween.set_parallel(true)
 	advance_tween.tween_property(ghost, "position", FLICK_SPOT, NEXT_SLIDE_TIME).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	advance_tween.tween_property(ghost, "scale", Vector2(1.1, 1.1), NEXT_SLIDE_TIME * 0.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	advance_tween.chain().tween_property(ghost, "scale", Vector2(1.0, 1.0), 0.08)
+	var gk = Art.DRAW_SCALE.get(type_name, 1.0)
+	advance_tween.tween_property(ghost, "scale", Vector2(1.1, 1.1) * gk, NEXT_SLIDE_TIME * 0.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	advance_tween.chain().tween_property(ghost, "scale", Vector2(gk, gk), 0.08)
 	advance_tween.chain().tween_callback(func():
 		_finish_advance_anim(pkg, new_preview_type)
 	)
@@ -706,7 +729,7 @@ func register_successful_load(package: Node, base_points: int) -> bool:
 		play_sfx("snap", 1.0, -2.0)
 		spawn_perfect_juice(package.global_position)
 	multiplier_changed.emit(mult)
-	_set_on_fire(streak >= int(T.on_fire_streak))
+	_set_on_fire(qa_force_fire or streak >= int(T.on_fire_streak))
 	_first_resolve()
 	
 	print("  Loads:", old_loads, "→", loads_completed, " (+1)")
@@ -778,7 +801,7 @@ func _on_package_missed(pkg = null):
 	streak = 0
 	streak_changed.emit(streak)
 	multiplier_changed.emit(1)
-	_set_on_fire(false)
+	_set_on_fire(qa_force_fire)
 	_first_resolve()
 	print("❌ MISS: Streak reset to 0")
 	
@@ -904,25 +927,21 @@ func restart_game():
 		if ui_manager.has_method("_update_paused_overlay"):
 			ui_manager._update_paused_overlay()
 	
-	# (5): Restart flash CLEARLY white-blue (different hue from green hit flash)
-	var world = get_tree().root.get_node_or_null("Main/World")
-	if world:
+	# r4: short white fade on retry (UI layer, above everything; 0.35 s, retry stays < 1 s)
+	var uil = get_tree().root.get_node_or_null("Main/UIManager/UI")
+	if uil:
 		var flash = ColorRect.new()
-		flash.size = Vector2(720, 1280)
-		# (5): Pure WHITE with slight blue tint (RGB all high, blue highest)
-		flash.color = Color(0.95, 0.95, 1.0, 1.0)  # Almost pure white with blue tint
-		flash.modulate = Color(1, 1, 1, 1)  # Reset modulate explicitly (no inherited alpha)
-		flash.z_index = 50
-		world.add_child(flash)
-		
-		var tween = create_tween()
-		tween.tween_property(flash, "modulate:a", 0.0, 0.4)  # Slower fade for clarity
-		
-		var cleanup_flash = flash
-		tween.finished.connect(func():
-			if is_instance_valid(cleanup_flash):
-				cleanup_flash.queue_free()
-		)
+		flash.name = "RetryFade"
+		flash.position = Vector2(-2000, -2000)
+		flash.size = Vector2(5000, 5000)
+		flash.color = Color(1, 1, 1, 1)
+		flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		flash.z_index = 400
+		uil.add_child(flash)
+		var tween = flash.create_tween()
+		tween.tween_property(flash, "modulate:a", 0.0, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_callback(flash.queue_free)
+		print("FF retry: white fade")
 
 func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color, ctype: String = "box"):
 	"""r4: per-cargo hit VFX. Mint spark burst + cargo-specific debris, bed lip glow,
@@ -974,7 +993,8 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color, ctype: 
 	world.add_child(score_label)
 	var tween = score_label.create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(score_label, "position", pos - Vector2(170, 150), 0.5 * dm).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	score_label.position.y = max(score_label.position.y, 165.0)
+	tween.tween_property(score_label, "position", Vector2(pos.x - 170, max(pos.y - 150, 165.0)), 0.5 * dm).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_property(score_label, "scale", Vector2(1.3, 1.3), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.chain().tween_property(score_label, "modulate:a", 0.0, 0.2 * dm)
 	tween.chain().tween_callback(score_label.queue_free)
@@ -998,12 +1018,15 @@ func spawn_perfect_juice(pos: Vector2):
 	var uil = get_tree().root.get_node_or_null("Main/UIManager/UI")
 	if uil == null:
 		return
+	if uil.get_node_or_null("DeliveredPop") != null:
+		uil.get_node("DeliveredPop").text = "PERFECT DELIVERY!"
+		return
 	var l = Label.new()
 	l.name = "PerfectPop"
 	l.text = "PERFECT!"
 	l.add_theme_font_size_override("font_size", 64)
 	l.add_theme_color_override("font_color", Color(1, 1, 1))
-	l.add_theme_color_override("font_outline_color", Color(0.9, 0.3, 0.1))
+	l.add_theme_color_override("font_outline_color", Art.NAVY)
 	l.add_theme_constant_override("outline_size", 12)
 	l.size = Vector2(360, 80)
 	l.position = Vector2(clamp(bay.global_position.x - 180, 0, 360), bay.global_position.y + 200)  # below the ticket + DELIVERED
