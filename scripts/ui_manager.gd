@@ -686,8 +686,8 @@ func _on_time_delta(amount: float, from_pos: Vector2):
 	# outside the ticket's x-span (bay +-170), on the roomier side; stacked vertically from y 178
 	var bayn = get_node_or_null("/root/Main/World/TruckBay")
 	var bx = bayn.global_position.x if bayn else 360.0
-	var side_x = bx + 176.0 if bx < 360.0 else bx - 176.0 - 84.0
-	l.position = Vector2(side_x, 224.0 + 44.0 * slot) if amount > 0 else from_pos + Vector2(-40, -30)
+	var side_x = Art.pop_column_x(bx)
+	l.position = Vector2(side_x, 216.0 + 42.0 * slot) if amount > 0 else from_pos + Vector2(-40, -30)
 	l.position.x = clamp(l.position.x, 8.0, 640.0)
 	$UI.add_child(l)
 	# r4: never travel into the HUD band / bar: float up to just below it and fade

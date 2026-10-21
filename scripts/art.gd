@@ -88,6 +88,10 @@ static func type_from_points(points: int) -> String:
 # r4: DRAWN size only (collision shapes untouched): box 48->82, crate 64->90, barrel 56->78 wide.
 const DRAW_SCALE = {"box": 1.7, "crate": 1.4, "barrel": 1.4}
 
+# r4: side column for +N / time pops, right beside the truck (truck spans bay-92..bay+150)
+static func pop_column_x(bx: float) -> float:
+	return bx + 158.0 if bx < 360.0 else bx - 92.0 - 86.0
+
 static func build_cargo_scaled(t: String) -> Node2D:
 	var n = build_cargo(t)
 	var k = DRAW_SCALE.get(t, 1.0)
@@ -124,13 +128,33 @@ static func build_cargo(type: String) -> Node2D:
 			for y in [-14.0, 16.0]:
 				line(n, PackedVector2Array([Vector2(-27, y), Vector2(27, y)]), NAVY, 4)
 			var pill = shape(n, rrect(-24, -7, 48, 15, 7), NAVY, false)
-			_label(n, "BARREL", 9, Vector2(-24, -8), Vector2(48, 17))  # fits inside the pill
+			_label_fit(n, "BARREL", 10, Vector2(0, 0.5), 40.0)  # centred, >=4 px margin inside the 48 px pill
 		_:
 			shape(n, rrect(-24, -24, 48, 48, 4), AMBER)
 			shape(n, PackedVector2Array([Vector2(-6, -22), Vector2(6, -22), Vector2(6, 22), Vector2(-6, 22)]), AMBER.darkened(0.2), false)
 			shape(n, rrect(-17, -7, 34, 14, 6), NAVY, false)
-			_label(n, "BOX", 10, Vector2(-20, -9), Vector2(40, 18))
+			_label_fit(n, "BOX", 10, Vector2(0, 0), 28.0)
 	return n
+
+static func _label_fit(parent: Node, t: String, size: int, center: Vector2, max_w: float):
+	# Labels never shrink below their text's minimum size and grow from the left edge, which is
+	# what pushed BARREL right/out of its pill. Measure the real font, shrink to fit, then centre.
+	var l = Label.new()
+	l.text = t
+	l.add_theme_color_override("font_color", WHITE)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var font = l.get_theme_default_font()
+	var fs = size
+	while fs > 6 and font.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > max_w:
+		fs -= 1
+	l.add_theme_font_size_override("font_size", fs)
+	var ts = font.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
+	var h = font.get_height(fs)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.size = Vector2(ceil(ts.x) + 2, ceil(h))
+	l.position = center - l.size / 2.0
+	parent.add_child(l)
 
 static func _label(parent: Node, t: String, size: int, pos: Vector2, sz: Vector2):
 	var l = Label.new()

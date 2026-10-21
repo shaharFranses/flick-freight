@@ -125,6 +125,10 @@ func _ready():
 	if tb and "ramp_enabled" in tb:
 		tb.ramp_enabled = qa_mode and int(T.ramp) == 1
 	
+	if qa_streak > 0:
+		streak = qa_streak  # ?qa=1&streak=N: preset (tier ring stills)
+		streak_changed.emit(streak)
+		print("QA TOGGLE streak=", streak)
 	if qa_bay_x >= 0.0 and tb and "qa_still_x" in tb:
 		tb.qa_still_x = qa_bay_x
 	spawn_package()
@@ -135,6 +139,7 @@ var qa_force_fire := false
 var qa_cargo := ""
 var qa_hold_aim := false
 var qa_bay_x := -1.0
+var qa_streak := 0
 var _qa_cycle_i := 0
 
 func _parse_query(q: String):
@@ -149,6 +154,8 @@ func _parse_query(q: String):
 	qa_force_fire = params.get("fire", "") == "1"
 	qa_cargo = params.get("cargo", "")
 	qa_hold_aim = params.get("hold_aim", "") == "1"
+	if params.get("streak", "").is_valid_int():
+		qa_streak = int(params["streak"])
 	if params.get("bay_still", "") == "1" or params.get("bay_x", "").is_valid_float():
 		qa_bay_x = float(params.get("bay_x", "360")) if params.get("bay_x", "").is_valid_float() else 360.0
 		print("QA TOGGLE bay_still x=", qa_bay_x)
@@ -501,7 +508,8 @@ func _select_random_type_real() -> String:
 # r3: NEXT preview sits beside the flick spot and shows the real cargo art
 const FLICK_SPOT = Vector2(360, 1150)
 const NEXT_POS = Vector2(530, 1160)
-const NEXT_ART_SCALE = 0.72  # r4: NEXT secondary, well under CURRENT's drawn size
+const NEXT_ART_SCALE = 0.72
+const NEXT_REL = 0.75  # r4: NEXT secondary, well under CURRENT's drawn size
 const NEXT_SLIDE_TIME = 0.25
 var advance_ghost: Node2D = null  # r3: transient cargo art sliding NEXT -> flick spot
 var advance_tween: Tween = null
@@ -558,7 +566,8 @@ func generate_preview(type: String, pop_in: bool = false):
 	# Real cargo art, scaled down
 	var art = make_cargo_art(type)
 	art.name = "CargoArt"
-	art.scale = Vector2(NEXT_ART_SCALE, NEXT_ART_SCALE)
+	var nk = Art.DRAW_SCALE.get(type, 1.0) * NEXT_REL  # r4: ~75% of CURRENT's drawn size
+	art.scale = Vector2(nk, nk)
 	art.position = Vector2(0, 4)
 	next_preview.add_child(art)
 	
@@ -970,7 +979,7 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color, ctype: 
 	if !world:
 		return
 	var dm = 3.0 if qa_mode else 1.0
-	Art.burst(world, pos, Art.TEX_SPARK, Color("#1FA673"), 14, 0.35 * dm, 220, 420, 0.35, 0.7, Vector2(0, 300))
+	Art.burst(world, pos, Art.TEX_SPARK, Art.MINT, 18, 0.4 * dm, 220, 420, 0.6, 1.0, Vector2(0, 300))  # thicker mint #3DDC97
 	match ctype:
 		"crate":  # wooden splinters
 			Art.burst(world, pos, null, Art.BROWN.lightened(0.15), 16, 0.5 * dm, 160, 340, 5, 9, Vector2(0, 900))
@@ -1006,7 +1015,7 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color, ctype: 
 	# r4: +N sits at the top of the side column beside the truck (time pops stack under it)
 	var _bn = get_tree().root.get_node_or_null("Main/World/TruckBay")
 	var _bx = _bn.global_position.x if _bn else 360.0
-	score_label.position = Vector2(_bx + 176.0 if _bx < 360.0 else _bx - 260.0, 172.0)
+	score_label.position = Vector2(Art.pop_column_x(_bx), 172.0)
 	score_label.text = "+%d" % score_value
 	score_label.add_theme_font_size_override("font_size", 40)
 	score_label.add_theme_color_override("font_color", Color("#1FA673"))  # darker mint for the light field
@@ -1145,8 +1154,8 @@ func spawn_miss_juice(pos: Vector2):
 			xmark.position.y = bay_n.global_position.y + 210  # keep the order ticket readable
 	xmark.z_index = 90
 	for d in [[Vector2(-26, -26), Vector2(26, 26)], [Vector2(26, -26), Vector2(-26, 26)]]:
-		Art.line(xmark, PackedVector2Array(d), Art.NAVY, 18)
-		Art.line(xmark, PackedVector2Array(d), Art.CORAL, 10)
+		Art.line(xmark, PackedVector2Array(d), Art.NAVY, 20)
+		Art.line(xmark, PackedVector2Array(d), Art.WHITE, 11)  # r4: white X reads on the coral cab
 	xmark.scale = Vector2(0.4, 0.4)
 	world.add_child(xmark)
 	var xt = xmark.create_tween()
