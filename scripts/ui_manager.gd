@@ -33,6 +33,9 @@ func _ready():
 	
 	game_manager = get_node("/root/Main/GameManager")
 	_r4_hud_style()
+	if game_manager.storage_get("ff_muted", "0") == "1":  # r4: restore persisted mute
+		AudioServer.set_bus_mute(0, true)
+		call_deferred("_sync_mute_slash")
 	
 	# Connect signals
 	game_manager.score_changed.connect(_on_score_changed)
@@ -186,6 +189,7 @@ func _on_mute_pressed():
 	# Toggle audio mute
 	var is_muted = AudioServer.is_bus_mute(0)
 	AudioServer.set_bus_mute(0, !is_muted)
+	game_manager.storage_set("ff_muted", "1" if !is_muted else "0")  # r4: persist
 	# ITEM 4 FIX: Show/hide slash on speaker icon
 	mute_slash.visible = !is_muted
 
@@ -300,10 +304,28 @@ func _create_paused_overlay():
 	paused_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	paused_overlay.add_child(paused_label)
 
+func _set_pause_glyph(paused: bool):
+	"""r4: Pause shows || while playing and a play triangle while paused."""
+	var icon = get_node_or_null("UI/PausePlate/PauseButton/PauseIcon")
+	if icon == null:
+		return
+	var tri = icon.get_node_or_null("PlayTri")
+	if tri == null:
+		tri = Polygon2D.new()
+		tri.name = "PlayTri"
+		tri.polygon = PackedVector2Array([Vector2(2, 0), Vector2(26, 16), Vector2(2, 32)])
+		tri.color = Color(1, 1, 1, 1)
+		icon.add_child(tri)
+	tri.visible = paused
+	for n in ["Bar1", "Bar2"]:
+		var b = icon.get_node_or_null(n)
+		if b: b.visible = !paused
+
 func _update_paused_overlay():
 	"""Show/hide PAUSED overlay based on pause state"""
 	if paused_overlay:
 		paused_overlay.visible = game_manager.is_paused
+	_set_pause_glyph(game_manager.is_paused)
 
 func _create_hint_label():
 	"""(7): Create one-line hint that fades after first flick"""
@@ -508,8 +530,16 @@ func _style_retry_button():
 	retry_btn.add_theme_stylebox_override("focus", style_normal)
 	retry_btn.add_theme_stylebox_override("disabled", style_normal)
 	
-	# White bold text
-	retry_btn.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+	# r4 palette: amber button, navy text/border; navy panel
+	for sb in [style_normal, style_hover, style_pressed]:
+		sb.border_color = Art.NAVY
+	style_normal.bg_color = Art.AMBER
+	style_hover.bg_color = Art.AMBER.lightened(0.15)
+	style_pressed.bg_color = Art.AMBER.darkened(0.15)
+	$UI/GameOverPanel.color = Color(Art.NAVY, 0.97)
+	retry_btn.add_theme_color_override("font_color", Art.NAVY)
+	retry_btn.add_theme_color_override("font_hover_color", Art.NAVY)
+	retry_btn.add_theme_color_override("font_pressed_color", Art.NAVY)
 	retry_btn.add_theme_font_size_override("font_size", 32)
 
 func _setup_button_scaling():
@@ -562,13 +592,14 @@ func _apply_hud_scale():
 		mute_plate.scale = Vector2(s, s)
 		mute_plate.position = Vector2(mute_left, 20)
 	# Reflow right column (Time / Loads / QA badge) to stay left of Mute
-	var col_right = min(640.0, mute_left - 8.0)
+	var col_right = min(640.0, mute_left - 12.0)
 	var col_w = 140.0 if s > 1.0 else 160.0
 	for n in ["TimerLabel", "LoadsLabel"]:
 		var c = ui.get_node_or_null(n)
 		if c:
 			c.position.x = col_right - col_w
 			c.size.x = col_w
+			c.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT  # never spill toward Mute
 	var score_plate = ui.get_node_or_null("ScorePlate")
 	if score_plate:
 		var right = min(470.0, col_right - col_w - 8.0)
@@ -581,12 +612,14 @@ func _apply_hud_scale():
 		streak_plate.position = Vector2(20.0 if 20.0 + btn <= 92.0 else 20.0 + btn + 10.0, 100.0)
 	var backing = ui.get_node_or_null("HUDBacking")
 	if backing:
-		backing.size.y = max(155.0, 20.0 + btn + 8.0)
+		backing.size.y = max(150.0, 20.0 + btn + 8.0)
 	# r5: timer bar sits right of the Streak plate, below Loads, inside the HUD strip
 	if timer_bar_bg and streak_plate:
 		var bl = streak_plate.position.x + streak_plate.size.x + 12.0
 		timer_bar_bg.position = Vector2(bl, 122)
-		timer_bar_bg.size = Vector2(700.0 - bl, BAR_SIZE.y)
+		# r4: stop the bar left of the Mute plate when the plate reaches down to the bar row
+		var bar_right = 700.0 if (20.0 + btn) < 118.0 else mute_left - 10.0
+		timer_bar_bg.size = Vector2(bar_right - bl, BAR_SIZE.y)
 		_update_timer_bar(game_manager.time_remaining)
 	_apply_retry_size()
 
@@ -692,6 +725,8 @@ func _on_time_delta(amount: float, from_pos: Vector2):
 	$UI.add_child(l)
 	# r4: never travel into the HUD band / bar: float up to just below it and fade
 	l.position.y = max(l.position.y, 185.0)
+	if amount > 0:
+		nudge_pop_clear(l, bx)
 	var target = Vector2(l.position.x, max(l.position.y - 20.0, 214.0)) if amount > 0 else Vector2(l.position.x, max(l.position.y - 60.0, 175.0))
 	var dur = 0.6 * (3.0 if game_manager.qa_mode else 1.0)
 	var tw = l.create_tween()
@@ -708,11 +743,54 @@ func _on_time_delta(amount: float, from_pos: Vector2):
 
 var _time_pops_live := 0
 
+func pop_blockers() -> Array:
+	"""Runtime rects (canvas coords) pops must never overlap: truck body+wheels+cab, order ticket."""
+	var r = []
+	var bay = get_node_or_null("/root/Main/World/TruckBay")
+	if bay:
+		r.append(Rect2(bay.global_position + Vector2(-112, -62), Vector2(282, 136)))  # +12 px side clearance
+	if ticket_panel and is_instance_valid(ticket_panel):
+		r.append(Rect2(ticket_panel.global_position - Vector2(6, 6), ticket_panel.size + Vector2(12, 12)))
+	return r
+
+func nudge_pop_clear(c: Control, bay_x: float):
+	"""Push a pop label sideways (away from the truck) until its rect clears every blocker,
+	including the downward drift range its tween covers."""
+	var sz = c.get_combined_minimum_size()
+	sz = Vector2(max(sz.x, c.size.x), max(sz.y, c.size.y))
+	var dir = -1.0 if c.position.x + sz.x / 2.0 < bay_x else 1.0
+	for i in 60:
+		var rr = Rect2(c.position - Vector2(0, 50), sz + Vector2(0, 60))  # covers its float path
+		var hit = false
+		for b in pop_blockers():
+			if b.intersects(rr):
+				hit = true
+				break
+		if !hit:
+			return
+		var nx = c.position.x + dir * 8.0
+		if nx < 0.0 or nx + sz.x > 720.0:
+			dir = -dir  # ran out of room: try the other side from scratch
+			c.position.x = bay_x + (170.0 if dir > 0 else -170.0 - sz.x)
+		else:
+			c.position.x = nx
+
+func _sync_mute_slash():
+	if mute_slash:
+		mute_slash.visible = AudioServer.is_bus_mute(0)
+
 func _r4_hud_style():
 	"""r4: palette HUD: navy letterbox bars, navy HUD band, Pause/Mute plates restyled (size stays adaptive)."""
 	for n in ["LetterboxLeft", "LetterboxRight"]:
 		var b = $UI.get_node_or_null(n)
 		if b: b.color = Art.NAVY
+	var spl = $UI.get_node_or_null("StreakPlate")
+	if spl:
+		spl.size.x = 196  # r4: fits "Streak 10  x4" so the navy plate stays behind the text at every tier
+		spl.color = Art.NAVY.lightened(0.12)
+		var sl = spl.get_node_or_null("StreakLabel")
+		if sl:
+			sl.size.x = 196
 	var hb = $UI.get_node_or_null("HUDBacking")
 	if hb: hb.color = Color(Art.NAVY, 0.97)
 	# Pause/Mute keep the adaptive >=BTN_MIN_CSS sizing from _apply_hud_scale; restyle only.
@@ -888,6 +966,7 @@ func _on_fire_changed(on: bool):
 			var glow_holder = Node2D.new()
 			glow_holder.z_index = -3  # net z 0 inside bay: above field, below hero truck (z 1)
 			glow_holder.add_child(glow)
+			glow_holder.visible = false  # r4: fire halo lives on the CURRENT cargo, not the truck
 			fire_glow.add_child(glow_holder)
 			# embers as tweened sprites (CPUParticles color_ramp tinted randomly on web compat)
 			var tm = Timer.new()
@@ -931,19 +1010,36 @@ func _streak_tier_pop(mult: int):
 	var world = get_node_or_null("/root/Main/World")
 	if bay == null or world == null:
 		return
-	var col = [Art.WHITE, Art.WHITE, Art.MINT, Art.AMBER, Art.CORAL][clamp(mult, 1, 4)]
-	var ring = Sprite2D.new()
-	ring.texture = Art.shock_ring()
-	ring.modulate = Color(col if mult < 4 else Art.CORAL, 1.0)
-	if mult == 2: ring.modulate = Color("#1FA673")
-	ring.position = bay.global_position + Vector2(0, 10)
-	ring.scale = Vector2(0.8, 0.6)
+	var col = [Art.WHITE, Art.WHITE, Art.MINT, Art.AMBER, Color("#FFD23F")][clamp(mult, 1, 4)]
+	# r4: crisp 5 px solid ring (Line2D) with a navy edge; x4 = gold
+	var rcol = {2: Color("#1FA673"), 3: Art.AMBER, 4: Color("#FFD23F")}.get(clamp(mult, 2, 4), Art.WHITE)
+	var ring = Node2D.new()
+	ring.position = bay.global_position + Vector2(29, 0)
 	ring.z_index = 60
+	var edge = Line2D.new()
+	edge.width = 9.0
+	edge.default_color = Art.NAVY
+	var core = Line2D.new()
+	core.width = 5.0
+	core.default_color = rcol
+	for ln in [edge, core]:
+		ln.closed = true
+		ln.antialiased = true
+		ring.add_child(ln)
 	world.add_child(ring)
+	var rdm = 3.0 if game_manager.qa_mode else 1.0
+	var set_r = func(r: float):
+		if !is_instance_valid(edge): return
+		var pts = PackedVector2Array()
+		for i in 48:
+			var t = i * TAU / 48.0
+			pts.append(Vector2(cos(t) * r * 1.25, sin(t) * r * 0.62))
+		edge.points = pts
+		core.points = pts
+	set_r.call(70.0)
 	var rt = ring.create_tween()
 	rt.set_parallel(true)
-	var rdm = 3.0 if game_manager.qa_mode else 1.0  # same 3x QA slow-mo as the other effects
-	rt.tween_property(ring, "scale", Vector2(3.2, 2.2), 0.6 * rdm).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	rt.tween_method(set_r, 70.0, 165.0, 0.6 * rdm).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	rt.tween_property(ring, "modulate:a", 0.0, 0.6 * rdm).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	rt.chain().tween_callback(ring.queue_free)
 	var l = Label.new()

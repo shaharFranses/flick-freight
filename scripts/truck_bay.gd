@@ -2,6 +2,31 @@ extends Area2D
 
 # Bay constants from design brief
 const OPENING_WIDTH = 110.0
+# r4 DESIGN RULING (sanctioned hit change): hit = cargo centre within bay +- forgiveness,
+# forgiveness = 0.25 x the cargo's DRAWN width (override: ?qa=1&hit_forgiveness=N).
+# A rim clip (drawn cargo overlaps the opening, centre outside the window) is a miss with a bounce-off.
+const BASE_W = {"box": 48.0, "crate": 64.0, "barrel": 56.0}
+const DRAW_K = {"box": 1.7, "crate": 1.4, "barrel": 1.4}  # mirrors Art.DRAW_SCALE
+const FORGIVE_FRAC = 0.25
+const DETECT_REACH = 50.0  # Area widened by this per side so rim clips are seen (classification decides)
+var forgiveness_override: float = -1.0
+
+static func drawn_width(ctype: String) -> float:
+	return BASE_W.get(ctype, 48.0) * DRAW_K.get(ctype, 1.0)
+
+static func forgiveness_px(ctype: String, override_px: float = -1.0) -> float:
+	if override_px >= 0.0:
+		return override_px
+	return FORGIVE_FRAC * drawn_width(ctype)
+
+static func classify(dx_abs: float, ctype: String, override_px: float = -1.0) -> String:
+	"""'hit' | 'rim' | 'miss' for a cargo centre dx_abs px from the bay centre."""
+	var half_open = OPENING_WIDTH / 2.0
+	if dx_abs <= half_open + forgiveness_px(ctype, override_px):
+		return "hit"
+	if dx_abs < half_open + drawn_width(ctype) / 2.0:
+		return "rim"
+	return "miss"
 const TRAVEL_RANGE = 180.0  # Design spec: ±180px
 const PERIOD_START = 3.2
 const PERIOD_END = 2.0
@@ -17,6 +42,11 @@ func _ready():
 	start_time = Time.get_ticks_msec() / 1000.0
 	round_start_time = start_time
 	position.x = center_x
+	# r4: widen the detection Area so rim clips register; hit/rim/miss is decided by classify()
+	for c in get_children():
+		if c is CollisionShape2D and c.shape is RectangleShape2D:
+			c.shape = c.shape.duplicate()
+			c.shape.size.x = OPENING_WIDTH + 2.0 * DETECT_REACH
 	
 	# r4: hero truck art (visual only)
 	var hero = load("res://scripts/hero_truck.gd").new()
@@ -158,8 +188,12 @@ func _on_body_entered(body: Node2D):
 	var bay_left = bay_global_x - effective_width / 2
 	var bay_right = bay_global_x + effective_width / 2
 	
-	# Check if package center is within bay opening (X-range)
-	var x_in_range = package_center.x >= bay_left and package_center.x <= bay_right
+	# r4 ruling: centre within the opening +- forgiveness (per cargo type, drawn width)
+	var gm_ref = get_node_or_null("/root/Main/GameManager")
+	var ctype = gm_ref._type_of(package_root) if gm_ref and gm_ref.has_method("_type_of") else "box"
+	var verdict = classify(abs(package_center.x - bay_global_x), ctype, forgiveness_override)
+	var x_in_range = verdict == "hit"
+	print("  r4 forgiveness: type=%s dx=%.1f window=+-%.1f verdict=%s" % [ctype, abs(package_center.x - bay_global_x), effective_width / 2 + forgiveness_px(ctype, forgiveness_override), verdict])
 	
 	# Check velocity (moving with reasonable speed, not drifting)
 	var vel_ok = velocity.length() > 200
@@ -172,6 +206,17 @@ func _on_body_entered(body: Node2D):
 	if !x_in_range or !vel_ok:
 		if !x_in_range:
 			print("  ❌ REJECT: Package outside bay opening (x=%.1f not in [%.1f, %.1f])" % [package_center.x, bay_left, bay_right])
+			if verdict == "rim" and package_root is RigidBody2D and !package_root.get_meta("rim_bounced", false):
+				# rim bounce-off: small outward deflect + thunk, instead of a clean fall-through
+				package_root.set_meta("rim_bounced", true)
+				var side = sign(package_center.x - bay_global_x)
+				if side == 0: side = 1.0
+				var v = package_root.linear_velocity
+				package_root.linear_velocity = Vector2(v.x * 0.4 + side * 240.0, v.y * -0.35)
+				package_root.angular_velocity += side * 6.0
+				if gm_ref and gm_ref.has_method("play_sfx"):
+					gm_ref.play_sfx("thunk")
+				print("  🔩 RIM BOUNCE side=%d" % side)
 		if !vel_ok:
 			print("  ❌ REJECT: Velocity too low (%.1f px/s < 200 px/s)" % velocity.length())
 		scored_packages.erase(package_root)

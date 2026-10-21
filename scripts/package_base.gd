@@ -163,7 +163,7 @@ func _process(_delta):
 		var p = p0 + v * t + 0.5 * g * t * t
 		var d = aim_root.get_child(i)
 		d.global_position = p
-		d.visible = p.y > 120.0
+		d.visible = p.y > 168.0 and p.y < 1176.0 and p.x > 6.0 and p.x < 714.0  # r4: clip to play area
 
 func start_drag(pos: Vector2):
 	is_dragging = true

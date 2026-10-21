@@ -1,3 +1,4 @@
 All .wav files in this folder were procedurally synthesized for Flick Freight by FF Godot Build
 (Python, sine/square/noise generators, 2026-10-21). No third-party samples. Released CC0 1.0
 (public domain dedication): https://creativecommons.org/publicdomain/zero/1.0/
+thunk.wav: self-synthesized (decaying 140 Hz sine + noise click), CC0, r4.

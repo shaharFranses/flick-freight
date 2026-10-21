@@ -19,6 +19,22 @@ const TEX_SMOKE = preload("res://art/kenney/smoke_04.png")
 const TEX_FLAME = preload("res://art/kenney/flame_03.png")
 const TEX_RING = preload("res://art/kenney/circle_05.png")
 static var _shock_ring: Texture2D = null
+static var _soft_glow: Texture2D = null
+
+static func soft_glow() -> Texture2D:
+	if _soft_glow == null:
+		var gt = GradientTexture2D.new()
+		gt.width = 128
+		gt.height = 128
+		gt.fill = GradientTexture2D.FILL_RADIAL
+		gt.fill_from = Vector2(0.5, 0.5)
+		gt.fill_to = Vector2(0.5, 0.0)
+		var g = Gradient.new()
+		g.offsets = PackedFloat32Array([0.0, 0.45, 0.75, 1.0])
+		g.colors = PackedColorArray([Color(1, 1, 1, 0.9), Color(1, 1, 1, 0.75), Color(1, 1, 1, 0.3), Color(1, 1, 1, 0)])
+		gt.gradient = g
+		_soft_glow = gt
+	return _soft_glow
 
 static func shock_ring() -> Texture2D:
 	# crisp annulus (transparent centre, bright band, soft edges) for impact rings
@@ -167,6 +183,30 @@ static func _label(parent: Node, t: String, size: int, pos: Vector2, sz: Vector2
 	l.size = sz
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(l)
+
+static func chip_burst(parent: Node, pos: Vector2, col: Color, amount: int, life: float, vmin: float, vmax: float, smin: float, smax: float, grav := Vector2(0, 500)) -> Node2D:
+	# chunky diamond chips: solid fill + 2.5 px navy edge (readable on the light field)
+	var root = Node2D.new()
+	root.position = pos
+	root.z_index = 71
+	parent.add_child(root)
+	for i in amount:
+		var sz = randf_range(smin, smax)
+		var poly = PackedVector2Array([Vector2(0, -sz), Vector2(sz * 0.6, 0), Vector2(0, sz), Vector2(-sz * 0.6, 0)])
+		var piece = shape(root, poly, col, true, 2.5)
+		piece.rotation = randf() * TAU
+		var v = Vector2.from_angle(randf() * TAU) * randf_range(vmin, vmax)
+		var spin = randf_range(-8.0, 8.0)
+		var r0 = piece.rotation
+		var tw = piece.create_tween()
+		tw.tween_method(func(t: float):
+			if is_instance_valid(piece):
+				piece.position = v * t + 0.5 * grav * t * t
+				piece.rotation = r0 + spin * t
+				piece.modulate.a = 1.0 - pow(t / life, 2.0), 0.0, life, life)
+	parent.get_tree().create_timer(life + 0.1).timeout.connect(func():
+		if is_instance_valid(root): root.queue_free())
+	return root
 
 static func burst(parent: Node, pos: Vector2, tex: Texture2D, col: Color, amount: int, life: float, vmin: float, vmax: float, smin: float, smax: float, grav := Vector2(0, 600), spread := 180.0, dir := Vector2(0, -1)) -> Node2D:
 	# Sprite burst: each piece is a white texture (or flat square) tinted by modulate,
