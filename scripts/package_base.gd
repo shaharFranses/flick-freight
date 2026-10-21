@@ -246,6 +246,7 @@ func check_outcome():
 		# Check if off screen
 		if position.y < -200 or position.x < -200 or position.x > 920 or position.y > 1500:
 			if !is_queued_for_deletion() and !has_scored:
+				_log_clean_miss()
 				missed.emit()
 				queue_free()
 			return
@@ -274,3 +275,9 @@ func show_ghost_arc():
 	# This would draw the arc - simplified stub for now
 	# In full implementation, would use Line2D or draw calls
 	pass
+
+func _log_clean_miss():
+	# r4o: every resolve logs one FF hit line; clean misses never reach the bay's classifier
+	var b = get_tree().root.get_node_or_null("Main/World/TruckBay")
+	var bx = b.global_position.x if b else 360.0
+	print("FF hit: tx=%.1f bay=%.1f dx=%.1f window=n/a verdict=miss" % [global_position.x, bx, abs(global_position.x - bx)])
