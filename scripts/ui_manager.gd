@@ -779,6 +779,9 @@ func _on_multiplier_changed(mult: int):
 	var st = game_manager.streak
 	streak_label.text = ("Streak %d  x%d" % [st, mult]) if mult > 1 else ("Streak: %d" % st)
 	streak_label.add_theme_color_override("font_color", [Color(1,1,1), Color(1,1,1), Color(0.5,1,0.6), Color(1,0.8,0.3), Color(1,0.45,0.25)][clamp(mult, 1, 4)])
+	if mult > _last_mult:
+		_streak_tier_pop(mult)
+	_last_mult = mult
 	if mult > 1:
 		var plate = streak_label.get_parent()
 		plate.pivot_offset = plate.size / 2
@@ -793,6 +796,7 @@ func _apply_hud_scale_streak_width():
 	_apply_hud_scale()
 
 func _on_fire_changed(on: bool):
+	# r4: Kenney flame particles off the bed + warm glow (replaces polygon flames)
 	var bay = get_node_or_null("/root/Main/World/TruckBay")
 	if bay == null:
 		return
@@ -801,26 +805,82 @@ func _on_fire_changed(on: bool):
 			fire_glow = Node2D.new()
 			fire_glow.name = "FireGlow"
 			fire_glow.z_index = 3
-			for i in 5:
-				var fl = Polygon2D.new()
-				var x = -64 + i * 32
-				fl.polygon = PackedVector2Array([Vector2(x - 16, 30), Vector2(x, -18 - (i % 2) * 14), Vector2(x + 16, 30)])
-				fl.color = Color(1, 0.55 + 0.1 * (i % 2), 0.1, 0.85)
-				fire_glow.add_child(fl)
-			var glow = ColorRect.new()
-			glow.position = Vector2(-92, -62)
-			glow.size = Vector2(184, 150)
-			glow.color = Color(1, 0.5, 0.1, 0.25)
-			glow.show_behind_parent = true
+			var glow = Polygon2D.new()
+			glow.polygon = Art.rrect(-100, -60, 200, 128, 24)
+			glow.color = Color(Art.AMBER, 0.22)
 			fire_glow.add_child(glow)
+			var fl = CPUParticles2D.new()
+			fl.texture = Art.TEX_FLAME
+			fl.amount = 22
+			fl.lifetime = 0.55
+			fl.position = Vector2(0, -48)
+			fl.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+			fl.emission_rect_extents = Vector2(80, 4)
+			fl.direction = Vector2(0, -1)
+			fl.spread = 12
+			fl.gravity = Vector2(0, -160)
+			fl.initial_velocity_min = 40
+			fl.initial_velocity_max = 110
+			fl.scale_amount_min = 0.7
+			fl.scale_amount_max = 1.2
+			var g = Gradient.new()
+			g.set_color(0, Color(Art.AMBER, 0.95))
+			g.set_color(1, Color(Art.CORAL, 0.0))
+			fl.color_ramp = g
+			fire_glow.add_child(fl)
 			bay.add_child(fire_glow)
-			var tw = fire_glow.create_tween().set_loops()
-			tw.tween_property(fire_glow, "scale", Vector2(1.0, 1.15), 0.12)
-			tw.tween_property(fire_glow, "scale", Vector2(1.0, 0.92), 0.12)
+			var tw = glow.create_tween().set_loops()
+			tw.tween_property(glow, "color:a", 0.35, 0.18)
+			tw.tween_property(glow, "color:a", 0.15, 0.18)
 		fire_glow.visible = true
 	elif fire_glow:
-		fire_glow.queue_free()
+		var fg = fire_glow
 		fire_glow = null
+		var t = fg.create_tween()
+		t.tween_property(fg, "modulate:a", 0.0, 0.25)
+		t.tween_callback(fg.queue_free)
+
+var _last_mult := 1
+func _streak_tier_pop(mult: int):
+	"""r4 streak VFX: tier-up pop (x2/x3/x4) above the truck + expanding ring."""
+	var bay = get_node_or_null("/root/Main/World/TruckBay")
+	var world = get_node_or_null("/root/Main/World")
+	if bay == null or world == null:
+		return
+	var col = [Art.WHITE, Art.WHITE, Art.MINT, Art.AMBER, Art.CORAL][clamp(mult, 1, 4)]
+	var ring = Sprite2D.new()
+	ring.texture = Art.TEX_RING
+	ring.modulate = Color(col, 0.9)
+	ring.position = bay.global_position
+	ring.scale = Vector2(0.6, 0.6)
+	ring.z_index = 60
+	world.add_child(ring)
+	var rt = ring.create_tween()
+	rt.set_parallel(true)
+	rt.tween_property(ring, "scale", Vector2(4.5, 4.5), 0.45)
+	rt.tween_property(ring, "modulate:a", 0.0, 0.45)
+	rt.chain().tween_callback(ring.queue_free)
+	var l = Label.new()
+	l.text = "x%d!" % mult
+	l.add_theme_font_size_override("font_size", 56)
+	l.add_theme_color_override("font_color", col)
+	l.add_theme_color_override("font_outline_color", Art.NAVY)
+	l.add_theme_constant_override("outline_size", 12)
+	l.size = Vector2(160, 70)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.pivot_offset = Vector2(80, 35)
+	l.position = Vector2(clamp(bay.global_position.x - 80, 0, 560), 430)
+	l.scale = Vector2(0.3, 0.3)
+	l.z_index = 150
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	$UI.add_child(l)
+	var dm = 3.0 if game_manager.qa_mode else 1.0
+	var t = l.create_tween()
+	t.tween_property(l, "scale", Vector2(1.2, 1.2), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_property(l, "scale", Vector2.ONE, 0.08)
+	t.tween_interval(0.35 * dm)
+	t.tween_property(l, "modulate:a", 0.0, 0.2)
+	t.tween_callback(l.queue_free)
 
 func _on_ticket_completed(score_bonus: int, time_bonus: float):
 	# r5: stamp effect on the ticket

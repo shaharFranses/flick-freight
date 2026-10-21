@@ -18,6 +18,10 @@ func _ready():
 	round_start_time = start_time
 	position.x = center_x
 	
+	# r4: hero truck art (visual only)
+	var hero = load("res://scripts/hero_truck.gd").new()
+	add_child(hero)
+	
 	# Connect to detect packages entering
 	body_entered.connect(_on_body_entered)
 

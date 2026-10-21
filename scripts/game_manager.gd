@@ -469,14 +469,8 @@ var next_pop_tween: Tween = null
 var shake_tween_ref: Tween = null
 
 func make_cargo_art(type: String) -> Node2D:
-	"""r3: Display-only copy of a package scene's visuals (same art as in play)"""
-	var art = Node2D.new()
-	var package_instance = package_scenes[type].instantiate()
-	for child in package_instance.get_children():
-		if child is CanvasItem:
-			art.add_child(child.duplicate())
-	package_instance.free()
-	return art
+	"""r4: display-only vector cargo (same art as in play)"""
+	return Art.build_cargo(type)
 
 func generate_preview(type: String, pop_in: bool = false):
 	# Remove old preview if exists
@@ -721,7 +715,7 @@ func register_successful_load(package: Node, base_points: int) -> bool:
 	
 	# JUICE: Hit effect (particles + score pop)
 	var pkg_color = package.modulate if package.get("modulate") != null else Color(1, 1, 1)
-	spawn_hit_juice(package.global_position, total_points, pkg_color)
+	spawn_hit_juice(package.global_position, total_points, pkg_color, ctype)
 	
 	print("═══════════════════════════════════════")
 	
@@ -930,78 +924,54 @@ func restart_game():
 				cleanup_flash.queue_free()
 		)
 
-func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color):
-	"""Spawn hit particles + score pop + LOCALIZED green flash"""
+func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color, ctype: String = "box"):
+	"""r4: per-cargo hit VFX. Mint spark burst + cargo-specific debris, bed lip glow,
+	truck bounce, mint +N pop. <= 0.5 s (3x under ?qa=1)."""
 	var world = get_tree().root.get_node_or_null("Main/World")
 	if !world:
 		return
-	
-	# QA mode: 3x duration for all effects
-	var duration_mult = 3.0 if qa_mode else 1.0
-	
-	# D: Small localized green flash at truck bay (150x150), very faint
-	var hit_flash = ColorRect.new()
-	hit_flash.position = Vector2(pos.x - 75, pos.y - 75)
-	hit_flash.size = Vector2(150, 150)
-	hit_flash.color = Color(0.2, 1.0, 0.3, 0.05)  # Very faint green tint (alpha 0.05)
-	hit_flash.z_index = 55
-	world.add_child(hit_flash)
-	
-	var flash_tween = create_tween()
-	flash_tween.tween_property(hit_flash, "modulate:a", 0.0, 0.2 * duration_mult)
-	
-	var cleanup_hit_flash = hit_flash
-	flash_tween.finished.connect(func():
-		if is_instance_valid(cleanup_hit_flash):
-			cleanup_hit_flash.queue_free()
-	)
-	
-	# ITEM (b): Larger/brighter hit particles (doubled amount, bigger scale)
-	var particles = CPUParticles2D.new()
-	particles.position = pos
-	particles.emitting = true
-	particles.one_shot = true
-	particles.amount = 30  # Doubled from 15
-	particles.lifetime = 0.6 * duration_mult
-	particles.explosiveness = 0.95
-	particles.direction = Vector2(0, -1)
-	particles.spread = 45
-	particles.gravity = Vector2(0, 450)
-	particles.initial_velocity_min = 180.0
-	particles.initial_velocity_max = 320.0
-	particles.scale_amount_min = 4.0  # Increased from 2.5
-	particles.scale_amount_max = 8.0  # Increased from 5.0
-	particles.color = cargo_color
-	world.add_child(particles)
-	
-	# Auto-cleanup after particles finish
-	var cleanup_particles = particles  # Copy reference to avoid capture issues
-	get_tree().create_timer(1.0 * duration_mult).timeout.connect(func(): 
-		if is_instance_valid(cleanup_particles):
-			cleanup_particles.queue_free()
-	)
-	
-	# Score pop label
+	var dm = 3.0 if qa_mode else 1.0
+	Art.burst(world, pos, Art.TEX_SPARK, Art.MINT, 14, 0.35 * dm, 220, 420, 0.35, 0.7, Vector2(0, 300))
+	match ctype:
+		"crate":  # wooden splinters
+			Art.burst(world, pos, null, Art.BROWN.lightened(0.15), 16, 0.5 * dm, 160, 340, 5, 9, Vector2(0, 900))
+			Art.burst(world, pos, null, Art.AMBER.darkened(0.25), 8, 0.5 * dm, 140, 300, 4, 7, Vector2(0, 900))
+		"barrel":  # metal clang: blue shock ring + star glints
+			var ring = Sprite2D.new()
+			ring.texture = Art.TEX_RING
+			ring.modulate = Color(Art.BLUE.lightened(0.3), 0.9)
+			ring.position = pos
+			ring.scale = Vector2(0.4, 0.25)
+			ring.z_index = 69
+			world.add_child(ring)
+			var rt = ring.create_tween()
+			rt.set_parallel(true)
+			rt.tween_property(ring, "scale", Vector2(3.2, 2.0), 0.35 * dm)
+			rt.tween_property(ring, "modulate:a", 0.0, 0.35 * dm)
+			rt.chain().tween_callback(ring.queue_free)
+			Art.burst(world, pos, Art.TEX_STAR, Art.WHITE, 6, 0.4 * dm, 120, 260, 0.3, 0.55, Vector2.ZERO)
+		_:  # box: cardboard flecks + amber stars
+			Art.burst(world, pos, Art.TEX_STAR, Art.AMBER, 10, 0.45 * dm, 150, 320, 0.3, 0.55, Vector2(0, 500))
+	var bay = get_tree().root.get_node_or_null("Main/World/TruckBay")
+	if bay:
+		var hero = bay.get_node_or_null("HeroTruck")
+		if hero and hero.has_method("hit_pulse"):
+			hero.hit_pulse(Art.MINT)
 	var score_label = Label.new()
-	score_label.position = pos - Vector2(30, 50)
+	score_label.position = pos - Vector2(40, 60)
 	score_label.text = "+%d" % score_value
-	score_label.add_theme_font_size_override("font_size", 36)
-	score_label.add_theme_color_override("font_color", Color(1, 1, 0.2, 1))
+	score_label.add_theme_font_size_override("font_size", 40)
+	score_label.add_theme_color_override("font_color", Art.MINT)
+	score_label.add_theme_color_override("font_outline_color", Art.NAVY)
+	score_label.add_theme_constant_override("outline_size", 8)
 	score_label.z_index = 100
 	world.add_child(score_label)
-	
-	# Animate pop: scale + fade + rise
-	var tween = create_tween()
+	var tween = score_label.create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(score_label, "position:y", pos.y - 100, 0.9 * duration_mult)
-	tween.tween_property(score_label, "scale", Vector2(1.5, 1.5), 0.2 * duration_mult).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.chain().tween_property(score_label, "modulate:a", 0.0, 0.4 * duration_mult)
-	
-	var cleanup_label = score_label  # Copy reference
-	tween.finished.connect(func(): 
-		if is_instance_valid(cleanup_label):
-			cleanup_label.queue_free()
-	)
+	tween.tween_property(score_label, "position:y", pos.y - 120, 0.5 * dm)
+	tween.tween_property(score_label, "scale", Vector2(1.3, 1.3), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.chain().tween_property(score_label, "modulate:a", 0.0, 0.2 * dm)
+	tween.chain().tween_callback(score_label.queue_free)
 
 func spawn_perfect_juice(pos: Vector2):
 	"""r5: short white flash on the bed + PERFECT pop-up"""
@@ -1107,48 +1077,29 @@ func spawn_miss_juice(pos: Vector2):
 			print("✅ MISS SHAKE COMPLETE: position reset to", final_pos)
 	)
 	
-	# STRONGER dust burst (4x particles, much bigger, longer-lived)
-	var particles = CPUParticles2D.new()
-	particles.position = pos
-	particles.emitting = true
-	particles.one_shot = true
-	particles.amount = 32  # Quadrupled from 8
-	particles.lifetime = 0.8 * duration_mult  # Increased further
-	particles.explosiveness = 0.9  # More explosive
-	particles.direction = Vector2(0, -1)
-	particles.spread = 80  # Wider spread
-	particles.gravity = Vector2(0, 300)
-	particles.initial_velocity_min = 120.0  # Faster
-	particles.initial_velocity_max = 250.0  # Faster
-	particles.scale_amount_min = 6.0  # Much bigger
-	particles.scale_amount_max = 12.0  # Much bigger
-	particles.color = Color(0.6, 0.6, 0.6, 0.9)  # More opaque
-	world.add_child(particles)
-	
-	# Auto-cleanup
-	var cleanup_particles = particles  # Copy reference
-	get_tree().create_timer(1.2 * duration_mult).timeout.connect(func(): 
-		if is_instance_valid(cleanup_particles):
-			cleanup_particles.queue_free()
-	)
-	
-	# STRONGER gray flash on miss
-	var flash = ColorRect.new()
-	flash.size = Vector2(720, 1280)
-	flash.color = Color(0.5, 0.5, 0.5, 0.25)  # Brighter gray flash
-	flash.z_index = 50
-	world.add_child(flash)
-	
-	var tween = create_tween()
-	tween.tween_property(flash, "modulate:a", 0.0, 0.4 * duration_mult)  # Longer fade
-	
-	var cleanup_flash = flash  # Copy reference
-	tween.finished.connect(func():
-		if is_instance_valid(cleanup_flash):
-			cleanup_flash.queue_free()
-	)
+	# r4: per-cargo miss VFX: grey smoke puff tinted by cargo + coral X (shake above)
+	var mtype = _type_of(current_package) if (current_package != null and is_instance_valid(current_package)) else "box"
+	var tint = Color(0.75, 0.77, 0.8).lerp(Art.cargo_color(mtype), 0.25)
+	Art.burst(world, pos, Art.TEX_SMOKE, tint, 10, 0.6 * duration_mult, 60, 160, 0.5, 1.0, Vector2(0, -60))
+	if mtype == "crate":
+		Art.burst(world, pos, null, Art.BROWN, 10, 0.5 * duration_mult, 120, 260, 4, 8, Vector2(0, 900))
+	elif mtype == "barrel":
+		Art.burst(world, pos, Art.TEX_SPARK, Art.BLUE.lightened(0.3), 8, 0.4 * duration_mult, 150, 300, 0.3, 0.5, Vector2(0, 600))
+	var xmark = Node2D.new()
+	xmark.position = Vector2(clamp(pos.x, 60, 660), clamp(pos.y, 200, 1100))
+	xmark.z_index = 90
+	for d in [[Vector2(-26, -26), Vector2(26, 26)], [Vector2(26, -26), Vector2(-26, 26)]]:
+		Art.line(xmark, PackedVector2Array(d), Art.NAVY, 18)
+		Art.line(xmark, PackedVector2Array(d), Art.CORAL, 10)
+	xmark.scale = Vector2(0.4, 0.4)
+	world.add_child(xmark)
+	var xt = xmark.create_tween()
+	xt.tween_property(xmark, "scale", Vector2(1.15, 1.15), 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	xt.tween_property(xmark, "scale", Vector2.ONE, 0.06)
+	xt.tween_interval(0.25 * duration_mult)
+	xt.tween_property(xmark, "modulate:a", 0.0, 0.2 * duration_mult)
+	xt.tween_callback(xmark.queue_free)
 
-# DEBUG FUNCTION: Test credit system with F1 key
 func debug_add_credit():
 	print("═══════════════════════════════════════")
 	print("🔧 DEBUG +1 LOAD (F1 pressed)")

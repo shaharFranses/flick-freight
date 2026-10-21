@@ -49,6 +49,13 @@ func _ready():
 	# Start at spawn position (bottom center)
 	position = Vector2(360, 1150)  # Near bottom of 1280 height
 	
+	# r4: vector cargo art (same footprint as the collision box)
+	for c in get_children():
+		if c is CanvasItem:
+			c.visible = false
+	add_child(Art.build_cargo(Art.type_from_points(points)))
+	_make_aim()
+	
 	# M5 FIX: Connect body_entered to detect ground/truck hits for immediate miss
 	body_entered.connect(_on_body_entered_miss_check)
 
@@ -97,6 +104,52 @@ func _input(event):
 		end_drag(input_pos)
 	elif is_drag:
 		drag_current_pos = input_pos
+
+# ---------- r4: aim / trajectory dots while dragging (display only) ----------
+const AIM_DOTS = 14
+var aim_root: Node2D = null
+
+func _make_aim():
+	aim_root = Node2D.new()
+	aim_root.name = "AimDots"
+	aim_root.top_level = true
+	aim_root.z_index = 40
+	aim_root.visible = false
+	for i in AIM_DOTS:
+		var d = Polygon2D.new()
+		var r = lerp(7.0, 3.5, float(i) / AIM_DOTS)
+		d.polygon = Art.circle(Vector2.ZERO, r, 10)
+		d.color = Color(1, 1, 1, lerp(0.95, 0.25, float(i) / AIM_DOTS))
+		var ol = Line2D.new()
+		var pts = Art.circle(Vector2.ZERO, r, 10); pts.append(pts[0])
+		ol.points = pts; ol.width = 2.0; ol.default_color = Color(Art.NAVY, d.color.a)
+		d.add_child(ol)
+		aim_root.add_child(d)
+	add_child(aim_root)
+
+func _process(_delta):
+	if aim_root == null:
+		return
+	if !is_dragging or has_been_flicked:
+		aim_root.visible = false
+		return
+	var dv = drag_current_pos - drag_start_pos
+	# drag is in screen space; convert to world-space length the same way the flick does
+	if dv.length() < DRAG_DEADZONE or dv.y > -2.0:
+		aim_root.visible = false
+		return
+	var speed = clamp(dv.length() * IMPULSE_MULTIPLIER, MIN_SPEED, MAX_SPEED)
+	var v = dv.normalized() * speed
+	var g = Vector2(0, GRAVITY)
+	aim_root.visible = true
+	var t_step = 0.045
+	var p0 = global_position
+	for i in AIM_DOTS:
+		var t = t_step * (i + 1)
+		var p = p0 + v * t + 0.5 * g * t * t
+		var d = aim_root.get_child(i)
+		d.global_position = p
+		d.visible = p.y > 120.0
 
 func start_drag(pos: Vector2):
 	is_dragging = true
