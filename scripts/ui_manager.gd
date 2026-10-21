@@ -809,27 +809,29 @@ func _on_fire_changed(on: bool):
 			glow.polygon = Art.rrect(-100, -60, 200, 128, 24)
 			glow.color = Color(Art.AMBER, 0.22)
 			fire_glow.add_child(glow)
-			var fl = CPUParticles2D.new()
-			fl.texture = Art.TEX_STAR
-			fl.local_coords = false
-			fl.amount = 30
-			fl.lifetime = 0.5
-			fl.z_index = 4
-			fl.position = Vector2(0, 40)
-			fl.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-			fl.emission_rect_extents = Vector2(95, 30)
-			fl.direction = Vector2(0, -1)
-			fl.spread = 12
-			fl.gravity = Vector2(0, -220)
-			fl.initial_velocity_min = 20
-			fl.initial_velocity_max = 70
-			fl.scale_amount_min = 0.25
-			fl.scale_amount_max = 0.45
-			var g = Gradient.new()
-			g.set_color(0, Color(1.0, 0.85, 0.35, 1.0))
-			g.set_color(1, Color(0.9, 0.35, 0.18, 0.0))
-			fl.color_ramp = g
-			fire_glow.add_child(fl)
+			# embers as tweened sprites (CPUParticles color_ramp tinted randomly on web compat)
+			var tm = Timer.new()
+			tm.wait_time = 0.05
+			tm.autostart = true
+			fire_glow.add_child(tm)
+			var fgref = fire_glow
+			tm.timeout.connect(func():
+				if not is_instance_valid(fgref):
+					return
+				var e = Sprite2D.new()
+				e.texture = Art.TEX_FLAME if randf() < 0.6 else Art.TEX_STAR
+				e.position = Vector2(randf_range(-90, 90), randf_range(10, 40))
+				var sc = randf_range(0.35, 0.6)
+				e.scale = Vector2(sc, sc)
+				e.modulate = Color(1.0, randf_range(0.6, 0.85), 0.25, 0.95)
+				e.z_index = 1
+				fgref.add_child(e)
+				var et = e.create_tween().set_parallel(true)
+				et.tween_property(e, "position:y", e.position.y - randf_range(50, 90), 0.5)
+				et.tween_property(e, "modulate", Color(0.9, 0.34, 0.18, 0.0), 0.5)
+				et.tween_property(e, "scale", Vector2(sc * 0.5, sc * 0.5), 0.5)
+				et.chain().tween_callback(e.queue_free)
+			)
 			bay.add_child(fire_glow)
 			var tw = glow.create_tween().set_loops()
 			tw.tween_property(glow, "color:a", 0.35, 0.18)
