@@ -526,6 +526,12 @@ func _apply_hud_scale():
 	var backing = ui.get_node_or_null("HUDBacking")
 	if backing:
 		backing.size.y = max(155.0, 20.0 + btn + 8.0)
+	# r5: timer bar sits right of the Streak plate, below Loads, inside the HUD strip
+	if timer_bar_bg and streak_plate:
+		var bl = streak_plate.position.x + streak_plate.size.x + 12.0
+		timer_bar_bg.position = Vector2(bl, 122)
+		timer_bar_bg.size = Vector2(700.0 - bl, BAR_SIZE.y)
+		_update_timer_bar(game_manager.time_remaining)
 	_apply_retry_size()
 
 func _apply_retry_size():
@@ -583,8 +589,9 @@ func _create_timer_bar():
 	if game_manager.qa_mode:
 		qa_delta_label = Label.new()
 		qa_delta_label.name = "QADelta"
-		qa_delta_label.position = Vector2(176, 150)
-		qa_delta_label.size = Vector2(524, 24)
+		qa_delta_label.position = Vector2(10, 1244)
+		qa_delta_label.size = Vector2(700, 24)
+		qa_delta_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		qa_delta_label.add_theme_font_size_override("font_size", 20)
 		qa_delta_label.add_theme_color_override("font_color", Color(1, 1, 0.4))
 		qa_delta_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -595,7 +602,7 @@ func _update_timer_bar(time: float):
 		return
 	var cap = game_manager.T.clock_cap
 	var frac = clamp(time / cap, 0.0, 1.0)
-	timer_bar_fill.size.x = (BAR_SIZE.x - 6) * frac
+	timer_bar_fill.size.x = (timer_bar_bg.size.x - 6) * frac
 	if time < game_manager.T.low_time_warning and time > 0.0:
 		# flash red ~4 Hz under 5 s (tick SFX: TODO, no audio assets yet)
 		var on = int(Time.get_ticks_msec() / 125) % 2 == 0
@@ -617,7 +624,7 @@ func _on_time_delta(amount: float, from_pos: Vector2):
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.position = from_pos - Vector2(40, 30)
 	$UI.add_child(l)
-	var target = BAR_POS + Vector2((BAR_SIZE.x - 6) * clamp(game_manager.time_remaining / game_manager.T.clock_cap, 0.0, 1.0) - 40, -6)
+	var target = timer_bar_bg.position + Vector2((timer_bar_bg.size.x - 6) * clamp(game_manager.time_remaining / game_manager.T.clock_cap, 0.0, 1.0) - 40, -6)
 	var dur = 0.6 * (3.0 if game_manager.qa_mode else 1.0)
 	var tw = l.create_tween()
 	tw.tween_property(l, "position", target, dur).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
