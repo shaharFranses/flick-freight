@@ -668,7 +668,7 @@ func _on_time_delta(amount: float, from_pos: Vector2):
 	l.add_theme_color_override("font_outline_color", Color(0.05, 0.07, 0.12))
 	l.add_theme_constant_override("outline_size", 8)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	l.position = from_pos + (Vector2(50, -40) if amount > 0 else Vector2(-40, -30))
+	l.position = from_pos + (Vector2(70, -100) if amount > 0 else Vector2(-40, -30))
 	$UI.add_child(l)
 	var target = timer_bar_bg.position + Vector2((timer_bar_bg.size.x - 6) * clamp(game_manager.time_remaining / game_manager.T.clock_cap, 0.0, 1.0) - 40, -6)
 	var dur = 0.6 * (3.0 if game_manager.qa_mode else 1.0)

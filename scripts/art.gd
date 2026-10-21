@@ -18,6 +18,23 @@ const TEX_STAR = preload("res://art/kenney/star_06.png")
 const TEX_SMOKE = preload("res://art/kenney/smoke_04.png")
 const TEX_FLAME = preload("res://art/kenney/flame_03.png")
 const TEX_RING = preload("res://art/kenney/circle_05.png")
+static var _shock_ring: Texture2D = null
+
+static func shock_ring() -> Texture2D:
+	# crisp annulus (transparent centre, bright band, soft edges) for impact rings
+	if _shock_ring == null:
+		var gt = GradientTexture2D.new()
+		gt.width = 128
+		gt.height = 128
+		gt.fill = GradientTexture2D.FILL_RADIAL
+		gt.fill_from = Vector2(0.5, 0.5)
+		gt.fill_to = Vector2(0.5, 0.0)
+		var g = Gradient.new()
+		g.offsets = PackedFloat32Array([0.0, 0.62, 0.78, 0.86, 1.0])
+		g.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 0), Color(1, 1, 1, 1), Color(1, 1, 1, 0.8), Color(1, 1, 1, 0)])
+		gt.gradient = g
+		_shock_ring = gt
+	return _shock_ring
 
 static func rrect(x: float, y: float, w: float, h: float, r: float, seg := 4) -> PackedVector2Array:
 	var p = PackedVector2Array()

@@ -940,17 +940,17 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color, ctype: 
 			print("FF vfx: barrel hit")
 			for k in 2:
 				var ring = Sprite2D.new()
-				ring.texture = Art.TEX_RING
-				ring.modulate = Color(0.55, 0.8, 1.0, 1.0) if k == 0 else Color(1, 1, 1, 0.9)
-				ring.position = pos
-				ring.scale = Vector2(0.6, 0.45)
+				ring.texture = Art.shock_ring()
+				ring.modulate = Color(0.45, 0.75, 1.0, 1.0) if k == 0 else Color(1, 1, 1, 0.95)
+				ring.position = pos - Vector2(0, 20)
+				ring.scale = Vector2(0.4, 0.3)
 				ring.z_index = 69
 				world.add_child(ring)
 				var rt = ring.create_tween()
 				if k == 1:
 					rt.tween_interval(0.08 * dm)
 				rt.set_parallel(true)
-				rt.tween_property(ring, "scale", Vector2(4.6, 3.2) * (1.0 if k == 0 else 0.75), 0.5 * dm).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+				rt.tween_property(ring, "scale", Vector2(2.6, 1.7) * (1.0 if k == 0 else 0.7), 0.5 * dm).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 				rt.tween_property(ring, "modulate:a", 0.0, 0.5 * dm).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 				rt.chain().tween_callback(ring.queue_free)
 			Art.burst(world, pos, Art.TEX_STAR, Art.WHITE, 12, 0.5 * dm, 160, 340, 0.5, 0.9, Vector2.ZERO)
