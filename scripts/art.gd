@@ -118,32 +118,41 @@ static func _label(parent: Node, t: String, size: int, pos: Vector2, sz: Vector2
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(l)
 
-static func burst(parent: Node, pos: Vector2, tex: Texture2D, col: Color, amount: int, life: float, vmin: float, vmax: float, smin: float, smax: float, grav := Vector2(0, 600), spread := 180.0, dir := Vector2(0, -1)) -> CPUParticles2D:
-	var p = CPUParticles2D.new()
-	p.texture = tex
-	p.position = pos
-	p.one_shot = true
-	p.explosiveness = 0.95
-	p.amount = amount
-	p.lifetime = life
-	p.direction = dir
-	p.spread = spread
-	p.gravity = grav
-	p.initial_velocity_min = vmin
-	p.initial_velocity_max = vmax
-	p.scale_amount_min = smin
-	p.scale_amount_max = smax
-	p.angle_min = 0
-	p.angle_max = 360
-	p.color = col
-	var g = Gradient.new()
-	g.set_color(0, Color(1, 1, 1, 1))
-	g.set_color(1, Color(1, 1, 1, 0))
-	p.color_ramp = g
-	p.z_index = 70
-	parent.add_child(p)
-	p.emitting = true
-	var tree = parent.get_tree()
-	tree.create_timer(life + 0.3).timeout.connect(func():
-		if is_instance_valid(p): p.queue_free())
-	return p
+static func burst(parent: Node, pos: Vector2, tex: Texture2D, col: Color, amount: int, life: float, vmin: float, vmax: float, smin: float, smax: float, grav := Vector2(0, 600), spread := 180.0, dir := Vector2(0, -1)) -> Node2D:
+	# Sprite burst: each piece is a white texture (or flat square) tinted by modulate,
+	# moved ballistically and faded via tween. Avoids CPUParticles2D color_ramp, which
+	# mis-tints particles in the web compatibility renderer.
+	var root = Node2D.new()
+	root.position = pos
+	root.z_index = 70
+	parent.add_child(root)
+	var base_ang = dir.angle()
+	for i in amount:
+		var piece: Node2D
+		var sc = randf_range(smin, smax)
+		if tex != null:
+			var sp = Sprite2D.new()
+			sp.texture = tex
+			piece = sp
+			piece.scale = Vector2(sc, sc)
+		else:
+			var q = Polygon2D.new()
+			var h = sc * 0.5
+			q.polygon = PackedVector2Array([Vector2(-h, -h), Vector2(h, -h), Vector2(h, h), Vector2(-h, h)])
+			piece = q
+		piece.modulate = col
+		piece.rotation = randf() * TAU
+		root.add_child(piece)
+		var ang = base_ang + deg_to_rad(randf_range(-spread, spread))
+		var v = Vector2.from_angle(ang) * randf_range(vmin, vmax)
+		var spin = randf_range(-6.0, 6.0)
+		var r0 = piece.rotation
+		var tw = piece.create_tween()
+		tw.tween_method(func(t: float):
+			if is_instance_valid(piece):
+				piece.position = v * t + 0.5 * grav * t * t
+				piece.rotation = r0 + spin * t
+				piece.modulate.a = col.a * (1.0 - t / life), 0.0, life, life)
+	parent.get_tree().create_timer(life + 0.1).timeout.connect(func():
+		if is_instance_valid(root): root.queue_free())
+	return root

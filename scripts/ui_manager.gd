@@ -808,7 +808,14 @@ func _on_fire_changed(on: bool):
 			var glow = Polygon2D.new()
 			glow.polygon = Art.rrect(-100, -60, 200, 128, 24)
 			glow.color = Color(Art.AMBER, 0.22)
-			fire_glow.add_child(glow)
+			# glow sits behind the truck so the navy outline stays navy
+			var glow_holder = Node2D.new()
+			glow_holder.z_index = -3  # net z 0 inside bay: above field, below hero truck (z 1)
+			glow_holder.z_as_relative = true
+			glow_holder.add_child(glow)
+			glow.color = Color(Art.AMBER, 0.45)
+			glow.polygon = Art.rrect(-110, -70, 280, 148, 28)
+			fire_glow.add_child(glow_holder)
 			# embers as tweened sprites (CPUParticles color_ramp tinted randomly on web compat)
 			var tm = Timer.new()
 			tm.wait_time = 0.05
@@ -834,8 +841,8 @@ func _on_fire_changed(on: bool):
 			)
 			bay.add_child(fire_glow)
 			var tw = glow.create_tween().set_loops()
-			tw.tween_property(glow, "color:a", 0.35, 0.18)
-			tw.tween_property(glow, "color:a", 0.15, 0.18)
+			tw.tween_property(glow, "color:a", 0.6, 0.18)
+			tw.tween_property(glow, "color:a", 0.3, 0.18)
 		fire_glow.visible = true
 	elif fire_glow:
 		var fg = fire_glow
