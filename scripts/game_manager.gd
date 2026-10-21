@@ -1010,7 +1010,7 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color, ctype: 
 			Art.burst(world, pos, Art.TEX_STAR, Art.NAVY, 12, 0.5 * dm, 160, 340, 0.5, 0.9, Vector2.ZERO)
 			Art.burst(world, pos, Art.TEX_STAR, Color(0.55, 0.8, 1.0), 8, 0.5 * dm, 120, 260, 0.4, 0.7, Vector2(0, 200))
 		_:  # box: cardboard flecks + amber stars
-			Art.burst(world, pos, Art.TEX_STAR, Color("#E09A10"), 16, 0.5 * dm, 170, 360, 0.45, 0.8, Vector2(0, 450))
+			Art.burst(world, pos, Art.TEX_STAR, Art.MINT, 16, 0.5 * dm, 170, 360, 0.45, 0.8, Vector2(0, 450))
 			Art.burst(world, pos, Art.TEX_SPARK, Art.NAVY, 8, 0.35 * dm, 200, 380, 0.4, 0.7, Vector2(0, 300))
 	var bay = get_tree().root.get_node_or_null("Main/World/TruckBay")
 	if bay:

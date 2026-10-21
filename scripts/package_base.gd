@@ -164,6 +164,11 @@ func _process(_delta):
 		var d = aim_root.get_child(i)
 		d.global_position = p
 		d.visible = p.y > 168.0 and p.y < 1176.0 and p.x > 6.0 and p.x < 714.0  # r4: clip to play area
+		var chip = get_node_or_null("CurrentChip")
+		if d.visible and chip is CanvasItem and chip.visible:
+			var cr = chip.get_global_rect() if chip is Control else Rect2(chip.global_position - Vector2(40, 14), Vector2(80, 28))
+			if cr.grow(8).has_point(p):
+				d.visible = false  # r4: never cover the CURRENT label
 
 func start_drag(pos: Vector2):
 	is_dragging = true
