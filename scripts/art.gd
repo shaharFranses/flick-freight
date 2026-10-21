@@ -90,7 +90,7 @@ const DRAW_SCALE = {"box": 1.7, "crate": 1.4, "barrel": 1.4}
 
 # r4: side column for +N / time pops, right beside the truck (truck spans bay-92..bay+150)
 static func pop_column_x(bx: float) -> float:
-	return bx + 158.0 if bx < 360.0 else bx - 92.0 - 86.0
+	return bx + 160.0 if bx < 360.0 else bx - 92.0 - 98.0
 
 static func build_cargo_scaled(t: String) -> Node2D:
 	var n = build_cargo(t)

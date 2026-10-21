@@ -942,8 +942,9 @@ func _streak_tier_pop(mult: int):
 	world.add_child(ring)
 	var rt = ring.create_tween()
 	rt.set_parallel(true)
-	rt.tween_property(ring, "scale", Vector2(3.2, 2.2), 0.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	rt.tween_property(ring, "modulate:a", 0.0, 0.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	var rdm = 3.0 if game_manager.qa_mode else 1.0  # same 3x QA slow-mo as the other effects
+	rt.tween_property(ring, "scale", Vector2(3.2, 2.2), 0.6 * rdm).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	rt.tween_property(ring, "modulate:a", 0.0, 0.6 * rdm).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	rt.chain().tween_callback(ring.queue_free)
 	var l = Label.new()
 	l.text = "x%d!" % mult
@@ -954,7 +955,7 @@ func _streak_tier_pop(mult: int):
 	l.size = Vector2(160, 70)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.pivot_offset = Vector2(80, 35)
-	l.position = Vector2(clamp(bay.global_position.x - 80, 0, 560), 430)
+	l.position = Vector2(clamp(bay.global_position.x - 80, 0, 560), 500)  # below PERFECT!
 	l.scale = Vector2(0.3, 0.3)
 	l.z_index = 150
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
