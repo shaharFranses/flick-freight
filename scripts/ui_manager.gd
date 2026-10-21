@@ -62,6 +62,14 @@ func _ready():
 	# ITEM (c): Show QA badge if in QA mode
 	if game_manager.qa_mode:
 		qa_badge.visible = true
+		# r5: badge sat behind the timer bar (dark-on-dark, yellow edges peeking out)
+		qa_badge.position = Vector2(10, 1190)
+		qa_badge.size = Vector2(190, 40)
+		qa_badge.color = Color(0.05, 0.06, 0.1, 0.95)
+		var ql = qa_badge.get_node_or_null("Label")
+		if ql:
+			ql.add_theme_color_override("font_color", Color(1, 0.85, 0.2))
+			ql.add_theme_font_size_override("font_size", 20)
 	
 	# LOW (b) FIX: Create PAUSED overlay (hidden by default)
 	_create_paused_overlay()
@@ -95,19 +103,15 @@ func _hook_visibility_change():
 	if OS.has_feature("web"):
 		# QA ITEM 7b: Primary visibilitychange + blur/pagehide fallbacks
 		var js_code = """
-		document.addEventListener('visibilitychange', function() {
-			if (window.ffGodot && window.ffGodot.onVis) { window.ffGodot.onVis(document.hidden); }
-		});
-		
-		// QA ITEM 7b: Fallback for blur (window loses focus)
-		window.addEventListener('blur', function() {
-			if (window.ffGodot && window.ffGodot.onVis) { window.ffGodot.onVis(document.hidden); }
-		});
-		
-		// QA ITEM 7b: Fallback for pagehide (tab/window closing)
-		window.addEventListener('pagehide', function() {
-			if (window.ffGodot && window.ffGodot.onVis) { window.ffGodot.onVis(true); }
-		});
+		(function(){
+			function cb(h){ if (window.ffGodot && window.ffGodot.onVis) { window.ffGodot.onVis(h); } }
+			document.addEventListener('visibilitychange', function(){ cb(document.hidden); });
+			// r5: blur/focus too (a tab switch in some browsers/headless never flips document.hidden)
+			window.addEventListener('blur', function(){ cb(true); });
+			window.addEventListener('focus', function(){ cb(document.hidden); });
+			window.addEventListener('pagehide', function(){ cb(true); });
+			window.addEventListener('pageshow', function(){ cb(document.hidden); });
+		})();
 		"""
 		# r5: the old code wrote to JavaScriptBridge.get_interface("godot"), which does not
 		# exist ("No interface 'godot' registered"), so the hook never reached GDScript.
@@ -124,31 +128,34 @@ var _muted_by_hide: bool = false
 func _on_visibility_js(args):
 	_on_visibility_changed(bool(args[0]) if args.size() > 0 else false)
 
+var vis_hidden: bool = false
+var auto_paused: bool = false
+
 func _on_visibility_changed(is_hidden: bool):
-	"""A: Auto-pause + mute when hidden, restore state when visible"""
-	if !has_booted:
+	"""r5: idempotent hide/show. Hidden -> pause tree + freeze run clock + mute;
+	visible -> undo only what we did. Log strings are for QA."""
+	if !has_booted or is_hidden == vis_hidden:
 		return
-	# mute on hide always (also on the run-end panel); restore only what we muted
-	if is_hidden and !AudioServer.is_bus_mute(0):
-		AudioServer.set_bus_mute(0, true)
-		_muted_by_hide = true
-	elif !is_hidden and _muted_by_hide:
-		AudioServer.set_bus_mute(0, false)
-		_muted_by_hide = false
-	if game_manager.is_game_over:
-		return
-	
+	vis_hidden = is_hidden
+	game_manager.page_hidden = is_hidden
 	if is_hidden:
-		# Store pre-hide state
-		was_paused_before_hide = game_manager.is_paused
-		if !was_paused_before_hide:
+		if !AudioServer.is_bus_mute(0):
+			AudioServer.set_bus_mute(0, true)
+			_muted_by_hide = true
+		if !game_manager.is_game_over and !game_manager.is_paused:
 			_on_pause_pressed()
-			print("VISIBILITY LOST: Auto-paused")
+			auto_paused = true
+		print("FF vis: hidden -> paused")
+		print("FF clock t=%.2f run_started=%s" % [game_manager.time_remaining, game_manager.run_started])
 	else:
-		# Restore pre-hide state
-		if !was_paused_before_hide and game_manager.is_paused:
+		if _muted_by_hide:
+			AudioServer.set_bus_mute(0, false)
+			_muted_by_hide = false
+		if auto_paused and game_manager.is_paused:
 			_on_pause_pressed()
-			print("VISIBILITY RESTORED: Auto-resumed")
+		auto_paused = false
+		print("FF vis: visible -> resumed")
+		print("FF clock t=%.2f run_started=%s" % [game_manager.time_remaining, game_manager.run_started])
 
 func _on_score_changed(new_score: int):
 	score_label.text = "Score: %d" % new_score
@@ -209,8 +216,9 @@ func show_game_over(result: String, final_score: int):
 			best_score_label.text = "BEST: %d" % best_score
 	else:
 		best_score_label.text = "BEST: %d" % best_score
-		if old_best > 0 and best_loads - loads <= int(game_manager.T.get("near_miss_window", 3)):
-			result_label.text = "So close! Best +%d" % (old_best - final_score)
+		var gap = best_loads - loads
+		if old_best > 0 and gap > 0 and gap <= int(game_manager.T.get("near_miss_window", 3)):
+			result_label.text = "So close! Best +%d load%s" % [gap, "" if gap == 1 else "s"]
 	last_run_s = (Time.get_ticks_msec() - game_manager.run_start_ms) / 1000.0 if game_manager.run_started else 0.0
 	print("RUN END: score=%d loads=%d length=%.1fs" % [final_score, loads, last_run_s])
 	game_over_shown_ms = Time.get_ticks_msec()
@@ -237,6 +245,7 @@ func _on_retry_pressed():
 	
 	# A: Clear visibility pause state on retry
 	was_paused_before_hide = false
+	auto_paused = false
 	
 	# Free any in-flight packages immediately
 	var packages = get_tree().get_nodes_in_group("packages")
@@ -543,7 +552,7 @@ func _apply_hud_scale():
 	# Reflow right column (Time / Loads / QA badge) to stay left of Mute
 	var col_right = min(640.0, mute_left - 8.0)
 	var col_w = 140.0 if s > 1.0 else 160.0
-	for n in ["TimerLabel", "LoadsLabel", "QABadge"]:
+	for n in ["TimerLabel", "LoadsLabel"]:
 		var c = ui.get_node_or_null(n)
 		if c:
 			c.position.x = col_right - col_w

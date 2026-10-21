@@ -31,6 +31,7 @@ var run_started: bool = false        # clock runs from the first flick of each r
 var first_flick_resolved: bool = false  # truck holds centre until this
 var guarantee_flick: bool = false    # fresh profile: first flick of first run always lands
 var on_fire: bool = false
+var page_hidden: bool = false  # r5: set by UIManager on hide/blur; freezes the run clock
 var run_start_ms: int = 0
 var last_tick_sec: int = -1
 var sfx = {}
@@ -348,8 +349,11 @@ func test_register_credit(key: String, points: int) -> bool:
 	return true
 
 func _process(delta: float):
-	if is_game_over or is_paused:
+	if is_game_over or is_paused or page_hidden:
 		return
+	# r5: a hidden/throttled tab can hand us one huge frame on return; never let the
+	# clock lose more than 0.1 s per frame.
+	delta = min(delta, 0.1)
 	
 	# DEBUG: F1 key to test credit system
 	if DEBUG_MODE and (Input.is_action_just_pressed("ui_select") or Input.is_key_pressed(KEY_F1)):
@@ -1015,24 +1019,30 @@ func spawn_perfect_juice(pos: Vector2):
 	var tw = f.create_tween()
 	tw.tween_property(f, "modulate:a", 0.0, 0.18 * dm)
 	tw.tween_callback(f.queue_free)
+	var uil = get_tree().root.get_node_or_null("Main/UIManager/UI")
+	if uil == null:
+		return
 	var l = Label.new()
+	l.name = "PerfectPop"
 	l.text = "PERFECT!"
-	l.add_theme_font_size_override("font_size", 48)
+	l.add_theme_font_size_override("font_size", 64)
 	l.add_theme_color_override("font_color", Color(1, 1, 1))
 	l.add_theme_color_override("font_outline_color", Color(0.9, 0.3, 0.1))
-	l.add_theme_constant_override("outline_size", 10)
-	l.position = Vector2(bay.global_position.x - 120, 330)
-	l.size = Vector2(240, 60)
+	l.add_theme_constant_override("outline_size", 12)
+	l.size = Vector2(360, 80)
+	l.position = Vector2(clamp(bay.global_position.x - 180, 0, 360), 330)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.pivot_offset = Vector2(120, 30)
+	l.pivot_offset = Vector2(180, 40)
 	l.scale = Vector2(0.3, 0.3)
-	l.z_index = 101
-	world.add_child(l)
+	l.z_index = 200
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	uil.add_child(l)
+	print("PERFECT pop")
 	var t2 = l.create_tween()
-	t2.tween_property(l, "scale", Vector2(1.15, 1.15), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t2.tween_property(l, "scale", Vector2(1.15, 1.15), 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t2.tween_property(l, "scale", Vector2(1, 1), 0.08)
-	t2.tween_interval(0.4 * dm)
-	t2.tween_property(l, "modulate:a", 0.0, 0.25 * dm)
+	t2.tween_interval(0.6 * dm)
+	t2.tween_property(l, "modulate:a", 0.0, 0.2)
 	t2.tween_callback(l.queue_free)
 
 func spawn_miss_juice(pos: Vector2):
