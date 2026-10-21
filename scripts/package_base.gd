@@ -118,6 +118,11 @@ func end_drag(pos: Vector2):
 	# Calculate impulse (speed is desired velocity, mass scaling happens in apply_central_impulse)
 	var speed = clamp(drag_distance * IMPULSE_MULTIPLIER, MIN_SPEED, MAX_SPEED)
 	var direction = drag_vector.normalized()
+	var gm = get_node_or_null("/root/Main/GameManager")
+	if gm and gm.has_method("on_flick"):
+		var o = gm.on_flick(direction, speed)
+		direction = o[0]
+		speed = o[1]
 	var impulse = direction * speed * package_mass  # FIX H4: multiply by mass, not divide
 	
 	# Apply impulse

@@ -81,8 +81,11 @@ func _ready():
 	# Game-over: Load best score from persistent storage
 	_load_best_score()
 	
-	# Boot splash: Show title screen (timer held until dismissed)
-	_create_splash_screen()
+	# r5 spec 4: no menu / splash gate. Boot straight into the run with a ghost-hand hint.
+	_create_ghost_hand()
+	game_manager.multiplier_changed.connect(_on_multiplier_changed)
+	game_manager.on_fire_changed.connect(_on_fire_changed)
+	game_manager.ticket_completed.connect(_on_ticket_completed)
 
 func _hook_visibility_change():
 	"""A: Defer visibility hook until after boot to prevent auto-pause on load"""
@@ -93,35 +96,46 @@ func _hook_visibility_change():
 		# QA ITEM 7b: Primary visibilitychange + blur/pagehide fallbacks
 		var js_code = """
 		document.addEventListener('visibilitychange', function() {
-			if (typeof godot !== 'undefined' && godot.UIManager) {
-				godot.UIManager._on_visibility_changed(document.hidden);
-			}
+			if (window.ffGodot && window.ffGodot.onVis) { window.ffGodot.onVis(document.hidden); }
 		});
 		
 		// QA ITEM 7b: Fallback for blur (window loses focus)
 		window.addEventListener('blur', function() {
-			if (typeof godot !== 'undefined' && godot.UIManager) {
-				// Poll document.hidden after boot, don't trust blur alone
-				godot.UIManager._on_visibility_changed(document.hidden);
-			}
+			if (window.ffGodot && window.ffGodot.onVis) { window.ffGodot.onVis(document.hidden); }
 		});
 		
 		// QA ITEM 7b: Fallback for pagehide (tab/window closing)
 		window.addEventListener('pagehide', function() {
-			if (typeof godot !== 'undefined' && godot.UIManager) {
-				godot.UIManager._on_visibility_changed(true);
-			}
+			if (window.ffGodot && window.ffGodot.onVis) { window.ffGodot.onVis(true); }
 		});
 		"""
+		# r5: the old code wrote to JavaScriptBridge.get_interface("godot"), which does not
+		# exist ("No interface 'godot' registered"), so the hook never reached GDScript.
+		# Register a real callback on window.ffGodot instead (keep a ref so it isn't GC'd).
+		_vis_cb = JavaScriptBridge.create_callback(_on_visibility_js)
+		var win = JavaScriptBridge.get_interface("window")
+		win.ffGodot = JavaScriptBridge.create_object("Object")
+		win.ffGodot.onVis = _vis_cb
 		JavaScriptBridge.eval(js_code)
-		
-		# Register callback in global scope
-		JavaScriptBridge.get_interface("godot").UIManager = JavaScriptBridge.create_object("Object")
-		JavaScriptBridge.get_interface("godot").UIManager._on_visibility_changed = _on_visibility_changed
+
+var _vis_cb = null
+var _muted_by_hide: bool = false
+
+func _on_visibility_js(args):
+	_on_visibility_changed(bool(args[0]) if args.size() > 0 else false)
 
 func _on_visibility_changed(is_hidden: bool):
-	"""A: Auto-pause when hidden, restore state when visible"""
-	if !has_booted or game_manager.is_game_over:
+	"""A: Auto-pause + mute when hidden, restore state when visible"""
+	if !has_booted:
+		return
+	# mute on hide always (also on the run-end panel); restore only what we muted
+	if is_hidden and !AudioServer.is_bus_mute(0):
+		AudioServer.set_bus_mute(0, true)
+		_muted_by_hide = true
+	elif !is_hidden and _muted_by_hide:
+		AudioServer.set_bus_mute(0, false)
+		_muted_by_hide = false
+	if game_manager.is_game_over:
 		return
 	
 	if is_hidden:
@@ -150,7 +164,7 @@ func _on_timer_changed(time: float):
 
 func _on_streak_changed(streak: int):
 	# Always show streak label
-	streak_label.text = "Streak: +%d" % streak
+	streak_label.text = "Streak: %d" % streak
 	streak_label.show()
 
 func _on_pause_pressed():
@@ -175,13 +189,30 @@ func _on_game_lost():
 func show_game_over(result: String, final_score: int):
 	result_label.text = result
 	final_score_label.text = "Score: %d" % final_score
-	
-	# Game-over: Update best score if this is a new record
-	if final_score > best_score:
+	var loads = game_manager.loads_completed
+	var best_loads = int(game_manager.storage_get("flick_freight_best_loads", "0"))
+	var old_best = best_score
+	if old_best_rt:
+		old_best_rt.visible = false
+	best_score_label.visible = true
+	# r5 spec 4: near-miss / NEW BEST
+	if final_score > old_best and final_score > 0:
+		result_label.text = "NEW BEST!"
 		best_score = final_score
 		_save_best_score()
-	
-	best_score_label.text = "BEST: %d" % best_score
+		game_manager.storage_set("flick_freight_best_loads", str(loads))
+		if old_best > 0:
+			best_score_label.visible = false
+			_show_old_best_struck(old_best, final_score)
+		else:
+			best_score_label.text = "BEST: %d" % best_score
+	else:
+		best_score_label.text = "BEST: %d" % best_score
+		if old_best > 0 and best_loads - loads <= int(game_manager.T.get("near_miss_window", 3)):
+			result_label.text = "So close! Best +%d" % (old_best - final_score)
+	last_run_s = (Time.get_ticks_msec() - game_manager.run_start_ms) / 1000.0 if game_manager.run_started else 0.0
+	print("RUN END: score=%d loads=%d length=%.1fs" % [final_score, loads, last_run_s])
+	game_over_shown_ms = Time.get_ticks_msec()
 	_apply_hud_scale()
 	game_over_panel.show()
 	game_over_panel.z_index = 100  # Above everything
@@ -198,6 +229,8 @@ func show_game_over(result: String, final_score: int):
 
 func _on_retry_pressed():
 	# Disable button to prevent double-clicks during async restart
+	if retry_button.disabled:
+		return
 	retry_button.disabled = true
 	
 	# A: Clear visibility pause state on retry
@@ -667,3 +700,142 @@ func _on_ticket_changed(t: Array):
 		if left.has(k):
 			parts.append("%d %s" % [left[k], k.to_upper() + ("ES" if k == "box" and left[k] > 1 else ("S" if left[k] > 1 else ""))])
 	ticket_label.text = "ORDER: " + ", ".join(parts) + ("  %d/%d" % [done, t.size()] if done > 0 else "")
+
+# ---------------- r5: juice / run-end / first-session ----------------
+var old_best_rt: RichTextLabel = null
+var last_run_s: float = 0.0
+var game_over_shown_ms: int = 0
+var ghost_hand: Node2D = null
+var fire_glow: Node2D = null
+
+func _show_old_best_struck(old_best: int, new_best: int):
+	if old_best_rt == null:
+		old_best_rt = RichTextLabel.new()
+		old_best_rt.bbcode_enabled = true
+		old_best_rt.fit_content = true
+		old_best_rt.scroll_active = false
+		old_best_rt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		old_best_rt.add_theme_font_size_override("normal_font_size", 30)
+		game_over_panel.add_child(old_best_rt)
+	old_best_rt.position = best_score_label.position
+	old_best_rt.size = best_score_label.size
+	old_best_rt.text = "[center][color=#9aa3b5][s]BEST: %d[/s][/color]  [color=#ffd84a]%d[/color][/center]" % [old_best, new_best]
+	old_best_rt.visible = true
+
+func _input(event):
+	# r5 spec 4: tap anywhere on the run-end panel after 0.6 s = retry
+	if game_over_panel.visible and event is InputEventMouseButton and event.pressed:
+		if Time.get_ticks_msec() - game_over_shown_ms >= int(game_manager.T.get("retry_tap_delay", 0.6) * 1000.0):
+			get_viewport().set_input_as_handled()
+			_on_retry_pressed()
+	# first touch removes the ghost-hand hint
+	if ghost_hand and event is InputEventMouseButton and event.pressed:
+		ghost_hand.queue_free()
+		ghost_hand = null
+
+func _create_ghost_hand():
+	var world = get_node_or_null("/root/Main/World")
+	if world == null:
+		return
+	ghost_hand = Node2D.new()
+	ghost_hand.name = "GhostHand"
+	ghost_hand.z_index = 60
+	var dot = Polygon2D.new()
+	var pts = PackedVector2Array()
+	for i in 20:
+		pts.append(Vector2(cos(i * TAU / 20), sin(i * TAU / 20)) * 26)
+	dot.polygon = pts
+	dot.color = Color(1, 1, 1, 0.55)
+	ghost_hand.add_child(dot)
+	var ring = Line2D.new()
+	ring.points = pts + PackedVector2Array([pts[0]])
+	ring.width = 4
+	ring.default_color = Color(1, 1, 1, 0.9)
+	ghost_hand.add_child(ring)
+	world.add_child(ghost_hand)
+	ghost_hand.position = Vector2(360, 1150)
+	var tw = ghost_hand.create_tween().set_loops()
+	tw.tween_property(ghost_hand, "position", Vector2(360, 1150), 0.0)
+	tw.tween_property(ghost_hand, "modulate:a", 1.0, 0.15)
+	tw.tween_interval(0.25)
+	tw.tween_property(ghost_hand, "position", Vector2(360, 820), 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(ghost_hand, "modulate:a", 0.0, 0.45)
+	tw.tween_interval(0.4)
+
+func _on_multiplier_changed(mult: int):
+	var st = game_manager.streak
+	streak_label.text = ("Streak %d  x%d" % [st, mult]) if mult > 1 else ("Streak: %d" % st)
+	streak_label.add_theme_color_override("font_color", [Color(1,1,1), Color(1,1,1), Color(0.5,1,0.6), Color(1,0.8,0.3), Color(1,0.45,0.25)][clamp(mult, 1, 4)])
+	if mult > 1:
+		var plate = streak_label.get_parent()
+		plate.pivot_offset = plate.size / 2
+		var tw = plate.create_tween()
+		tw.tween_property(plate, "scale", Vector2(1.25, 1.25), 0.08)
+		tw.tween_property(plate, "scale", Vector2(1, 1), 0.12)
+	_apply_hud_scale_streak_width()
+
+func _apply_hud_scale_streak_width():
+	var plate = streak_label.get_parent()
+	plate.size.x = 140.0 if game_manager.multiplier() <= 1 else 190.0
+	_apply_hud_scale()
+
+func _on_fire_changed(on: bool):
+	var bay = get_node_or_null("/root/Main/World/TruckBay")
+	if bay == null:
+		return
+	if on:
+		if fire_glow == null:
+			fire_glow = Node2D.new()
+			fire_glow.name = "FireGlow"
+			fire_glow.z_index = 3
+			for i in 5:
+				var fl = Polygon2D.new()
+				var x = -64 + i * 32
+				fl.polygon = PackedVector2Array([Vector2(x - 16, 30), Vector2(x, -18 - (i % 2) * 14), Vector2(x + 16, 30)])
+				fl.color = Color(1, 0.55 + 0.1 * (i % 2), 0.1, 0.85)
+				fire_glow.add_child(fl)
+			var glow = ColorRect.new()
+			glow.position = Vector2(-92, -62)
+			glow.size = Vector2(184, 150)
+			glow.color = Color(1, 0.5, 0.1, 0.25)
+			glow.show_behind_parent = true
+			fire_glow.add_child(glow)
+			bay.add_child(fire_glow)
+			var tw = fire_glow.create_tween().set_loops()
+			tw.tween_property(fire_glow, "scale", Vector2(1.0, 1.15), 0.12)
+			tw.tween_property(fire_glow, "scale", Vector2(1.0, 0.92), 0.12)
+		fire_glow.visible = true
+	elif fire_glow:
+		fire_glow.queue_free()
+		fire_glow = null
+
+func _on_ticket_completed(score_bonus: int, time_bonus: float):
+	# r5: stamp effect on the ticket
+	if ticket_panel == null:
+		return
+	var st = Label.new()
+	st.text = "DELIVERED +%d" % score_bonus
+	st.add_theme_font_size_override("font_size", 30)
+	st.add_theme_color_override("font_color", Color(0.85, 0.12, 0.12))
+	st.add_theme_color_override("font_outline_color", Color(1, 1, 1))
+	st.add_theme_constant_override("outline_size", 6)
+	st.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	st.size = Vector2(300, 44)
+	st.pivot_offset = Vector2(150, 22)
+	st.position = ticket_panel.position
+	st.rotation_degrees = -8
+	st.scale = Vector2(2.2, 2.2)
+	st.modulate.a = 0.0
+	st.z_index = 30
+	ticket_panel.get_parent().add_child(st)
+	var dm = 3.0 if game_manager.qa_mode else 1.0
+	var tw = st.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(st, "scale", Vector2(1, 1), 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(st, "modulate:a", 1.0, 0.08)
+	tw.chain().tween_interval(0.5 * dm)
+	tw.chain().tween_property(st, "modulate:a", 0.0, 0.3 * dm)
+	tw.chain().tween_callback(st.queue_free)
+	var tp = ticket_panel.create_tween()
+	tp.tween_property(ticket_panel, "position:y", ticket_panel.position.y + 6, 0.05)
+	tp.tween_property(ticket_panel, "position:y", ticket_panel.position.y, 0.1)

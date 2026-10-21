@@ -14,7 +14,7 @@ var T = {
 	"loads_per_level": 5,
 	"bay_period_start": 3.6, "bay_period_shrink": 0.06, "bay_period_floor": 1.6,
 	"ticket_bonus_score": 50, "ticket_bonus_time": 1.5, "ticket_spawn_tilt": 0.15,
-	"low_time_warning": 5.0,
+	"low_time_warning": 5.0, "on_fire_streak": 6, "ramp": 0,
 }
 var ROUND_TIME: float = 20.0  # = T.clock_start (kept name for UI/hint code)
 var last_time_delta: float = 0.0  # for ?qa=1 overlay
@@ -22,6 +22,19 @@ var ticket: Array = []  # r5 ticket stub: [{"type": "box", "done": false}, ...]
 signal time_delta(amount: float, from_pos: Vector2)
 signal ticket_changed(ticket: Array)
 signal ticket_completed(score_bonus: int, time_bonus: float)
+signal multiplier_changed(mult: int)
+signal on_fire_changed(on: bool)
+signal flick_started
+
+# r5 run state
+var run_started: bool = false        # clock runs from the first flick of each run
+var first_flick_resolved: bool = false  # truck holds centre until this
+var guarantee_flick: bool = false    # fresh profile: first flick of first run always lands
+var on_fire: bool = false
+var run_start_ms: int = 0
+var last_tick_sec: int = -1
+var sfx = {}
+var sfx_players: Array = []
 
 const SPAWN_DELAY = 0.35
 const LERP_TIME = 30.0
@@ -81,6 +94,8 @@ func _ready():
 	ROUND_TIME = T.clock_start
 	time_remaining = ROUND_TIME
 	_new_ticket()
+	_init_sfx()
+	guarantee_flick = storage_get("ff_first_flick_done", "") != "1"
 	
 	# Always log QA mode status at boot
 	print("═══════════════════════════════════════")
@@ -105,6 +120,9 @@ func _ready():
 		var truck_bay = get_tree().root.get_node_or_null("Main/World/TruckBay")
 		if truck_bay and truck_bay.has_method("set_speed_multiplier"):
 			truck_bay.set_speed_multiplier(0.25)
+	var tb = get_tree().root.get_node_or_null("Main/World/TruckBay")
+	if tb and "ramp_enabled" in tb:
+		tb.ramp_enabled = qa_mode and int(T.ramp) == 1
 	
 	spawn_package()
 
@@ -191,6 +209,76 @@ func _open_ticket_types() -> Dictionary:
 		if !item.done:
 			d[item.type] = true
 	return d
+
+# ---------- r5: storage, sfx, first flick ----------
+func storage_get(key: String, default_val: String) -> String:
+	if OS.has_feature("web"):
+		var v = JavaScriptBridge.eval("(function(){try{return localStorage.getItem('%s')}catch(e){return null}})()" % key)
+		return v if v is String else default_val
+	var c = ConfigFile.new()
+	if c.load("user://flick_freight.cfg") == OK:
+		return str(c.get_value("kv", key, default_val))
+	return default_val
+
+func storage_set(key: String, val: String):
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("(function(){try{localStorage.setItem('%s','%s')}catch(e){}})()" % [key, val])
+		return
+	var c = ConfigFile.new()
+	c.load("user://flick_freight.cfg")
+	c.set_value("kv", key, val)
+	c.save("user://flick_freight.cfg")
+
+func _init_sfx():
+	# CC0, self-synthesized (res://audio/LICENSE.txt)
+	for n in ["box", "crate", "barrel", "snap", "tick", "honk", "whoosh", "fizzle"]:
+		sfx[n] = load("res://audio/%s.wav" % n)
+	for i in 6:
+		var pl = AudioStreamPlayer.new()
+		pl.process_mode = Node.PROCESS_MODE_PAUSABLE
+		add_child(pl)
+		sfx_players.append(pl)
+
+func play_sfx(n: String, pitch: float = 1.0, vol_db: float = 0.0):
+	if !sfx.has(n) or sfx[n] == null:
+		return
+	for pl in sfx_players:
+		if !pl.playing:
+			pl.stream = sfx[n]
+			pl.pitch_scale = pitch
+			pl.volume_db = vol_db
+			pl.play()
+			return
+
+func on_flick(direction: Vector2, speed: float) -> Array:
+	"""Called by the package when a flick is released. Starts the clock; steers the
+	guaranteed first flick (fresh profile) straight into the held-centre bed."""
+	if !run_started:
+		run_started = true
+		run_start_ms = Time.get_ticks_msec()
+	flick_started.emit()
+	if guarantee_flick and !first_flick_resolved and direction.y < -0.2:
+		print("FIRST FLICK: steered into bed (guarantee)")
+		return [Vector2(0, -1), 1500.0]
+	return [direction, speed]
+
+func _first_resolve():
+	if first_flick_resolved:
+		return
+	first_flick_resolved = true
+	if guarantee_flick:
+		guarantee_flick = false
+		storage_set("ff_first_flick_done", "1")
+	var bay = get_tree().root.get_node_or_null("Main/World/TruckBay")
+	if bay and bay.has_method("release_hold"):
+		bay.release_hold()
+
+func _set_on_fire(v: bool):
+	if v == on_fire:
+		return
+	on_fire = v
+	play_sfx("whoosh" if v else "fizzle")
+	on_fire_changed.emit(v)
 
 func run_self_test():
 	print("═══════════════════════════════════════")
@@ -280,8 +368,20 @@ func _process(delta: float):
 			print("  - ", pkg.name, " id:", pkg.get_instance_id())
 	
 	# A: Update timer only after first spawn
-	if has_spawned_first:
+	# r5 on-fire: current package glows (pulse)
+	if current_package != null and is_instance_valid(current_package) and current_package.modulate.a > 0.5:
+		if on_fire:
+			var k = 0.5 + 0.5 * sin(Time.get_ticks_msec() / 90.0)
+			current_package.modulate = Color(1.0 + 0.5 * k, 0.85 + 0.15 * k, 0.6, 1.0)
+		elif current_package.modulate != Color(1, 1, 1, 1):
+			current_package.modulate = Color(1, 1, 1, 1)
+	if run_started:
 		time_remaining -= delta
+		if time_remaining < T.low_time_warning and time_remaining > 0:
+			var sec = int(ceil(time_remaining))
+			if sec != last_tick_sec:
+				last_tick_sec = sec
+				play_sfx("tick")
 		timer_changed.emit(time_remaining)
 	
 	# Check lose condition
@@ -597,8 +697,19 @@ func register_successful_load(package: Node, base_points: int) -> bool:
 	streak += 1
 	
 	# Score calculation per design: base_points + (streak-1) bonus
-	var total_points = base_points + (streak - 1)
+	# r5 spec 2: points x multiplier, x2 on a perfect
+	var perfect = _is_perfect(package)
+	var mult = multiplier()
+	var total_points = base_points * mult * (2 if perfect else 1)
 	current_score += total_points
+	var ctype = _type_of(package)
+	play_sfx(ctype, 1.0 + 0.06 * (mult - 1))
+	if perfect:
+		play_sfx("snap", 1.0, -2.0)
+		spawn_perfect_juice(package.global_position)
+	multiplier_changed.emit(mult)
+	_set_on_fire(streak >= int(T.on_fire_streak))
+	_first_resolve()
 	
 	print("  Loads:", old_loads, "→", loads_completed, " (+1)")
 	print("  Streak:", old_streak, "→", streak, " (+1)")
@@ -616,14 +727,14 @@ func register_successful_load(package: Node, base_points: int) -> bool:
 	streak_changed.emit(streak)
 	
 	# r5 TIMER: hit / perfect / streak bonus, then ticket
-	var perfect = _is_perfect(package)
 	add_time(hit_time_bonus(old_loads, streak, perfect), package.global_position)
-	if _tick_ticket(_type_of(package)):
+	if _tick_ticket(ctype):
 		var sb = int(T.ticket_bonus_score) * multiplier()
 		current_score += sb
 		score_changed.emit(current_score)
 		add_time(T.ticket_bonus_time, package.global_position)
 		ticket_completed.emit(sb, T.ticket_bonus_time)
+		play_sfx("honk")
 		_new_ticket()
 	_apply_bay_level()
 	
@@ -663,6 +774,9 @@ func _on_package_missed():
 	# Reset streak on miss
 	streak = 0
 	streak_changed.emit(streak)
+	multiplier_changed.emit(1)
+	_set_on_fire(false)
+	_first_resolve()
 	print("❌ MISS: Streak reset to 0")
 	
 	# JUICE: Miss dust particles
@@ -750,6 +864,13 @@ func restart_game():
 	credited_ids.clear()
 	score_cooldown_until = 0
 	has_spawned_first = false  # A: Reset timer gate on restart
+	run_started = false
+	first_flick_resolved = false
+	last_tick_sec = -1
+	if on_fire:
+		on_fire = false
+		on_fire_changed.emit(false)
+	multiplier_changed.emit(1)
 	
 	# Emit signals to update UI
 	score_changed.emit(current_score)
@@ -871,6 +992,42 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color):
 		if is_instance_valid(cleanup_label):
 			cleanup_label.queue_free()
 	)
+
+func spawn_perfect_juice(pos: Vector2):
+	"""r5: short white flash on the bed + PERFECT pop-up"""
+	var world = get_tree().root.get_node_or_null("Main/World")
+	var bay = get_tree().root.get_node_or_null("Main/World/TruckBay")
+	if !world or !bay:
+		return
+	var dm = 3.0 if qa_mode else 1.0
+	var f = ColorRect.new()
+	f.position = Vector2(-85, -55)
+	f.size = Vector2(170, 105)
+	f.color = Color(1, 1, 1, 0.85)
+	f.z_index = 20
+	bay.add_child(f)
+	var tw = f.create_tween()
+	tw.tween_property(f, "modulate:a", 0.0, 0.18 * dm)
+	tw.tween_callback(f.queue_free)
+	var l = Label.new()
+	l.text = "PERFECT!"
+	l.add_theme_font_size_override("font_size", 48)
+	l.add_theme_color_override("font_color", Color(1, 1, 1))
+	l.add_theme_color_override("font_outline_color", Color(0.9, 0.3, 0.1))
+	l.add_theme_constant_override("outline_size", 10)
+	l.position = Vector2(bay.global_position.x - 120, 330)
+	l.size = Vector2(240, 60)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.pivot_offset = Vector2(120, 30)
+	l.scale = Vector2(0.3, 0.3)
+	l.z_index = 101
+	world.add_child(l)
+	var t2 = l.create_tween()
+	t2.tween_property(l, "scale", Vector2(1.15, 1.15), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t2.tween_property(l, "scale", Vector2(1, 1), 0.08)
+	t2.tween_interval(0.4 * dm)
+	t2.tween_property(l, "modulate:a", 0.0, 0.25 * dm)
+	t2.tween_callback(l.queue_free)
 
 func spawn_miss_juice(pos: Vector2):
 	"""Spawn gray dust particles on miss - STRONG visibility + SHAKE"""

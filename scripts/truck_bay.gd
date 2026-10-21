@@ -25,6 +25,7 @@ func reset_position():
 	"""Reset truck to center position and restart speed ramp"""
 	position.x = center_x
 	phase = 0.0
+	hold_center = true
 	start_time = Time.get_ticks_msec() / 1000.0
 	round_start_time = start_time
 	scored_packages.clear()
@@ -34,8 +35,15 @@ func set_speed_multiplier(multiplier: float):
 	speed_multiplier = multiplier
 
 
+var hold_center: bool = true  # r5: still + centred until the run's first flick resolves
+var ramp_enabled: bool = false  # r3 ramp, only with ?qa=1&ramp=1
 var period: float = 3.6  # r5: set per level by GameManager (3.6s, -6%/level, floor 1.6s)
 var phase: float = 0.0
+
+func release_hold():
+	hold_center = false
+	phase = 0.0
+	round_start_time = Time.get_ticks_msec() / 1000.0
 
 func set_period(p: float):
 	period = max(0.1, p)
@@ -43,9 +51,14 @@ func set_period(p: float):
 func _process(delta: float):
 	# r5: phase-accumulated sine so period changes never jump the truck. Travel stays +-180.
 	# QA mode keeps 0.25x.
-	# Kept from r3 (hard rule): 0.6 -> 1.0 speed ramp over the first 7 s of each round.
-	var round_elapsed = (Time.get_ticks_msec() / 1000.0) - round_start_time
-	var ramp = lerp(0.6, 1.0, clamp(round_elapsed / 7.0, 0.0, 1.0))
+	if hold_center:
+		position.x = center_x
+		return
+	# r3 ramp (0.6 -> 1.0 over 7 s) dropped by Design; kept behind ?qa=1&ramp=1
+	var ramp = 1.0
+	if ramp_enabled:
+		var round_elapsed = (Time.get_ticks_msec() / 1000.0) - round_start_time
+		ramp = lerp(0.6, 1.0, clamp(round_elapsed / 7.0, 0.0, 1.0))
 	phase += delta * speed_multiplier * ramp / period * TAU
 	position.x = center_x + sin(phase) * TRAVEL_RANGE
 
