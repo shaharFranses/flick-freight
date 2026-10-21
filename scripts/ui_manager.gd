@@ -527,7 +527,7 @@ func _setup_button_scaling():
 
 const DESIGN_SIZE = Vector2(720, 1280)
 const BTN_DESIGN = 58.0
-const BTN_MIN_CSS = 50.0   # floor 48, aim 50 for rounding margin
+const BTN_MIN_CSS = 52.0  # r4: >=48 CSS px with margin at every viewport
 const RETRY_MIN_CSS = 78.0 # floor 64 on the FILL (border+rounding excluded), aim 66+
 var css_per_unit: float = 1.0
 
@@ -702,37 +702,17 @@ func _on_time_delta(amount: float, from_pos: Vector2):
 var _time_pops_live := 0
 
 func _r4_hud_style():
-	"""r4: palette HUD. Pause/Mute 98x98 world px (>= 48 CSS px down to a 632 px-tall viewport),
-	navy plates with white glyphs; navy letterbox bars; HUD texts re-laid around the bigger buttons."""
+	"""r4: palette HUD: navy letterbox bars, navy HUD band, Pause/Mute plates restyled (size stays adaptive)."""
 	for n in ["LetterboxLeft", "LetterboxRight"]:
 		var b = $UI.get_node_or_null(n)
 		if b: b.color = Art.NAVY
 	var hb = $UI.get_node_or_null("HUDBacking")
 	if hb: hb.color = Color(Art.NAVY, 0.97)
-	for pair in [["PausePlate", Vector2(10, 6)], ["MutePlate", Vector2(612, 6)]]:
-		var p = $UI.get_node_or_null(pair[0])
-		if p == null: continue
-		p.position = pair[1]
-		p.size = Vector2(98, 98)
-		p.color = Color("#2C4466")
-		for c in p.get_children():
-			if c is Button:
-				c.position = Vector2.ZERO
-				c.size = p.size
-				for icon in c.get_children():
-					if icon is Control:
-						icon.pivot_offset = icon.size / 2.0
-						icon.scale = Vector2(1.6, 1.6)
-	var tl = $UI.get_node_or_null("TimerLabel")
-	if tl:
-		tl.position.x = 478
-		tl.size.x = 128
-	var ll = $UI.get_node_or_null("LoadsLabel")
-	if ll:
-		ll.position.x = 478
-		ll.size.x = 128
-	var sp = $UI.get_node_or_null("StreakPlate")
-	if sp: sp.position.y = 108
+	# Pause/Mute keep the adaptive >=BTN_MIN_CSS sizing from _apply_hud_scale; restyle only.
+	for n in ["PausePlate", "MutePlate"]:
+		var p = $UI.get_node_or_null(n)
+		if p:
+			p.color = Color("#2C4466")
 
 
 func _create_ticket_panel():
@@ -884,7 +864,7 @@ func _on_fire_changed(on: bool):
 			gt.fill_from = Vector2(0.5, 0.5)
 			gt.fill_to = Vector2(0.5, 0.0)
 			var gg = Gradient.new()
-			gg.set_color(0, Color(1.0, 0.62, 0.2, 0.75))
+			gg.set_color(0, Color(1.0, 0.55, 0.12, 0.65))
 			gg.set_color(1, Color(1.0, 0.45, 0.1, 0.0))
 			gg.add_point(0.55, Color(1.0, 0.55, 0.15, 0.3))
 			gt.gradient = gg
@@ -893,7 +873,7 @@ func _on_fire_changed(on: bool):
 			glow.position = Vector2(30, 10)
 			glow.scale = Vector2(3.0, 1.35)
 			var mat = CanvasItemMaterial.new()
-			mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+			mat.blend_mode = CanvasItemMaterial.BLEND_MODE_MIX  # r4: light field -> normal warm glow (add washes to white)
 			glow.material = mat
 			var glow_holder = Node2D.new()
 			glow_holder.z_index = -3  # net z 0 inside bay: above field, below hero truck (z 1)
