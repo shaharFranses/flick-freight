@@ -783,22 +783,29 @@ func _track_pop_clear(l: Control):
 	pop_clear_x(l)
 
 func pop_clear_x(l: Control):
+	"""Slide the pop sideways out of the union of every blocker its row (incl. float path) touches,
+	onto whichever side has room. Re-run every frame against the LIVE truck rect."""
 	var sz = l.get_combined_minimum_size()
 	sz = Vector2(max(sz.x, l.size.x), max(sz.y, l.size.y))
-	for _i in 4:
-		var rr = Rect2(l.position, sz)
-		var moved = false
-		for b in pop_blockers():
-			if b.intersects(rr):
-				var to_left = b.position.x - sz.x - 4.0
-				var to_right = b.end.x + 4.0
-				var go_left = rr.get_center().x < b.get_center().x
-				if go_left and to_left < 4.0: go_left = false
-				if !go_left and to_right + sz.x > 716.0: go_left = true
-				l.position.x = to_left if go_left else to_right
-				moved = true
-		if !moved:
-			return
+	var rr = Rect2(l.position, sz)
+	var band = Rect2(Vector2(-10000, l.position.y - 30.0), Vector2(20000, sz.y + 30.0))  # its row + upward drift
+	var u = Rect2()
+	var any = false
+	for b in pop_blockers():
+		if b.intersects(band):
+			u = b if !any else u.merge(b)
+			any = true
+	if !any or !u.intersects(rr.grow_individual(0, 30, 0, 0)):
+		return
+	var left_x = u.position.x - sz.x - 6.0
+	var right_x = u.end.x + 6.0
+	var left_ok = left_x >= 4.0
+	var right_ok = right_x + sz.x <= 716.0
+	var prefer_left = rr.get_center().x < u.get_center().x
+	if (prefer_left and left_ok) or !right_ok:
+		l.position.x = max(left_x, 4.0)
+	else:
+		l.position.x = right_x
 
 func nudge_pop_clear(c: Control, bay_x: float):
 	"""Push a pop label sideways (away from the truck) until its rect clears every blocker,
