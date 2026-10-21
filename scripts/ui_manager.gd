@@ -272,9 +272,18 @@ func _create_paused_overlay():
 	paused_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	paused_overlay.color = Color(0, 0, 0, 0.6)  # Dim black overlay
 	paused_overlay.visible = false
-	paused_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Don't block Resume button
+	# r4: tap/click anywhere on the PAUSED overlay resumes (as in r2d). The tap is consumed here
+	# and the tree is still paused during _input, so it cannot also start a flick.
+	paused_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	paused_overlay.process_mode = Node.PROCESS_MODE_ALWAYS
+	paused_overlay.gui_input.connect(func(ev):
+		if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT and ev.pressed and game_manager.is_paused:
+			paused_overlay.accept_event()
+			print("FF pause: overlay tap -> resume")
+			_on_pause_pressed())
 	paused_overlay.z_index = -2  # Below HUD elements so buttons stay bright
 	$UI.add_child(paused_overlay)
+	$UI.move_child(paused_overlay, 0)  # first child: HUD buttons (Pause/Mute) stay above it for input
 	
 	# Create PAUSED label
 	paused_label = Label.new()
@@ -668,19 +677,28 @@ func _on_time_delta(amount: float, from_pos: Vector2):
 	l.add_theme_color_override("font_outline_color", Color(0.05, 0.07, 0.12))
 	l.add_theme_constant_override("outline_size", 8)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	l.position = from_pos + (Vector2(70, -100) if amount > 0 else Vector2(-40, -30))
+	# left of the bed (off the cab); consecutive pops stack downward and queue in time
+	_time_pops_live = max(_time_pops_live, 0)
+	var slot = _time_pops_live
+	_time_pops_live += 1
+	l.position = from_pos + (Vector2(-210, -20 + 46 * slot) if amount > 0 else Vector2(-40, -30))
+	l.position.x = max(l.position.x, 8.0)
 	$UI.add_child(l)
 	var target = timer_bar_bg.position + Vector2((timer_bar_bg.size.x - 6) * clamp(game_manager.time_remaining / game_manager.T.clock_cap, 0.0, 1.0) - 40, -6)
 	var dur = 0.6 * (3.0 if game_manager.qa_mode else 1.0)
 	var tw = l.create_tween()
 	if amount > 0:
 		l.modulate.a = 0.0
-		tw.tween_interval(0.15 * (3.0 if game_manager.qa_mode else 1.0))
+		tw.tween_interval((0.15 + 0.25 * slot) * (3.0 if game_manager.qa_mode else 1.0))
 		tw.tween_property(l, "modulate:a", 1.0, 0.05)
 		tw.tween_property(l, "position:y", l.position.y - 40, 0.15)
 	tw.tween_property(l, "position", target, dur).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tw.tween_property(l, "modulate:a", 0.0, 0.15)
-	tw.tween_callback(l.queue_free)
+	tw.tween_callback(func():
+		_time_pops_live -= 1
+		l.queue_free())
+
+var _time_pops_live := 0
 
 func _create_ticket_panel():
 	# Rides with the truck (child of TruckBay), just below the bed.
@@ -718,11 +736,18 @@ func _on_ticket_changed(t: Array):
 		if left.has(k):
 			parts.append("%d %s" % [left[k], k.to_upper() + ("ES" if k == "box" and left[k] > 1 else ("S" if left[k] > 1 else ""))])
 	ticket_label.text = "ORDER: " + ", ".join(parts) + ("  %d/%d" % [done, t.size()] if done > 0 else "")
-	# fit: shrink font until the text fits the ticket (no truncation)
+	# fit: shrink font, floor 20 (= ~14 CSS px at 500x800); if still too long drop "ORDER:", then wrap
 	var fsz = 22
 	var font = ticket_label.get_theme_font("font")
-	while fsz > 13 and font.get_string_size(ticket_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz).x > ticket_panel.size.x - 16:
+	var avail = ticket_panel.size.x - 16
+	while fsz > 20 and font.get_string_size(ticket_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz).x > avail:
 		fsz -= 1
+	if font.get_string_size(ticket_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz).x > avail:
+		ticket_label.text = ticket_label.text.trim_prefix("ORDER: ")
+	var wrap = font.get_string_size(ticket_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz).x > avail
+	ticket_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if wrap else TextServer.AUTOWRAP_OFF
+	ticket_panel.size.y = 66 if wrap else 44
+	ticket_label.size = ticket_panel.size
 	ticket_label.add_theme_font_size_override("font_size", fsz)
 
 # ---------------- r5: juice / run-end / first-session ----------------
@@ -931,8 +956,8 @@ func _on_ticket_completed(score_bonus: int, time_bonus: float):
 	st.pivot_offset = Vector2(190, 24)
 	st.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var bayn = ticket_panel.get_parent()
-	# above the truck, on the UI layer so it sits over the HUD band; staggered after +N / +time
-	st.position = Vector2(clamp(bayn.global_position.x - 190, 0, 720 - 380), bayn.global_position.y - 110)
+	# just below the order ticket (never in the HUD band); staggered after +N / +time
+	st.position = Vector2(clamp(bayn.global_position.x - 190, 0, 720 - 380), bayn.global_position.y + ticket_panel.position.y + ticket_panel.size.y + 4)
 	st.rotation_degrees = -6
 	st.scale = Vector2(1.8, 1.8)
 	st.modulate.a = 0.0
@@ -944,7 +969,7 @@ func _on_ticket_completed(score_bonus: int, time_bonus: float):
 	tw.set_parallel(true)
 	tw.tween_property(st, "scale", Vector2(1, 1), 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_property(st, "modulate:a", 1.0, 0.08)
-	tw.chain().tween_property(st, "position:y", st.position.y - 50, 0.6 * dm)
+	tw.chain().tween_property(st, "position:y", st.position.y + 30, 0.6 * dm)
 	tw.tween_property(st, "modulate:a", 0.0, 0.6 * dm).set_delay(0.25 * dm)
 	tw.chain().tween_callback(st.queue_free)
 	var tp = ticket_panel.create_tween()

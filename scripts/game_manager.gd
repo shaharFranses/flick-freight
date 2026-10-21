@@ -987,9 +987,9 @@ func spawn_perfect_juice(pos: Vector2):
 		return
 	var dm = 3.0 if qa_mode else 1.0
 	var f = ColorRect.new()
-	f.position = Vector2(-85, -55)
-	f.size = Vector2(170, 105)
-	f.color = Color(1, 1, 1, 0.85)
+	f.position = Vector2(-55, 24)  # drop slot only: keeps the flash off the FREIGHT decal
+	f.size = Vector2(110, 34)
+	f.color = Color(1, 1, 1, 0.55)
 	f.z_index = 20
 	bay.add_child(f)
 	var tw = f.create_tween()
@@ -1006,7 +1006,7 @@ func spawn_perfect_juice(pos: Vector2):
 	l.add_theme_color_override("font_outline_color", Color(0.9, 0.3, 0.1))
 	l.add_theme_constant_override("outline_size", 12)
 	l.size = Vector2(360, 80)
-	l.position = Vector2(clamp(bay.global_position.x - 180, 0, 360), bay.global_position.y + 175)  # below the ticket
+	l.position = Vector2(clamp(bay.global_position.x - 180, 0, 360), bay.global_position.y + 200)  # below the ticket + DELIVERED
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.pivot_offset = Vector2(180, 40)
 	l.scale = Vector2(0.3, 0.3)
