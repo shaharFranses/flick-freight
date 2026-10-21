@@ -917,7 +917,7 @@ func _create_ghost_hand():
 func _on_multiplier_changed(mult: int):
 	var st = game_manager.streak
 	streak_label.text = ("Streak %d  x%d" % [st, mult]) if mult > 1 else ("Streak: %d" % st)
-	streak_label.add_theme_color_override("font_color", [Color(1,1,1), Color(1,1,1), Color(0.5,1,0.6), Color(1,0.8,0.3), Color(1,0.45,0.25)][clamp(mult, 1, 4)])
+	streak_label.add_theme_color_override("font_color", [Color(1,1,1), Color(1,1,1), Color(0.5,1,0.6), Color(1,0.8,0.3), Color("#FFD23F")][clamp(mult, 1, 4)])
 	if mult > _last_mult:
 		_streak_tier_pop(mult)
 	_last_mult = mult
