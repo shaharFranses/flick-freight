@@ -1003,7 +1003,10 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color, ctype: 
 		if hero and hero.has_method("hit_pulse"):
 			hero.hit_pulse(Art.MINT)
 	var score_label = Label.new()
-	score_label.position = pos - Vector2(120, 70)
+	# r4: +N sits at the top of the side column beside the truck (time pops stack under it)
+	var _bn = get_tree().root.get_node_or_null("Main/World/TruckBay")
+	var _bx = _bn.global_position.x if _bn else 360.0
+	score_label.position = Vector2(_bx + 176.0 if _bx < 360.0 else _bx - 260.0, 172.0)
 	score_label.text = "+%d" % score_value
 	score_label.add_theme_font_size_override("font_size", 40)
 	score_label.add_theme_color_override("font_color", Color("#1FA673"))  # darker mint for the light field
@@ -1013,8 +1016,7 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color, ctype: 
 	world.add_child(score_label)
 	var tween = score_label.create_tween()
 	tween.set_parallel(true)
-	score_label.position.y = max(score_label.position.y, 165.0)
-	tween.tween_property(score_label, "position", Vector2(pos.x - 170, max(pos.y - 150, 165.0)), 0.5 * dm).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(score_label, "position:y", 166.0, 0.5 * dm).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_property(score_label, "scale", Vector2(1.3, 1.3), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.chain().tween_property(score_label, "modulate:a", 0.0, 0.2 * dm)
 	tween.chain().tween_callback(score_label.queue_free)

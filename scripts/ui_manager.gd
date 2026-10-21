@@ -687,19 +687,19 @@ func _on_time_delta(amount: float, from_pos: Vector2):
 	var bayn = get_node_or_null("/root/Main/World/TruckBay")
 	var bx = bayn.global_position.x if bayn else 360.0
 	var side_x = bx + 176.0 if bx < 360.0 else bx - 176.0 - 84.0
-	l.position = Vector2(side_x, 178.0 + 44.0 * slot) if amount > 0 else from_pos + Vector2(-40, -30)
+	l.position = Vector2(side_x, 224.0 + 44.0 * slot) if amount > 0 else from_pos + Vector2(-40, -30)
 	l.position.x = clamp(l.position.x, 8.0, 640.0)
 	$UI.add_child(l)
 	# r4: never travel into the HUD band / bar: float up to just below it and fade
 	l.position.y = max(l.position.y, 185.0)
-	var target = Vector2(l.position.x, max(l.position.y - 30.0, 172.0)) if amount > 0 else Vector2(l.position.x, max(l.position.y - 60.0, 175.0))
+	var target = Vector2(l.position.x, max(l.position.y - 20.0, 214.0)) if amount > 0 else Vector2(l.position.x, max(l.position.y - 60.0, 175.0))
 	var dur = 0.6 * (3.0 if game_manager.qa_mode else 1.0)
 	var tw = l.create_tween()
 	if amount > 0:
 		l.modulate.a = 0.0
 		tw.tween_interval((0.15 + 0.25 * slot) * (3.0 if game_manager.qa_mode else 1.0))
 		tw.tween_property(l, "modulate:a", 1.0, 0.05)
-		tw.tween_property(l, "position:y", max(l.position.y - 10, 175.0), 0.15)
+		tw.tween_property(l, "position:y", max(l.position.y - 10, 218.0), 0.15)
 	tw.tween_property(l, "position", target, dur).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tw.tween_property(l, "modulate:a", 0.0, 0.15)
 	tw.tween_callback(func():
