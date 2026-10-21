@@ -1087,8 +1087,8 @@ func _on_ticket_completed(score_bonus: int, time_bonus: float):
 	st.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var bayn = ticket_panel.get_parent()
 	# just below the order ticket (never in the HUD band); staggered after +N / +time
-	st.position = Vector2(clamp(bayn.global_position.x - 230, 0, 720 - 460), bayn.global_position.y + ticket_panel.position.y + ticket_panel.size.y + 4)
-	st.rotation_degrees = -6
+	st.position = Vector2(clamp(bayn.global_position.x - 230, 0, 720 - 460), bayn.global_position.y + ticket_panel.position.y + ticket_panel.size.y + 24)  # rotated stamp clears the ticket
+	st.rotation_degrees = -4
 	st.scale = Vector2(1.8, 1.8)
 	st.modulate.a = 0.0
 	st.z_index = 210
