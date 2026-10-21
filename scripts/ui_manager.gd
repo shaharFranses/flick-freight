@@ -675,28 +675,31 @@ func _on_time_delta(amount: float, from_pos: Vector2):
 	l.text = "%+.1f" % amount
 	l.add_theme_font_size_override("font_size", 40)
 	l.add_theme_color_override("font_color", Color("#1FA673") if amount > 0 else Art.CORAL)
-	l.add_theme_color_override("font_outline_color", Color(0.05, 0.07, 0.12))
-	l.add_theme_constant_override("outline_size", 8)
+	l.add_theme_color_override("font_outline_color", Art.NAVY)
+	l.add_theme_constant_override("outline_size", 10)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# left of the bed (off the cab); consecutive pops stack downward and queue in time
 	_time_pops_live = max(_time_pops_live, 0)
 	var slot = _time_pops_live
 	_time_pops_live += 1
 	# beside the truck on its open side (clear of FREIGHT/cab), never at the screen edge under the truck
-	var side_x = from_pos.x + 168.0 if from_pos.x < 360.0 else from_pos.x - 240.0
-	l.position = Vector2(side_x, from_pos.y - 20 + 46 * slot) if amount > 0 else from_pos + Vector2(-40, -30)
+	# outside the ticket's x-span (bay +-170), on the roomier side; stacked vertically from y 178
+	var bayn = get_node_or_null("/root/Main/World/TruckBay")
+	var bx = bayn.global_position.x if bayn else 360.0
+	var side_x = bx + 176.0 if bx < 360.0 else bx - 176.0 - 84.0
+	l.position = Vector2(side_x, 178.0 + 44.0 * slot) if amount > 0 else from_pos + Vector2(-40, -30)
 	l.position.x = clamp(l.position.x, 8.0, 640.0)
 	$UI.add_child(l)
 	# r4: never travel into the HUD band / bar: float up to just below it and fade
 	l.position.y = max(l.position.y, 185.0)
-	var target = Vector2(l.position.x, max(l.position.y - 60.0, 175.0))
+	var target = Vector2(l.position.x, max(l.position.y - 30.0, 172.0)) if amount > 0 else Vector2(l.position.x, max(l.position.y - 60.0, 175.0))
 	var dur = 0.6 * (3.0 if game_manager.qa_mode else 1.0)
 	var tw = l.create_tween()
 	if amount > 0:
 		l.modulate.a = 0.0
 		tw.tween_interval((0.15 + 0.25 * slot) * (3.0 if game_manager.qa_mode else 1.0))
 		tw.tween_property(l, "modulate:a", 1.0, 0.05)
-		tw.tween_property(l, "position:y", max(l.position.y - 40, 175.0), 0.15)
+		tw.tween_property(l, "position:y", max(l.position.y - 10, 175.0), 0.15)
 	tw.tween_property(l, "position", target, dur).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tw.tween_property(l, "modulate:a", 0.0, 0.15)
 	tw.tween_callback(func():
@@ -717,6 +720,9 @@ func _r4_hud_style():
 		var p = $UI.get_node_or_null(n)
 		if p:
 			p.color = Color("#2C4466")
+			for c in p.get_children():
+				if c is Button:
+					c.focus_mode = Control.FOCUS_NONE  # a click here must not eat the next flick
 
 
 func _create_ticket_panel():

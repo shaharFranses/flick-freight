@@ -125,6 +125,8 @@ func _ready():
 	if tb and "ramp_enabled" in tb:
 		tb.ramp_enabled = qa_mode and int(T.ramp) == 1
 	
+	if qa_bay_x >= 0.0 and tb and "qa_still_x" in tb:
+		tb.qa_still_x = qa_bay_x
 	spawn_package()
 	if qa_force_fire:
 		call_deferred("_set_on_fire", true)
@@ -132,6 +134,7 @@ func _ready():
 var qa_force_fire := false
 var qa_cargo := ""
 var qa_hold_aim := false
+var qa_bay_x := -1.0
 var _qa_cycle_i := 0
 
 func _parse_query(q: String):
@@ -146,6 +149,9 @@ func _parse_query(q: String):
 	qa_force_fire = params.get("fire", "") == "1"
 	qa_cargo = params.get("cargo", "")
 	qa_hold_aim = params.get("hold_aim", "") == "1"
+	if params.get("bay_still", "") == "1" or params.get("bay_x", "").is_valid_float():
+		qa_bay_x = float(params.get("bay_x", "360")) if params.get("bay_x", "").is_valid_float() else 360.0
+		print("QA TOGGLE bay_still x=", qa_bay_x)
 	if qa_force_fire or qa_cargo != "" or qa_hold_aim:
 		print("QA TOGGLES fire=", qa_force_fire, " cargo=", qa_cargo, " hold_aim=", qa_hold_aim)
 	for k in params:
@@ -964,7 +970,7 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color, ctype: 
 	if !world:
 		return
 	var dm = 3.0 if qa_mode else 1.0
-	Art.burst(world, pos, Art.TEX_SPARK, Art.MINT, 14, 0.35 * dm, 220, 420, 0.35, 0.7, Vector2(0, 300))
+	Art.burst(world, pos, Art.TEX_SPARK, Color("#1FA673"), 14, 0.35 * dm, 220, 420, 0.35, 0.7, Vector2(0, 300))
 	match ctype:
 		"crate":  # wooden splinters
 			Art.burst(world, pos, null, Art.BROWN.lightened(0.15), 16, 0.5 * dm, 160, 340, 5, 9, Vector2(0, 900))
@@ -986,11 +992,11 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color, ctype: 
 				rt.tween_property(ring, "scale", Vector2(2.8, 1.25) * (1.0 if k == 0 else 0.7), 0.5 * dm).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 				rt.tween_property(ring, "modulate:a", 0.0, 0.5 * dm).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 				rt.chain().tween_callback(ring.queue_free)
-			Art.burst(world, pos, Art.TEX_STAR, Art.WHITE, 12, 0.5 * dm, 160, 340, 0.5, 0.9, Vector2.ZERO)
+			Art.burst(world, pos, Art.TEX_STAR, Art.NAVY, 12, 0.5 * dm, 160, 340, 0.5, 0.9, Vector2.ZERO)
 			Art.burst(world, pos, Art.TEX_STAR, Color(0.55, 0.8, 1.0), 8, 0.5 * dm, 120, 260, 0.4, 0.7, Vector2(0, 200))
 		_:  # box: cardboard flecks + amber stars
-			Art.burst(world, pos, Art.TEX_STAR, Color(1.0, 0.85, 0.4), 16, 0.5 * dm, 170, 360, 0.45, 0.8, Vector2(0, 450))
-			Art.burst(world, pos, Art.TEX_SPARK, Art.WHITE, 8, 0.35 * dm, 200, 380, 0.4, 0.7, Vector2(0, 300))
+			Art.burst(world, pos, Art.TEX_STAR, Color("#E09A10"), 16, 0.5 * dm, 170, 360, 0.45, 0.8, Vector2(0, 450))
+			Art.burst(world, pos, Art.TEX_SPARK, Art.NAVY, 8, 0.35 * dm, 200, 380, 0.4, 0.7, Vector2(0, 300))
 	var bay = get_tree().root.get_node_or_null("Main/World/TruckBay")
 	if bay:
 		var hero = bay.get_node_or_null("HeroTruck")

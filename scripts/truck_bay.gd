@@ -44,6 +44,8 @@ var ramp_enabled: bool = false  # r3 ramp, only with ?qa=1&ramp=1
 var period: float = 3.6  # r5: set per level by GameManager (3.6s, -6%/level, floor 1.6s)
 var phase: float = 0.0
 
+var qa_still_x: float = -1.0
+
 func release_hold():
 	hold_center = false
 	phase = 0.0
@@ -57,6 +59,9 @@ func _process(delta: float):
 	# QA mode keeps 0.25x.
 	if hold_center:
 		position.x = center_x
+		return
+	if qa_still_x >= 0.0:  # ?qa=1&bay_still=1[&bay_x=N]: QA-only freeze for precise edge tests
+		position.x = qa_still_x
 		return
 	# r3 ramp (0.6 -> 1.0 over 7 s) dropped by Design; kept behind ?qa=1&ramp=1
 	var ramp = 1.0
