@@ -40,6 +40,11 @@ func _ready():
 	game_manager.streak_changed.connect(_on_streak_changed)
 	game_manager.game_won.connect(_on_game_won)
 	game_manager.game_lost.connect(_on_game_lost)
+	game_manager.time_delta.connect(_on_time_delta)
+	game_manager.ticket_changed.connect(_on_ticket_changed)
+	_create_timer_bar()
+	_create_ticket_panel()
+	_on_ticket_changed(game_manager.ticket)
 	
 	# Connect buttons
 	pause_button.pressed.connect(_on_pause_pressed)
@@ -50,7 +55,7 @@ func _ready():
 	# Initial UI
 	game_over_panel.hide()
 	_on_score_changed(0)
-	_on_loads_changed(0, game_manager.WIN_QUOTA)
+	_on_loads_changed(0, 0)
 	_on_timer_changed(game_manager.ROUND_TIME)
 	_on_streak_changed(0)
 	
@@ -135,13 +140,13 @@ func _on_score_changed(new_score: int):
 	score_label.text = "Score: %d" % new_score
 
 func _on_loads_changed(loads: int, quota: int):
-	loads_label.text = "Loads: %d/%d" % [loads, quota]
+	loads_label.text = "Loads: %d" % loads  # r5: no quota in the timer run
 	last_loads_count = loads
 	# QA ITEM 1: Removed full-screen green flash - localized flash is in game_manager.spawn_hit_juice()
 
 func _on_timer_changed(time: float):
-	var seconds = int(ceil(time))
-	timer_label.text = "Time: %d" % seconds
+	timer_label.text = "Time: %.1f" % time
+	_update_timer_bar(time)
 
 func _on_streak_changed(streak: int):
 	# Always show streak label
@@ -550,3 +555,108 @@ func _apply_retry_size():
 			c.offset_bottom = base[n][1] - d
 	panel.offset_left = min(-220.0, -w / 2.0 - 20.0)
 	panel.offset_right = -panel.offset_left
+
+# ---------------- r5: timer bar, fly-in, ticket ----------------
+var timer_bar_bg: ColorRect = null
+var timer_bar_fill: ColorRect = null
+var qa_delta_label: Label = null
+var ticket_panel: ColorRect = null
+var ticket_label: Label = null
+const BAR_POS = Vector2(176, 122)
+const BAR_SIZE = Vector2(524, 26)
+
+func _create_timer_bar():
+	timer_bar_bg = ColorRect.new()
+	timer_bar_bg.name = "TimerBarBg"
+	timer_bar_bg.position = BAR_POS
+	timer_bar_bg.size = BAR_SIZE
+	timer_bar_bg.color = Color(0.05, 0.07, 0.12, 0.95)
+	timer_bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	$UI.add_child(timer_bar_bg)
+	timer_bar_fill = ColorRect.new()
+	timer_bar_fill.name = "TimerBarFill"
+	timer_bar_fill.position = Vector2(3, 3)
+	timer_bar_fill.size = BAR_SIZE - Vector2(6, 6)
+	timer_bar_fill.color = Color(0.3, 0.85, 0.45)
+	timer_bar_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	timer_bar_bg.add_child(timer_bar_fill)
+	if game_manager.qa_mode:
+		qa_delta_label = Label.new()
+		qa_delta_label.name = "QADelta"
+		qa_delta_label.position = Vector2(176, 150)
+		qa_delta_label.size = Vector2(524, 24)
+		qa_delta_label.add_theme_font_size_override("font_size", 20)
+		qa_delta_label.add_theme_color_override("font_color", Color(1, 1, 0.4))
+		qa_delta_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		$UI.add_child(qa_delta_label)
+
+func _update_timer_bar(time: float):
+	if timer_bar_fill == null:
+		return
+	var cap = game_manager.T.clock_cap
+	var frac = clamp(time / cap, 0.0, 1.0)
+	timer_bar_fill.size.x = (BAR_SIZE.x - 6) * frac
+	if time < game_manager.T.low_time_warning and time > 0.0:
+		# flash red ~4 Hz under 5 s (tick SFX: TODO, no audio assets yet)
+		var on = int(Time.get_ticks_msec() / 125) % 2 == 0
+		timer_bar_fill.color = Color(1, 0.2, 0.2) if on else Color(0.6, 0.1, 0.1)
+	else:
+		timer_bar_fill.color = Color(0.3, 0.85, 0.45) if frac > 0.34 else Color(1, 0.75, 0.2)
+	if qa_delta_label:
+		qa_delta_label.text = "QA t=%.2f  last %+.2f  lvl %d  period %.2fs  mult x%d" % [time, game_manager.last_time_delta, game_manager.level_index() + 1, game_manager.bay_period_for_level(game_manager.level_index()), game_manager.multiplier()]
+
+func _on_time_delta(amount: float, from_pos: Vector2):
+	if is_zero_approx(amount):
+		return
+	var l = Label.new()
+	l.text = "%+.1f" % amount
+	l.add_theme_font_size_override("font_size", 40)
+	l.add_theme_color_override("font_color", Color(0.4, 1, 0.5) if amount > 0 else Color(1, 0.35, 0.3))
+	l.add_theme_color_override("font_outline_color", Color(0.05, 0.07, 0.12))
+	l.add_theme_constant_override("outline_size", 8)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.position = from_pos - Vector2(40, 30)
+	$UI.add_child(l)
+	var target = BAR_POS + Vector2((BAR_SIZE.x - 6) * clamp(game_manager.time_remaining / game_manager.T.clock_cap, 0.0, 1.0) - 40, -6)
+	var dur = 0.6 * (3.0 if game_manager.qa_mode else 1.0)
+	var tw = l.create_tween()
+	tw.tween_property(l, "position", target, dur).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.tween_property(l, "modulate:a", 0.0, 0.15)
+	tw.tween_callback(l.queue_free)
+
+func _create_ticket_panel():
+	# Rides with the truck (child of TruckBay), just below the bed.
+	var bay = get_node_or_null("/root/Main/World/TruckBay")
+	if bay == null:
+		return
+	ticket_panel = ColorRect.new()
+	ticket_panel.name = "OrderTicket"
+	ticket_panel.position = Vector2(-150, 86)
+	ticket_panel.size = Vector2(300, 44)
+	ticket_panel.color = Color(0.96, 0.93, 0.82, 0.95)
+	ticket_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bay.add_child(ticket_panel)
+	ticket_label = Label.new()
+	ticket_label.size = ticket_panel.size
+	ticket_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ticket_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	ticket_label.add_theme_font_size_override("font_size", 24)
+	ticket_label.add_theme_color_override("font_color", Color(0.12, 0.14, 0.22))
+	ticket_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ticket_panel.add_child(ticket_label)
+
+func _on_ticket_changed(t: Array):
+	if ticket_label == null:
+		return
+	var left = {}
+	var done = 0
+	for item in t:
+		if item.done:
+			done += 1
+		else:
+			left[item.type] = left.get(item.type, 0) + 1
+	var parts = []
+	for k in ["box", "crate", "barrel"]:
+		if left.has(k):
+			parts.append("%d %s" % [left[k], k.to_upper() + ("ES" if k == "box" and left[k] > 1 else ("S" if left[k] > 1 else ""))])
+	ticket_label.text = "ORDER: " + ", ".join(parts) + ("  %d/%d" % [done, t.size()] if done > 0 else "")

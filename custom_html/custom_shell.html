@@ -131,9 +131,13 @@ const engine = new Engine(GODOT_CONFIG);
 	function fitCanvas() {
 		const vw = window.innerWidth;
 		const vh = window.innerHeight;
-		const cssH = Math.min(vh, vw * 16 / 9);
-		const cssW = cssH * 9 / 16;
+		// r5: integer CSS box + integer left/top (fractional x left a 1px black seam on the left)
+		const cssH = Math.floor(Math.min(vh, vw * 16 / 9));
+		const cssW = Math.floor(cssH * 9 / 16);
 		const dpr = window.devicePixelRatio || 1;
+		canvas.style.position = 'absolute';
+		canvas.style.left = Math.floor((vw - cssW) / 2) + 'px';
+		canvas.style.top = Math.floor((vh - cssH) / 2) + 'px';
 		canvas.style.width = cssW + 'px';
 		canvas.style.height = cssH + 'px';
 		const bw = Math.max(1, Math.round(cssW * dpr));

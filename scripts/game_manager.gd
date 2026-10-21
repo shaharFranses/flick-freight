@@ -3,37 +3,26 @@ extends Node
 # DEBUG MODE: Set to false for shipping build
 const DEBUG_MODE = false
 
-# SHIFT CONFIG: Data-driven level design
-class ShiftConfig:
-	var shift_number: int
-	var name: String
-	var timer: float
-	var quota: int
-	var bay_period_start: float
-	var bay_period_end: float
-	var allowed_packages: Array
-	
-	func _init(num: int, n: String, t: float, q: int, bay_start: float, bay_end: float, packages: Array):
-		shift_number = num
-		name = n
-		timer = t
-		quota = q
-		bay_period_start = bay_start
-		bay_period_end = bay_end
-		allowed_packages = packages
+# r5: the timer run is the only mode (shift ladder parked; see r5-depth-spec.md).
+# r5 TUNABLES (spec table). Every key can be overridden under ?qa=1, e.g. ?qa=1&clock_start=25
+var T = {
+	"clock_start": 20.0, "clock_cap": 30.0,
+	"hit_bonus": 2.0, "perfect_bonus": 3.5, "perfect_zone": 0.30,
+	"streak_bonus_start": 3, "streak_bonus_step": 0.5, "streak_bonus_cap": 5.0,
+	"miss_penalty": 2.0, "miss_grace_levels": 2,
+	"decay_step": 0.1, "decay_every": 10, "hit_bonus_floor": 1.2, "perfect_bonus_floor": 2.2,
+	"loads_per_level": 5,
+	"bay_period_start": 3.6, "bay_period_shrink": 0.06, "bay_period_floor": 1.6,
+	"ticket_bonus_score": 50, "ticket_bonus_time": 1.5, "ticket_spawn_tilt": 0.15,
+	"low_time_warning": 5.0,
+}
+var ROUND_TIME: float = 20.0  # = T.clock_start (kept name for UI/hint code)
+var last_time_delta: float = 0.0  # for ?qa=1 overlay
+var ticket: Array = []  # r5 ticket stub: [{"type": "box", "done": false}, ...]
+signal time_delta(amount: float, from_pos: Vector2)
+signal ticket_changed(ticket: Array)
+signal ticket_completed(score_bonus: int, time_bonus: float)
 
-var SHIFTS: Array[ShiftConfig] = [
-	ShiftConfig.new(1, "Dock Warmup", 40.0, 5, 3.6, 3.2, ["box"]),
-	ShiftConfig.new(6, "Full Crew", 45.0, 8, 3.2, 2.4, ["box", "crate", "barrel"]),
-	ShiftConfig.new(12, "Night Shift", 38.0, 11, 2.3, 1.8, ["box", "crate", "barrel"])
-]
-
-var current_shift_index: int = 1
-var current_shift: ShiftConfig = SHIFTS[1]
-
-# Game constants from design brief (driven by shift config)
-var ROUND_TIME: float = 45.0
-var WIN_QUOTA: int = 8
 const SPAWN_DELAY = 0.35
 const LERP_TIME = 30.0
 
@@ -49,7 +38,7 @@ var package_scenes = {
 }
 
 # Game state
-var time_remaining: float = ROUND_TIME
+var time_remaining: float = 20.0
 var loads_completed: int = 0
 var current_score: int = 0
 var streak: int = 0
@@ -84,13 +73,14 @@ func _ready():
 	# QA ITEM 2: Set clear color for letterbox bars
 	RenderingServer.set_default_clear_color(Color(0.122, 0.149, 0.2, 1))
 	
-	call_deferred("_init_shift_config")
-	
-	# Detect QA mode from URL parameter ?qa=1
+	# Detect QA mode from URL parameter ?qa=1 (exact param, not substring)
 	if OS.has_feature("web"):
 		var search_string = JavaScriptBridge.eval("location.search || ''")
 		if search_string and search_string is String:
-			qa_mode = search_string.contains("qa=1")
+			_parse_query(search_string)
+	ROUND_TIME = T.clock_start
+	time_remaining = ROUND_TIME
+	_new_ticket()
 	
 	# Always log QA mode status at boot
 	print("═══════════════════════════════════════")
@@ -118,27 +108,89 @@ func _ready():
 	
 	spawn_package()
 
-func _init_shift_config():
-	# Initialize shift config after tree is ready
-	load_shift(current_shift_index, false)
+func _parse_query(q: String):
+	var params = {}
+	for kv in q.trim_prefix("?").split("&", false):
+		var parts = kv.split("=")
+		params[parts[0]] = parts[1] if parts.size() > 1 else ""
+	qa_mode = params.get("qa", "") == "1"
+	if !qa_mode:
+		return
+	for k in params:
+		if T.has(k) and params[k].is_valid_float():
+			T[k] = int(params[k]) if typeof(T[k]) == TYPE_INT else float(params[k])
+			print("QA TUNABLE ", k, " = ", T[k])
 
-func _input(event):
-	# Shift keys work in browser via _input (not _unhandled_input)
-	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_1:
-			load_shift(0)  # Shift 1
-			get_viewport().set_input_as_handled()  # Prevent further processing
-		elif event.keycode == KEY_6:
-			load_shift(1)  # Shift 6
-			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_2:
-			load_shift(2)  # Shift 12
-			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_F2:
-			# Cycle: 1→6→12→1 (shift indices 0→1→2→0)
-			var next_index = (current_shift_index + 1) % SHIFTS.size()
-			load_shift(next_index)
-			get_viewport().set_input_as_handled()
+# ---------- r5 timer math (pure; spec section 1) ----------
+func level_index() -> int:
+	return loads_completed / int(T.loads_per_level)  # 0 = level 1
+
+func decay_amount(loads: int) -> float:
+	return float(loads / int(T.decay_every)) * T.decay_step
+
+func hit_time_bonus(loads_before: int, streak_after: int, perfect: bool) -> float:
+	var base: float
+	if perfect:
+		base = max(T.perfect_bonus_floor, T.perfect_bonus - decay_amount(loads_before))
+	else:
+		base = max(T.hit_bonus_floor, T.hit_bonus - decay_amount(loads_before))
+	var streak_b = 0.0
+	if streak_after >= int(T.streak_bonus_start):
+		streak_b = min(T.streak_bonus_cap, (streak_after - 2) * T.streak_bonus_step)
+	return base + streak_b
+
+func miss_time_penalty(loads: int) -> float:
+	if loads < int(T.miss_grace_levels) * int(T.loads_per_level):
+		return 0.0
+	return T.miss_penalty
+
+func bay_period_for_level(level: int) -> float:
+	return max(T.bay_period_floor, T.bay_period_start * pow(1.0 - T.bay_period_shrink, level))
+
+func multiplier() -> int:
+	if streak >= 10: return 4
+	if streak >= 6: return 3
+	if streak >= 3: return 2
+	return 1
+
+func add_time(amount: float, from_pos: Vector2 = Vector2(360, 200)):
+	last_time_delta = amount
+	time_remaining = clamp(time_remaining + amount, 0.0, T.clock_cap)
+	timer_changed.emit(time_remaining)
+	time_delta.emit(amount, from_pos)
+
+# ---------- r5 ticket stub (spec section 3) ----------
+func unlocked_types() -> Array:
+	if loads_completed < 5: return ["box"]
+	if loads_completed < 10: return ["box", "crate"]
+	return ["box", "crate", "barrel"]
+
+func _new_ticket():
+	var types = unlocked_types()
+	var n = 2 + (randi() % 2)
+	ticket = []
+	for i in n:
+		ticket.append({"type": types[randi() % types.size()], "done": false})
+	ticket_changed.emit(ticket)
+
+func _tick_ticket(type: String) -> bool:
+	"""Returns true if the ticket completed."""
+	for item in ticket:
+		if !item.done and item.type == type:
+			item.done = true
+			break
+	ticket_changed.emit(ticket)
+	for item in ticket:
+		if !item.done:
+			return false
+	return true
+
+func _open_ticket_types() -> Dictionary:
+	var d = {}
+	for item in ticket:
+		if !item.done:
+			d[item.type] = true
+	return d
 
 func run_self_test():
 	print("═══════════════════════════════════════")
@@ -212,7 +264,7 @@ func _process(delta: float):
 		return
 	
 	# DEBUG: F1 key to test credit system
-	if Input.is_action_just_pressed("ui_select") or Input.is_key_pressed(KEY_F1):
+	if DEBUG_MODE and (Input.is_action_just_pressed("ui_select") or Input.is_key_pressed(KEY_F1)):
 		debug_add_credit()
 	
 	# INVARIANT CHECK: Max 1 package in group at any time (excluding queued deletions)
@@ -236,8 +288,7 @@ func _process(delta: float):
 	if time_remaining <= 0:
 		time_remaining = 0
 		timer_changed.emit(time_remaining)
-		if loads_completed < WIN_QUOTA:
-			game_over(false)
+		game_over(false)
 		return
 	
 	# Handle spawn timer
@@ -255,24 +306,7 @@ func spawn_package():
 	if is_game_over:
 		return
 	
-	# Calculate spawn weights based on time elapsed
-	var elapsed = ROUND_TIME - time_remaining
-	var lerp_factor = clamp(elapsed / LERP_TIME, 0.0, 1.0)
-	
-	var weights = {}
-	for key in EARLY_WEIGHTS.keys():
-		weights[key] = lerp(EARLY_WEIGHTS[key], LATE_WEIGHTS[key], lerp_factor)
-	
-	# Select package type based on weighted random
-	var rand_val = randf()
-	var cumulative = 0.0
-	var selected_type = "box"
-	
-	for type in ["box", "crate", "barrel"]:
-		cumulative += weights[type]
-		if rand_val <= cumulative:
-			selected_type = type
-			break
+	var selected_type = select_random_type()
 	
 	# BUBBLE-SHOOTER: If we have a preview, advance it to current
 	if next_preview != null and is_instance_valid(next_preview):
@@ -304,24 +338,21 @@ func spawn_package():
 	can_spawn = false
 
 func select_random_type() -> String:
-	var elapsed = ROUND_TIME - time_remaining
-	var lerp_factor = clamp(elapsed / LERP_TIME, 0.0, 1.0)
-	
+	# r5: unlock order (BOX 0-4, +CRATE 5-9, all from 10) + ticket tilt (+15% per open type)
+	var types = unlocked_types()
+	var open = _open_ticket_types()
 	var weights = {}
-	for key in EARLY_WEIGHTS.keys():
-		weights[key] = lerp(EARLY_WEIGHTS[key], LATE_WEIGHTS[key], lerp_factor)
-	
-	var rand_val = randf()
-	var cumulative = 0.0
-	var selected = "box"
-	
-	for type in ["box", "crate", "barrel"]:
-		cumulative += weights[type]
-		if rand_val <= cumulative:
-			selected = type
-			break
-	
-	return selected
+	var total = 0.0
+	for t in types:
+		var w = 1.0 + (T.ticket_spawn_tilt * types.size() if open.has(t) else 0.0)
+		weights[t] = w
+		total += w
+	var r = randf() * total
+	for t in types:
+		r -= weights[t]
+		if r <= 0.0:
+			return t
+	return types[-1]
 
 # r3: NEXT preview sits beside the flick spot and shows the real cargo art
 const FLICK_SPOT = Vector2(360, 1150)
@@ -361,8 +392,8 @@ func generate_preview(type: String, pop_in: bool = false):
 	
 	var panel = ColorRect.new()
 	panel.name = "Panel"
-	panel.size = Vector2(96, 112)
-	panel.position = Vector2(-48, -64)
+	panel.size = Vector2(104, 124)
+	panel.position = Vector2(-52, -76)
 	panel.color = Color(0.1, 0.12, 0.18, 0.85)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	next_preview.add_child(panel)
@@ -371,11 +402,11 @@ func generate_preview(type: String, pop_in: bool = false):
 	var next_label = Label.new()
 	next_label.name = "NextCaption"
 	next_label.text = "NEXT"
-	next_label.add_theme_font_size_override("font_size", 16)
+	next_label.add_theme_font_size_override("font_size", 24)
 	next_label.add_theme_color_override("font_color", Color(1, 0.9, 0.4))
 	next_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	next_label.position = Vector2(-48, -62)
-	next_label.size = Vector2(96, 20)
+	next_label.position = Vector2(-52, -78)
+	next_label.size = Vector2(104, 30)
 	next_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	next_preview.add_child(next_label)
 	
@@ -543,11 +574,6 @@ func register_successful_load(package: Node, base_points: int) -> bool:
 		print("  This is call #", credited_ids.size() + 1, " - should be 1 per package")
 		return false
 	
-	# GUARD: At quota
-	if loads_completed >= WIN_QUOTA:
-		print("❌ REJECTED: Already at quota (", WIN_QUOTA, ")")
-		return false
-	
 	# GUARD: Game over
 	if is_game_over:
 		print("❌ REJECTED: Game already over")
@@ -564,7 +590,7 @@ func register_successful_load(package: Node, base_points: int) -> bool:
 	
 	# Increment loads EXACTLY ONCE (capped at quota)
 	var old_loads = loads_completed
-	loads_completed = mini(loads_completed + 1, WIN_QUOTA)
+	loads_completed = loads_completed + 1
 	
 	# Streak increments +1 ONCE per successful load
 	var old_streak = streak
@@ -586,26 +612,54 @@ func register_successful_load(package: Node, base_points: int) -> bool:
 	
 	# Emit UI update signals ONCE
 	score_changed.emit(current_score)
-	loads_changed.emit(loads_completed, WIN_QUOTA)
+	loads_changed.emit(loads_completed, 0)
 	streak_changed.emit(streak)
+	
+	# r5 TIMER: hit / perfect / streak bonus, then ticket
+	var perfect = _is_perfect(package)
+	add_time(hit_time_bonus(old_loads, streak, perfect), package.global_position)
+	if _tick_ticket(_type_of(package)):
+		var sb = int(T.ticket_bonus_score) * multiplier()
+		current_score += sb
+		score_changed.emit(current_score)
+		add_time(T.ticket_bonus_time, package.global_position)
+		ticket_completed.emit(sb, T.ticket_bonus_time)
+		_new_ticket()
+	_apply_bay_level()
 	
 	# Update debug label (if exists)
 	var debug_label = get_node_or_null("/root/Main/UIManager/UI/DebugLabel")
 	if debug_label:
 		debug_label.text = "LastCredit: +1 (loads=%d) key=%s" % [loads_completed, lookup_key.substr(0, 10)]
 	
-	# Check win condition
-	if loads_completed >= WIN_QUOTA:
-		print("🏆 WIN: Quota reached - calling game_over(true)")
-		game_over(true)
-		return true
-	
 	# Package resolved - advance conveyor
 	on_package_resolved()
 	
 	return true
 
+func _is_perfect(package: Node) -> bool:
+	var bay = get_tree().root.get_node_or_null("Main/World/TruckBay")
+	if bay == null:
+		return false
+	var w = bay.OPENING_WIDTH * (package.bay_hitbox_scale if package.get("bay_hitbox_scale") != null else 1.0)
+	return abs(package.global_position.x - bay.global_position.x) <= w * T.perfect_zone * 0.5
+
+func _type_of(package: Node) -> String:
+	var f = package.scene_file_path
+	for t in ["box", "crate", "barrel"]:
+		if f.contains(t):
+			return t
+	return "box"
+
+func _apply_bay_level():
+	var bay = get_tree().root.get_node_or_null("Main/World/TruckBay")
+	if bay and bay.has_method("set_period"):
+		bay.set_period(bay_period_for_level(level_index()))
+
 func _on_package_missed():
+	# r5 TIMER: miss penalty (0 during grace levels)
+	var pos = current_package.global_position if (current_package != null and is_instance_valid(current_package)) else Vector2(360, 600)
+	add_time(-miss_time_penalty(loads_completed), pos)
 	# Reset streak on miss
 	streak = 0
 	streak_changed.emit(streak)
@@ -684,7 +738,9 @@ func restart_game():
 	await get_tree().process_frame
 	
 	# Reset game state AFTER cleanup
+	ROUND_TIME = T.clock_start
 	time_remaining = ROUND_TIME
+	last_time_delta = 0.0
 	loads_completed = 0
 	current_score = 0
 	streak = 0
@@ -697,7 +753,8 @@ func restart_game():
 	
 	# Emit signals to update UI
 	score_changed.emit(current_score)
-	loads_changed.emit(loads_completed, WIN_QUOTA)
+	loads_changed.emit(loads_completed, 0)
+	_new_ticket()
 	timer_changed.emit(time_remaining)
 	streak_changed.emit(streak)
 	
@@ -709,6 +766,7 @@ func restart_game():
 	if truck_bay:
 		if truck_bay.has_method("reset_position"):
 			truck_bay.reset_position()
+		_apply_bay_level()
 		truck_bay.set_process(true)  # Resume bay movement
 	
 	# ITEM 5 FIX: Show Pause button again and ensure PAUSED overlay hidden
@@ -839,7 +897,14 @@ func spawn_miss_juice(pos: Vector2):
 	world.position = Vector2.ZERO
 	var shake_start_pos = Vector2.ZERO
 	
-	var shake_duration = 0.25 * duration_mult
+	var shake_duration = 0.3 * duration_mult
+	# r5: amplitudes are in on-screen CSS px (6-5-4-3), converted to game units via the
+	# real canvas scale. r3 used fixed game units => ~2-3 px at 1042x632, below QA's detector.
+	var cpu = 1.0
+	var uim = get_tree().root.get_node_or_null("Main/UIManager")
+	if uim and uim.has_method("_get_css_per_unit"):
+		cpu = max(0.1, uim._get_css_per_unit())
+	var k = max(1.0, 1.0 / cpu)
 	
 	# Create deterministic shake with decaying amplitude
 	var shake_tween = create_tween()
@@ -858,7 +923,7 @@ func spawn_miss_juice(pos: Vector2):
 	# Animate through offsets quickly
 	var step_duration = shake_duration / offsets.size()
 	for offset in offsets:
-		shake_tween.tween_property(world, "position", shake_start_pos + offset, step_duration)
+		shake_tween.tween_property(world, "position", shake_start_pos + offset * k, step_duration)
 	
 	# CRITICAL: Force exact return to start position (no drift)
 	var final_pos = shake_start_pos  # Capture in closure
@@ -909,27 +974,6 @@ func spawn_miss_juice(pos: Vector2):
 		if is_instance_valid(cleanup_flash):
 			cleanup_flash.queue_free()
 	)
-
-func load_shift(index: int, restart: bool = true):
-	# Apply shift config and optionally restart game
-	if index < 0 or index >= SHIFTS.size():
-		print("⚠️ Invalid shift index: %d" % index)
-		return
-	
-	current_shift_index = index
-	current_shift = SHIFTS[index]
-	ROUND_TIME = current_shift.timer
-	WIN_QUOTA = current_shift.quota
-	
-	print("🎮 SHIFT %d: %s | %ds | Quota %d" % [
-		current_shift.shift_number,
-		current_shift.name,
-		int(ROUND_TIME),
-		WIN_QUOTA
-	])
-	
-	if restart:
-		restart_game()
 
 # DEBUG FUNCTION: Test credit system with F1 key
 func debug_add_credit():

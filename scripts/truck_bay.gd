@@ -24,6 +24,7 @@ func _ready():
 func reset_position():
 	"""Reset truck to center position and restart speed ramp"""
 	position.x = center_x
+	phase = 0.0
 	start_time = Time.get_ticks_msec() / 1000.0
 	round_start_time = start_time
 	scored_packages.clear()
@@ -33,32 +34,20 @@ func set_speed_multiplier(multiplier: float):
 	speed_multiplier = multiplier
 
 
+var period: float = 3.6  # r5: set per level by GameManager (3.6s, -6%/level, floor 1.6s)
+var phase: float = 0.0
+
+func set_period(p: float):
+	period = max(0.1, p)
+
 func _process(delta: float):
-	var elapsed = (Time.get_ticks_msec() / 1000.0) - start_time
-	
-	# ITEM 1: Speed ramp from 0.6 to 1.0 over first 7 seconds of each round
+	# r5: phase-accumulated sine so period changes never jump the truck. Travel stays +-180.
+	# QA mode keeps 0.25x.
+	# Kept from r3 (hard rule): 0.6 -> 1.0 speed ramp over the first 7 s of each round.
 	var round_elapsed = (Time.get_ticks_msec() / 1000.0) - round_start_time
-	var ramp_duration = 7.0
-	var ramp_multiplier = 1.0
-	if round_elapsed < ramp_duration:
-		# Ramp from 0.6 to 1.0 over ramp_duration seconds
-		ramp_multiplier = lerp(0.6, 1.0, round_elapsed / ramp_duration)
-	
-	# Compose ramp with QA mode: final_multiplier = speed_multiplier * ramp_multiplier
-	# QA mode (0.25) stays 0.25x of the ramped speed
-	var final_multiplier = speed_multiplier * ramp_multiplier
-	
-	# Apply final multiplier to elapsed time
-	var adjusted_elapsed = elapsed * final_multiplier
-	
-	var lerp_factor = clamp(adjusted_elapsed / LERP_TIME, 0.0, 1.0)
-	var current_period = lerp(PERIOD_START, PERIOD_END, lerp_factor)
-	
-	# Calculate sine wave position
-	var angle = (adjusted_elapsed / current_period) * TAU
-	var offset = sin(angle) * TRAVEL_RANGE
-	
-	position.x = center_x + offset
+	var ramp = lerp(0.6, 1.0, clamp(round_elapsed / 7.0, 0.0, 1.0))
+	phase += delta * speed_multiplier * ramp / period * TAU
+	position.x = center_x + sin(phase) * TRAVEL_RANGE
 
 func _on_body_entered(body: Node2D):
 	# LOG: Package count in group (detect spawn bugs)
