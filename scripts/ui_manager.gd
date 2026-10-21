@@ -609,14 +609,15 @@ func _apply_hud_scale():
 	# Streak moves right of the Pause button when Pause grows past its row
 	var streak_plate = ui.get_node_or_null("StreakPlate")
 	if streak_plate:
-		streak_plate.position = Vector2(20.0 if 20.0 + btn <= 92.0 else 20.0 + btn + 10.0, 100.0)
+		streak_plate.position = Vector2(20.0 if 20.0 + btn <= 92.0 else 20.0 + btn + 10.0, 96.0)
+		streak_plate.size = Vector2(196.0, 42.0)  # pinned width/height
 	var backing = ui.get_node_or_null("HUDBacking")
 	if backing:
-		backing.size.y = max(150.0, 20.0 + btn + 8.0)
+		backing.size.y = max(145.0, 20.0 + btn + 8.0)  # truck roof (y 160) keeps ~15 px clearance
 	# r5: timer bar sits right of the Streak plate, below Loads, inside the HUD strip
 	if timer_bar_bg and streak_plate:
 		var bl = streak_plate.position.x + streak_plate.size.x + 12.0
-		timer_bar_bg.position = Vector2(bl, 122)
+		timer_bar_bg.position = Vector2(bl, 118)
 		# r4: stop the bar left of the Mute plate when the plate reaches down to the bar row
 		var bar_right = 700.0 if (20.0 + btn) < 118.0 else mute_left - 10.0
 		timer_bar_bg.size = Vector2(bar_right - bl, BAR_SIZE.y)
@@ -735,11 +736,12 @@ func _on_time_delta(amount: float, from_pos: Vector2):
 		tw.tween_interval((0.15 + 0.25 * slot) * (3.0 if game_manager.qa_mode else 1.0))
 		tw.tween_property(l, "modulate:a", 1.0, 0.05)
 		tw.tween_property(l, "position:y", max(l.position.y - 10, 218.0), 0.15)
-	tw.tween_property(l, "position", target, dur).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.tween_property(l, "position:y", target.y, dur).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tw.tween_property(l, "modulate:a", 0.0, 0.15)
 	tw.tween_callback(func():
 		_time_pops_live -= 1
 		l.queue_free())
+	_track_pop_clear(l)
 
 var _time_pops_live := 0
 
@@ -752,6 +754,51 @@ func pop_blockers() -> Array:
 	if ticket_panel and is_instance_valid(ticket_panel):
 		r.append(Rect2(ticket_panel.global_position - Vector2(6, 6), ticket_panel.size + Vector2(12, 12)))
 	return r
+
+func show_rim_label(at: Vector2):
+	"""r4n: RIM BOUNCE label, holds ~0.8 s then fades."""
+	var l = Label.new()
+	l.text = "RIM BOUNCE"
+	l.add_theme_font_size_override("font_size", 32)
+	l.add_theme_color_override("font_color", Art.WHITE)
+	l.add_theme_color_override("font_outline_color", Art.NAVY)
+	l.add_theme_constant_override("outline_size", 10)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.z_index = 210
+	l.position = Vector2(clamp(at.x - 95.0, 8.0, 520.0), max(at.y + 90.0, 300.0))
+	$UI.add_child(l)
+	_track_pop_clear(l)
+	var tw = l.create_tween()
+	tw.tween_interval(0.8)
+	tw.tween_property(l, "modulate:a", 0.0, 0.2)
+	tw.tween_callback(l.queue_free)
+
+func _track_pop_clear(l: Control):
+	"""r4n: every frame while the pop lives, re-check it against the truck's LIVE rect + ticket and slide it out sideways."""
+	var cb = func():
+		if is_instance_valid(l):
+			pop_clear_x(l)
+	get_tree().process_frame.connect(cb)
+	l.tree_exiting.connect(func(): get_tree().process_frame.disconnect(cb))
+	pop_clear_x(l)
+
+func pop_clear_x(l: Control):
+	var sz = l.get_combined_minimum_size()
+	sz = Vector2(max(sz.x, l.size.x), max(sz.y, l.size.y))
+	for _i in 4:
+		var rr = Rect2(l.position, sz)
+		var moved = false
+		for b in pop_blockers():
+			if b.intersects(rr):
+				var to_left = b.position.x - sz.x - 4.0
+				var to_right = b.end.x + 4.0
+				var go_left = rr.get_center().x < b.get_center().x
+				if go_left and to_left < 4.0: go_left = false
+				if !go_left and to_right + sz.x > 716.0: go_left = true
+				l.position.x = to_left if go_left else to_right
+				moved = true
+		if !moved:
+			return
 
 func nudge_pop_clear(c: Control, bay_x: float):
 	"""Push a pop label sideways (away from the truck) until its rect clears every blocker,
@@ -917,7 +964,9 @@ func _create_ghost_hand():
 func _on_multiplier_changed(mult: int):
 	var st = game_manager.streak
 	streak_label.text = ("Streak %d  x%d" % [st, mult]) if mult > 1 else ("Streak: %d" % st)
-	streak_label.add_theme_color_override("font_color", [Color(1,1,1), Color(1,1,1), Color(0.5,1,0.6), Color(1,0.8,0.3), Color("#FFD23F")][clamp(mult, 1, 4)])
+	streak_label.add_theme_color_override("font_color", [Color(1,1,1), Color(1,1,1), Color(0.5,1,0.6), Color("#FF8A2A"), Color("#FFE04A")][clamp(mult, 1, 4)])
+	var _spl = $UI.get_node_or_null("StreakPlate")
+	if _spl: _spl.size.x = 196.0  # pinned
 	if mult > _last_mult:
 		_streak_tier_pop(mult)
 	_last_mult = mult
@@ -1010,14 +1059,14 @@ func _streak_tier_pop(mult: int):
 	var world = get_node_or_null("/root/Main/World")
 	if bay == null or world == null:
 		return
-	var col = [Art.WHITE, Art.WHITE, Art.MINT, Art.AMBER, Color("#FFD23F")][clamp(mult, 1, 4)]
+	var col = [Art.WHITE, Art.WHITE, Art.MINT, Color("#FF8A2A"), Color("#FFE04A")][clamp(mult, 1, 4)]
 	# r4: crisp 5 px solid ring (Line2D) with a navy edge; x4 = gold
-	var rcol = {2: Color("#1FA673"), 3: Art.AMBER, 4: Color("#FFD23F")}.get(clamp(mult, 2, 4), Art.WHITE)
+	var rcol = {2: Color("#1FA673"), 3: Color("#FF8A2A"), 4: Color("#FFE04A")}.get(clamp(mult, 2, 4), Art.WHITE)
 	var ring = Node2D.new()
-	ring.position = bay.global_position + Vector2(29, 0)
+	ring.position = Vector2(29, 0)  # child of the truck: stays centred while it moves
 	ring.z_index = 60
 	var edge = Line2D.new()
-	edge.width = 9.0
+	edge.width = 11.0  # 3 px navy each side of the 5 px stroke
 	edge.default_color = Art.NAVY
 	var core = Line2D.new()
 	core.width = 5.0
@@ -1026,7 +1075,7 @@ func _streak_tier_pop(mult: int):
 		ln.closed = true
 		ln.antialiased = true
 		ring.add_child(ln)
-	world.add_child(ring)
+	bay.add_child(ring)
 	var rdm = 3.0 if game_manager.qa_mode else 1.0
 	var set_r = func(r: float):
 		if !is_instance_valid(edge): return

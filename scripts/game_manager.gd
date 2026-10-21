@@ -1031,6 +1031,8 @@ func spawn_hit_juice(pos: Vector2, score_value: int, cargo_color: Color, ctype: 
 	score_label.add_theme_constant_override("outline_size", 8)
 	score_label.z_index = 100
 	world.add_child(score_label)
+	if _ui and _ui.has_method("_track_pop_clear"):
+		_ui._track_pop_clear(score_label)  # r4n: re-checked against the live truck rect every frame
 	var tween = score_label.create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(score_label, "position:y", 166.0, 0.5 * dm).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)

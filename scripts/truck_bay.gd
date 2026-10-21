@@ -217,6 +217,10 @@ func _on_body_entered(body: Node2D):
 				if gm_ref and gm_ref.has_method("play_sfx"):
 					gm_ref.play_sfx("thunk")
 				print("  🔩 RIM BOUNCE side=%d" % side)
+				print("FF rim: bounce tx=%.1f bay=%.1f dx=%.1f type=%s" % [package_center.x, bay_global_x, abs(package_center.x - bay_global_x), ctype])
+				var _uim = get_node_or_null("/root/Main/UIManager")
+				if _uim and _uim.has_method("show_rim_label"):
+					_uim.show_rim_label(global_position)
 		if !vel_ok:
 			print("  ❌ REJECT: Velocity too low (%.1f px/s < 200 px/s)" % velocity.length())
 		scored_packages.erase(package_root)
