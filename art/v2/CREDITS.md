@@ -11,10 +11,12 @@ https://github.com/ETdoFresh/kenney.nl (each pack's original License.txt states 
 | `cargo/box.png`, `cargo/fragile.png`, `fx/star_gold.png` | Platformer Pack Redux |
 | `cargo/crate.png`, `cargo/barrel.png` | Platformer Pack: Industrial |
 | `icons/` | Game Icons |
-| `kenney_future.ttf` | Kenney Fonts |
 | `../../audio/v2/hit_*`, `break`, `thud`, `rim` | Impact Sounds |
 | `../../audio/v2/click`, `deliver`, `fail`, `conveyor` | Interface Sounds |
 | `../../audio/v2/win`, `lose`, `truck_full` | Music Jingles (Pizzicato) |
 
 Self-made (CC0): `audio/v2/music_loop.ogg` (synthesized by `tools/make_music.py`),
 `audio/honk.wav`, `whoosh.wav`, `snap.wav` (see `audio/LICENSE.txt`). The truck is drawn in code.
+
+Font: `font/fredoka.ttf` — Fredoka by The Fredoka Project Authors, SIL Open Font License 1.1 (`font/OFL.txt`),
+from https://github.com/google/fonts/tree/main/ofl/fredoka.
