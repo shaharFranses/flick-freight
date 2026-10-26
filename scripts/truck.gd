@@ -44,6 +44,7 @@ var velocity_x := 0.0
 
 var floor_body: AnimatableBody2D
 var wall_body: AnimatableBody2D
+var cab_body: AnimatableBody2D
 var visual: Node2D
 var back_layer: Node2D
 var front_layer: Node2D
@@ -91,9 +92,26 @@ func _build_bodies():
 	# rear tailgate (left), bulkhead (right) and the cab block
 	_rect_shape(wall_body, Vector2(-BED_W * 0.5 - WALL_T * 0.5, -wall_h * 0.5), Vector2(WALL_T, wall_h))
 	_rect_shape(wall_body, Vector2(BED_W * 0.5 + WALL_T * 0.5, -FRONT_H * 0.5), Vector2(WALL_T, FRONT_H))
-	var cab_x0 = BED_W * 0.5 + WALL_T + 4
-	_rect_shape(wall_body, Vector2(cab_x0 + CAB_W * 0.5, -55 + FLOOR_T * 0.5), Vector2(CAB_W, 110 + FLOOR_T))
 	add_child(wall_body)
+
+	# cab: its own body so landing on it is an instant miss; shape matches the drawn cab
+	cab_body = AnimatableBody2D.new()
+	cab_body.sync_to_physics = false
+	cab_body.add_to_group("truck_cab")
+	cab_body.physics_material_override = pm2
+	var cs = CollisionShape2D.new()
+	var shape = ConvexPolygonShape2D.new()
+	shape.points = cab_points()
+	cs.shape = shape
+	cab_body.add_child(cs)
+	add_child(cab_body)
+
+
+func cab_points() -> PackedVector2Array:
+	var x0 = BED_W * 0.5 + WALL_T + 4
+	return PackedVector2Array([
+		Vector2(x0, FLOOR_T), Vector2(x0, -112), Vector2(x0 + 78, -112),
+		Vector2(x0 + 112, -62), Vector2(x0 + CAB_W, -54), Vector2(x0 + CAB_W, FLOOR_T)])
 
 
 # ---------------------------------------------------------------- visuals
@@ -150,10 +168,7 @@ func _draw_front():
 	front_layer.draw_rect(Rect2(-L, -FRONT_H, WALL_T, FRONT_H), body)
 	front_layer.draw_rect(Rect2(-L, -FRONT_H, WALL_T, 6), body.lightened(0.25))
 	# cab
-	var cab = PackedVector2Array([
-		Vector2(cab_x0, FLOOR_T), Vector2(cab_x0, -112), Vector2(cab_x0 + 78, -112),
-		Vector2(cab_x0 + 112, -62), Vector2(cab_x0 + CAB_W, -54), Vector2(cab_x0 + CAB_W, FLOOR_T)])
-	front_layer.draw_colored_polygon(cab, body)
+	front_layer.draw_colored_polygon(cab_points(), body)
 	front_layer.draw_rect(Rect2(cab_x0, -112, 78, 6), body.lightened(0.25))
 	var win = PackedVector2Array([
 		Vector2(cab_x0 + 52, -100), Vector2(cab_x0 + 76, -100), Vector2(cab_x0 + 102, -64), Vector2(cab_x0 + 52, -64)])
@@ -260,6 +275,11 @@ func _physics_process(delta: float):
 func contains_point(p: Vector2) -> bool:
 	var l = p - global_position
 	return abs(l.x) < BED_W * 0.5 - 4 and l.y < 0 and l.y > -300
+
+
+func on_vehicle(p: Vector2) -> bool:
+	var l = p - global_position
+	return l.x > -BED_W * 0.5 - WALL_T - 40 and l.x < BED_W * 0.5 + WALL_T + CAB_W + 40 and l.y < FLOOR_T
 
 
 func add_load(c: Cargo):

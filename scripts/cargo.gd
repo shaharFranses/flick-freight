@@ -125,16 +125,21 @@ func _on_body_entered(body: Node):
 		touched_wall = true
 		if impact > 120:
 			Sfx.play("rim", -6.0, randf_range(0.95, 1.1))
-	if kind == "fragile" and impact > FRAGILE_BREAK_SPEED and group in ["ground", "dock", "block", "truck_wall"]:
+	if kind == "fragile" and impact > FRAGILE_BREAK_SPEED and group in ["ground", "dock", "block", "truck_wall", "truck_cab"]:
 		_finish(false, "broken")
 		return
 	if group == "ground":
 		# landed on the road: no way into the truck from here
 		_finish(false, "road")
+	elif group == "truck_cab":
+		# hit the driver's cab: a miss right away (it would otherwise ride on the roof)
+		if impact > 60:
+			Sfx.play("rim", -4.0, 0.9)
+		_finish(false, "cab")
 
 
 func _group_of(body: Node) -> String:
-	for g in ["ground", "dock", "block", "truck_wall", "truck_floor", "cargo"]:
+	for g in ["ground", "dock", "block", "truck_wall", "truck_cab", "truck_floor", "cargo"]:
 		if body.is_in_group(g):
 			return g
 	return ""
