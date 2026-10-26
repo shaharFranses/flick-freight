@@ -88,7 +88,7 @@ func _build_top_bar():
 	var cv = VBoxContainer.new()
 	cv.add_theme_constant_override("separation", 4)
 	var row = HBoxContainer.new()
-	progress_label = _label("LOADED 0 / 3", 24)
+	progress_label = _label("LOADED 0 / 5", 26)
 	progress_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(progress_label)
 	queue_box = HBoxContainer.new()
@@ -186,7 +186,7 @@ func bind(g: Game):
 
 func _on_progress(d: int, _left: int):
 	_delivered = d
-	progress_label.text = "LOADED %d / %d" % [d, _goal]
+	progress_label.text = "LOADED %d / %d" % [d, _total]
 	if d >= _goal:
 		progress_label.add_theme_color_override("font_color", Color("#3DDC97"))
 	bar.queue_redraw()

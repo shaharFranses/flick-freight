@@ -85,8 +85,8 @@ func _build_bodies():
 	wall_body.sync_to_physics = false
 	wall_body.add_to_group("truck_wall")
 	var pm2 = PhysicsMaterial.new()
-	pm2.bounce = 0.25
-	pm2.friction = 0.6
+	pm2.bounce = 0.05
+	pm2.friction = 0.8
 	wall_body.physics_material_override = pm2
 	# rear tailgate (left), bulkhead (right) and the cab block
 	_rect_shape(wall_body, Vector2(-BED_W * 0.5 - WALL_T * 0.5, -wall_h * 0.5), Vector2(WALL_T, wall_h))

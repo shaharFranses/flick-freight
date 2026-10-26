@@ -128,7 +128,8 @@ func solve(g: Game) -> Vector2:
 			var tx = t.base_x
 			if t.amp > 0:
 				tx = t.base_x + t.amp * sin(TAU * (t._t + tt) / t.period)
-			var err = abs(p.x - tx)
+			var spots = [-70.0, 30.0, -20.0, 75.0, -90.0, 0.0]
+			var err = abs(p.x - (tx + spots[t.load_count() % spots.size()]))
 			# must clear the tailgate on the way in
 			var at_gate_x = tx - Truck.BED_W * 0.5 - Truck.WALL_T
 			if prev.x < at_gate_x and p.y > wall_top - 30:

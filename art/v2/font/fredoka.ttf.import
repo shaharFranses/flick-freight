@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://dnlh5afumeti0"
-path="res://.godot/imported/kenney_future.ttf-46d48255f2c990ab7e0f2953f30c4ded.fontdata"
+uid="uid://dcc6bsfjj12w0"
+path="res://.godot/imported/fredoka.ttf-20858011d9c082d859cd9e3261f08003.fontdata"
 
 [deps]
 
-source_file="res://art/v2/kenney_future.ttf"
-dest_files=["res://.godot/imported/kenney_future.ttf-46d48255f2c990ab7e0f2953f30c4ded.fontdata"]
+source_file="res://art/v2/font/fredoka.ttf"
+dest_files=["res://.godot/imported/fredoka.ttf-20858011d9c082d859cd9e3261f08003.fontdata"]
 
 [params]
 

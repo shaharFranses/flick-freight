@@ -46,8 +46,11 @@ static func _button_styles(t: Theme, type: String, base: Color, text: Color, fon
 
 static func _build() -> Theme:
 	var t = Theme.new()
-	var font: FontFile = load("res://art/v2/kenney_future.ttf")
-	font.multichannel_signed_distance_field = true
+	var base: FontFile = load("res://art/v2/font/fredoka.ttf")
+	base.multichannel_signed_distance_field = true
+	var font = FontVariation.new()
+	font.base_font = base
+	font.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 600}
 	t.default_font = font
 	t.default_font_size = 26
 	t.set_color("font_color", "Label", Color.WHITE)

@@ -7,19 +7,19 @@ signal resolved(cargo: Cargo, delivered: bool, reason: String)
 
 const TYPES = {
 	"box": {"tex": "res://art/v2/cargo/box.png", "size": Vector2(60, 60), "mass": 1.0,
-		"bounce": 0.22, "friction": 0.9, "power": 1.0, "snd": "hit_wood", "name": "BOX"},
+		"bounce": 0.08, "friction": 1.0, "power": 1.0, "snd": "hit_wood", "name": "BOX"},
 	"crate": {"tex": "res://art/v2/cargo/crate.png", "size": Vector2(62, 62), "mass": 2.4,
 		"bounce": 0.04, "friction": 1.0, "power": 0.84, "snd": "hit_metal", "name": "HEAVY CRATE"},
 	"barrel": {"tex": "res://art/v2/cargo/barrel.png", "size": Vector2(46, 64), "mass": 1.4,
-		"bounce": 0.12, "friction": 0.55, "power": 0.95, "snd": "hit_metal", "name": "BARREL"},
+		"bounce": 0.05, "friction": 0.8, "power": 0.95, "snd": "hit_metal", "name": "BARREL"},
 	"fragile": {"tex": "res://art/v2/cargo/fragile.png", "size": Vector2(58, 58), "mass": 1.0,
-		"bounce": 0.2, "friction": 0.9, "power": 1.0, "snd": "hit_wood_light", "name": "FRAGILE"},
+		"bounce": 0.05, "friction": 1.0, "power": 1.0, "snd": "hit_wood_light", "name": "FRAGILE"},
 }
 
 const SETTLE_SPEED := 14.0
 const SETTLE_TIME := 0.3
 const MAX_AIR_TIME := 7.0
-const FRAGILE_BREAK_SPEED := 160.0
+const FRAGILE_BREAK_SPEED := 300.0
 
 var kind := "box"
 var info: Dictionary
