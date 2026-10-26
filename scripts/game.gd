@@ -308,7 +308,8 @@ func truck_contains(c: Cargo) -> bool:
 
 
 func carrier_velocity(c: Cargo) -> Vector2:
-	if truck_contains(c):
+	# anything resting on the truck (bed, tailgate top, ...) moves with it
+	if truck != null and is_instance_valid(truck) and truck.on_vehicle(c.global_position):
 		return Vector2(truck.velocity_x, 0)
 	return Vector2.ZERO
 
