@@ -367,6 +367,8 @@ func _unhandled_input(event: InputEvent):
 		elif aiming:
 			aiming = false
 			get_viewport().set_input_as_handled()
+			# use the release point too: fast flicks may deliver few/no motion events
+			_update_pull(pos)
 			if pull.length() < 22.0 or not can_aim():
 				_cancel_aim()
 			else:
@@ -375,13 +377,16 @@ func _unhandled_input(event: InputEvent):
 		aiming = false
 		_cancel_aim()
 	elif event is InputEventMouseMotion and aiming:
-		var pos = make_input_local(event).position
-		pull = (press_pos - pos).limit_length(MAX_PULL)
-		# never aim backwards into the warehouse
-		pull.x = max(pull.x, 0.0)
-		if current:
-			current.global_position = rest_pos - pull.normalized() * min(pull.length() * 0.16, 24.0)
-		aim.queue_redraw()
+		_update_pull(make_input_local(event).position)
+
+
+func _update_pull(pos: Vector2):
+	pull = (press_pos - pos).limit_length(MAX_PULL)
+	# never aim backwards into the warehouse
+	pull.x = max(pull.x, 0.0)
+	if current:
+		current.global_position = rest_pos - pull.normalized() * min(pull.length() * 0.16, 24.0)
+	aim.queue_redraw()
 
 
 func _cancel_aim():
