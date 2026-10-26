@@ -158,29 +158,26 @@ func _tile(parent: Node, file: String, pos: Vector2, z := 0) -> Sprite2D:
 	return s
 
 
+const WAREHOUSE_RIGHT := 168.0
+const WAREHOUSE_TOP := 196.0
+const DOOR = Rect2(14, 282, 140, 148)  # roll-up door the conveyor comes out of
+
+
 func _build_dock():
+	# warehouse wall behind the conveyor (behind the cargo)
+	var wh = _static_node()
+	wh.z_index = -3
+	wh.draw.connect(_draw_warehouse.bind(wh))
+	# dock platform (in front of the cargo's lower edge)
 	var dock = _static_node()
 	dock.z_index = 1
-	# conveyor belt (left) feeding the loading spot (right)
+	dock.draw.connect(_draw_dock_face.bind(dock))
+	# conveyor belt set into the deck (Kenney industrial belt tiles)
 	var belts = ["ind_049", "ind_050", "ind_051"]
 	for i in 3:
 		_tile(dock, "res://art/v2/tiles/%s.png" % belts[i], Vector2(i * TILE, DOCK_TOP))
-	var y = DOCK_TOP + 27
-	while y < ROAD_Y:
-		for i in 3:
-			_tile(dock, "res://art/v2/tiles/ind_005.png", Vector2(i * TILE, y))
-		y += TILE
-	_tile(dock, "res://art/v2/tiles/ind_003.png", Vector2(3 * TILE, DOCK_TOP))
-	_tile(dock, "res://art/v2/tiles/ind_003.png", Vector2(4 * TILE, DOCK_TOP))
-	y = DOCK_TOP + TILE
-	while y < ROAD_Y:
-		for i in [3, 4]:
-			_tile(dock, "res://art/v2/tiles/ind_005.png", Vector2(i * TILE, y))
-		y += TILE
-	# hazard stripe on the dock edge and a beacon that lights when cargo is ready
-	_tile(dock, "res://art/v2/tiles/ind_065.png", Vector2(3 * TILE, ROAD_Y - 18))
-	_tile(dock, "res://art/v2/tiles/ind_065.png", Vector2(4 * TILE, ROAD_Y - 18))
-	beacon = _tile(dock, "res://art/v2/tiles/ind_040.png", Vector2(DOCK_RIGHT - 52, DOCK_TOP - TILE))
+	# beacon that pulses when cargo is ready to throw
+	beacon = _tile(dock, "res://art/v2/tiles/ind_040.png", Vector2(DOCK_RIGHT - 46, DOCK_TOP - TILE + 2))
 	var body = StaticBody2D.new()
 	body.add_to_group("dock")
 	var cs = CollisionShape2D.new()
@@ -190,6 +187,73 @@ func _build_dock():
 	cs.position = Vector2(DOCK_RIGHT * 0.5, (DOCK_TOP + ROAD_Y) * 0.5)
 	body.add_child(cs)
 	add_child(body)
+
+
+func _draw_warehouse(n: Node2D):
+	var wall = Color("#7E8FA3")
+	var rib = Color("#93A4B7")
+	var trim = Color("#4A5568")
+	var R = WAREHOUSE_RIGHT
+	# corrugated siding
+	n.draw_rect(Rect2(-10, WAREHOUSE_TOP, R + 10, DOCK_TOP - WAREHOUSE_TOP), wall)
+	var x = 2.0
+	while x < R:
+		n.draw_rect(Rect2(x, WAREHOUSE_TOP + 14, 5, DOCK_TOP - WAREHOUSE_TOP - 14), rib)
+		x += 16.0
+	# roof trim + gutter, side edge shadow
+	n.draw_rect(Rect2(-10, WAREHOUSE_TOP - 6, R + 22, 20), trim)
+	n.draw_rect(Rect2(-10, WAREHOUSE_TOP - 6, R + 22, 5), trim.lightened(0.25))
+	n.draw_rect(Rect2(R - 6, WAREHOUSE_TOP + 14, 6, DOCK_TOP - WAREHOUSE_TOP - 14), wall.darkened(0.2))
+	# roll-up door: amber frame, dark opening, shutter half-raised
+	var d = DOOR
+	n.draw_rect(d.grow(8), Color("#F2B134"))
+	n.draw_rect(d, Color("#20262F"))
+	var shutter_h = 52.0
+	n.draw_rect(Rect2(d.position, Vector2(d.size.x, shutter_h)), Color("#AAB4BF"))
+	var y = d.position.y + 8
+	while y < d.position.y + shutter_h:
+		n.draw_line(Vector2(d.position.x, y), Vector2(d.end.x, y), Color("#8C96A1"), 2.0)
+		y += 9.0
+	n.draw_rect(Rect2(d.position.x, d.position.y + shutter_h - 5, d.size.x, 5), Color("#6B7684"))
+	# lamp over the door
+	n.draw_rect(Rect2(d.get_center().x - 22, d.position.y - 26, 44, 8), trim)
+	n.draw_circle(Vector2(d.get_center().x, d.position.y - 16), 7, Color("#FFE27A"))
+
+
+func _draw_dock_face(n: Node2D):
+	var concrete = Color("#C9CED6")
+	var seam = Color("#AEB5BF")
+	var lip = Color("#5B6574")
+	var top = DOCK_TOP
+	var R = DOCK_RIGHT
+	# concrete body
+	n.draw_rect(Rect2(-10, top, R + 10, ROAD_Y - top + 4), concrete)
+	n.draw_rect(Rect2(-10, ROAD_Y - 10, R + 10, 14), seam)  # footing
+	for px in [62.0, 126.0, 190.0, 254.0]:
+		n.draw_line(Vector2(px, top + 40), Vector2(px, ROAD_Y - 10), seam, 3.0)
+	n.draw_line(Vector2(-10, top + 112), Vector2(R, top + 112), seam, 3.0)
+	# steel deck lip (right of the belt) with a hazard nose at the edge
+	n.draw_rect(Rect2(BELT_RIGHT, top, R - BELT_RIGHT, 14), lip)
+	n.draw_rect(Rect2(BELT_RIGHT, top, R - BELT_RIGHT, 3), lip.lightened(0.3))
+	var hz = Rect2(R - 56, top + 14, 56, 16)
+	n.draw_rect(hz, Color("#2E3440"))
+	var sx = hz.position.x - 16
+	while sx < hz.end.x:
+		var poly = PackedVector2Array([Vector2(sx, hz.end.y), Vector2(sx + 16, hz.position.y),
+			Vector2(sx + 26, hz.position.y), Vector2(sx + 10, hz.end.y)])
+		var clipped = Geometry2D.intersect_polygons(poly, PackedVector2Array([hz.position,
+			Vector2(hz.end.x, hz.position.y), hz.end, Vector2(hz.position.x, hz.end.y)]))
+		for c in clipped:
+			n.draw_colored_polygon(c, Color("#F2B134"))
+		sx += 20
+	# belt frame under the rollers
+	n.draw_rect(Rect2(-10, top + 27, BELT_RIGHT + 10, 13), lip)
+	# shadow of the deck lip on the wall
+	n.draw_rect(Rect2(-10, top + 40, R + 10, 6), Color(0, 0, 0, 0.08))
+	# rubber dock bumpers on the face
+	for by in [top + 58.0, top + 128.0]:
+		n.draw_rect(Rect2(R - 4, by, 14, 40), Color("#2E3440"))
+		n.draw_rect(Rect2(R + 6, by + 4, 4, 32), Color("#454C59"))
 
 
 func _build_blocks():
@@ -256,7 +320,7 @@ func _draw_girder(n: Node2D, r: Rect2):
 
 func _build_flag():
 	flag = Node2D.new()
-	flag.position = Vector2(40, DOCK_TOP)
+	flag.position = Vector2(118, WAREHOUSE_TOP - 6)
 	flag.z_index = 2
 	flag.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	flag.draw.connect(_draw_flag)
@@ -264,7 +328,7 @@ func _build_flag():
 
 
 func _draw_flag():
-	var h = 150.0
+	var h = 88.0
 	flag.draw_rect(Rect2(-3, -h, 6, h), Color("#7D8894"))
 	flag.draw_circle(Vector2(0, -h), 6, Color("#AAB4BF"))
 	var dir = sign(wind)
