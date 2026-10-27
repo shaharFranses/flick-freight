@@ -14,6 +14,16 @@ jobs:
       - name: Import
         run: godot --headless --import || true
       - name: Perfect aim (every level must be passable)
-        run: godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-15 --error=0
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-15 --error=0 2>&1 | tee bot0.txt
+      - name: Annotate perfect-aim results
+        if: always()
+        shell: bash
+        run: echo "::notice title=Perfect aim::$(grep -E 'LEVEL|BOT DONE|ERROR' bot0.txt | tr '\n' '|' | head -c 3000)"
       - name: Human-like aim (report only)
-        run: godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-15 --error=0.5
+        shell: bash
+        run: |
+          godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-15 --error=0.5 2>&1 | tee bot5.txt
+          echo "::notice title=Human aim::$(grep -E 'LEVEL|BOT DONE|ERROR' bot5.txt | tr '\n' '|' | head -c 3000)"
