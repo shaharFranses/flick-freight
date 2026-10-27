@@ -119,19 +119,19 @@
       "total": 8
     },
     {
-      "broken": 0,
+      "broken": 1,
       "delivered": 6,
       "level": 14,
-      "missed": 3,
+      "missed": 2,
       "pass": true,
       "stars": 1,
       "total": 9
     },
     {
       "broken": 1,
-      "delivered": 6,
+      "delivered": 5,
       "level": 15,
-      "missed": 3,
+      "missed": 4,
       "pass": true,
       "stars": 1,
       "total": 10

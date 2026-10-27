@@ -248,7 +248,7 @@ func solve_sim(g: Game) -> Vector2:
 	var sim = BotSim.new(g)
 	var best = Vector2(100, -100)
 	var best_score = INF
-	for ang in range(-6, 84, 2):
+	for ang in range(-40, 84, 2):
 		for ln in range(40, int(Game.MAX_PULL) + 1, 3):
 			var pull = Vector2(cos(deg_to_rad(ang)), -sin(deg_to_rad(ang))) * ln
 			var s = sim.score(pull)
