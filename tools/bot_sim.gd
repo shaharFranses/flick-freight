@@ -136,6 +136,7 @@ func surface_at(info: Dictionary, local_x: float) -> float:
 func score(pull: Vector2) -> float:
 	last_dist = INF
 	var v = pull * Game.POWER * mult
+	var down = v.y > 0  # downward throws pass through the dock (see Cargo.launch)
 	var p = p0
 	var t = 0.0
 	var inside := {}
@@ -155,7 +156,7 @@ func score(pull: Vector2) -> float:
 		if p.y + h.y > Game.ROAD_Y or p.x > 1400 or p.x < -100:
 			return INF
 		var de = h if spin == 0.0 else _extent(spin * t)
-		if p.x - de.x < Game.DOCK_RIGHT and p.y + de.y > Game.DOCK_TOP + 2:
+		if not down and p.x - de.x < Game.DOCK_RIGHT and p.y + de.y > Game.DOCK_TOP + 2:
 			return INF  # scraped the dock edge
 		if spin != 0.0:
 			# M13: exact extents of the spinning plank

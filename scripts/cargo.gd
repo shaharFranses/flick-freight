@@ -30,7 +30,9 @@ const TYPES = {
 const SETTLE_SPEED := 14.0
 const SETTLE_TIME := 0.3
 const MAX_AIR_TIME := 7.0
-const FRAGILE_BREAK_SPEED := 300.0
+const FRAGILE_HITS := 3  # fragile cargo breaks on this many bumps (level key "fragile_hits")
+const HIT_SPEED := 120.0  # a contact faster than this counts as a bump; settling doesn't
+const HIT_GAP := 0.15  # s; one bump can make several contacts, count it once
 
 var kind := "box"
 var info: Dictionary
@@ -44,6 +46,10 @@ var _settle := 0.0
 var _air := 0.0
 var _prev_vel := Vector2.ZERO
 var _sound_cd := 0.0
+var hits := 0  # fragile: bumps so far, shown as cracks
+var _hit_cd := 0.0
+var cracks: Node2D
+var _through_dock := false
 var sprite: Sprite2D
 var game  # Game (untyped to avoid a cyclic class reference)
 
@@ -112,6 +118,11 @@ func power_mult() -> float:
 
 func launch(vel: Vector2, wind_accel: float):
 	wind = wind_accel
+	if vel.y > 0 and game and game.dock_body:
+		# thrown downward (e.g. at a bounce pad): don't scrape along the deck it sits on;
+		# the dock is ignored until the cargo has cleared its edge
+		add_collision_exception_with(game.dock_body)
+		_through_dock = true
 	freeze = false
 	flying = true
 	linear_velocity = vel
@@ -139,6 +150,10 @@ func _physics_process(delta: float):
 		return
 	_air += delta
 	_sound_cd = max(0.0, _sound_cd - delta)
+	_hit_cd = max(0.0, _hit_cd - delta)
+	if _through_dock and global_position.x - info.size.length() * 0.5 > Game.DOCK_RIGHT:
+		remove_collision_exception_with(game.dock_body)
+		_through_dock = false
 	_prev_vel = linear_velocity
 	# off-screen
 	if global_position.y > 820 or global_position.x > 1420 or global_position.x < -160:
@@ -183,9 +198,14 @@ func _on_body_entered(body: Node):
 		touched_wall = true
 		if impact > 120:
 			Sfx.play("rim", -6.0, randf_range(0.95, 1.1))
-	if kind == "fragile" and impact > FRAGILE_BREAK_SPEED and group in ["ground", "dock", "block", "truck_wall", "truck_cab"]:
-		_finish(false, "broken")
-		return
+	if kind == "fragile" and impact > HIT_SPEED and _hit_cd <= 0.0:
+		# every real bump cracks it; the last one breaks it. Count is drawn on the box.
+		_hit_cd = HIT_GAP
+		hits += 1
+		if hits >= max_hits():
+			_finish(false, "broken")
+			return
+		_crack()
 	if group == "ground":
 		# landed on the road: no way into the truck from here
 		_finish(false, "road")
@@ -194,6 +214,34 @@ func _on_body_entered(body: Node):
 		if impact > 60:
 			Sfx.play("rim", -4.0, 0.9)
 		_finish(false, "cab")
+
+
+func max_hits() -> int:
+	return game.level.get("fragile_hits", FRAGILE_HITS) if game else FRAGILE_HITS
+
+
+func _crack():
+	Sfx.play("break", -14.0, 1.6)
+	if game:
+		game.popup.emit("CRACK! %d/%d" % [hits, max_hits()], global_position + Vector2(0, -46), Color("#FFD34E"), 30)
+	if cracks == null:
+		cracks = Node2D.new()
+		cracks.draw.connect(_draw_cracks)
+		add_child(cracks)
+	cracks.queue_redraw()
+
+
+## Dark zig-zag cracks across the box, one per bump.
+func _draw_cracks():
+	var paths = [
+		[Vector2(-26, -20), Vector2(-10, -8), Vector2(-14, 4), Vector2(4, 12), Vector2(2, 26)],
+		[Vector2(26, -24), Vector2(12, -12), Vector2(16, 0), Vector2(-2, 6), Vector2(-24, 18)],
+		[Vector2(-4, -27), Vector2(2, -14), Vector2(-6, -4), Vector2(8, 4), Vector2(26, 10)],
+	]
+	for i in min(hits, paths.size()):
+		var pts = PackedVector2Array(paths[i])
+		cracks.draw_polyline(pts, Color(0.106, 0.165, 0.255, 0.95), 5.0)
+		cracks.draw_polyline(pts, Color(1, 1, 1, 0.55), 1.5)
 
 
 ## Knocked loose again after delivery (M15 pop): fly and resolve once more.

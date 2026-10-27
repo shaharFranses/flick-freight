@@ -38,6 +38,7 @@ var trucks: Array = []  # current truck per slot (null while the next one is on 
 var truck: Truck:
 	get:
 		return trucks[0] if not trucks.is_empty() else null
+var dock_body: StaticBody2D
 var pads: Array = []  # M8: [{node, n, power, squash}]
 var truck_count := 0
 var delivered := 0
@@ -207,6 +208,7 @@ func _build_dock():
 	# beacon that pulses when cargo is ready to throw
 	beacon = _tile(dock, "res://art/v2/tiles/ind_040.png", Vector2(DOCK_RIGHT - 46, DOCK_TOP - TILE + 2))
 	var body = StaticBody2D.new()
+	dock_body = body
 	body.add_to_group("dock")
 	var cs = CollisionShape2D.new()
 	var rs = RectangleShape2D.new()
@@ -399,8 +401,11 @@ func in_water(p: Vector2) -> bool:
 
 
 func _draw_girder(n: Node2D, r: Rect2):
-	var steel = Color("#AAB4BF")
-	var dark = Color("#7D8894")
+	# dark steel with a navy outline and hazard stripes: has to read on every backdrop
+	var outline = Color("#1B2A41")
+	var dark = Color("#3E4A5C")
+	var steel = Color("#6B7A8F")
+	n.draw_rect(r.grow(3), outline)
 	n.draw_rect(r, dark)
 	n.draw_rect(r.grow(-5), steel)
 	var vertical = r.size.y > r.size.x
@@ -417,6 +422,9 @@ func _draw_girder(n: Node2D, r: Rect2):
 			n.draw_line(a, b, dark, 4.0)
 			flip = not flip
 			y = y2
+		_hazard(n, Rect2(r.position.x, r.end.y - 10, r.size.x, 10))  # ends are where cargo clips
+		if r.position.y > 0:
+			_hazard(n, Rect2(r.position.x, r.position.y, r.size.x, 10))
 	else:
 		var x = r.position.x + 8
 		var flip = false
@@ -430,14 +438,20 @@ func _draw_girder(n: Node2D, r: Rect2):
 			n.draw_line(a, b, dark, 4.0)
 			flip = not flip
 			x = x2
-		# hazard stripe underneath beams
-		var hz = r.end.y - 8
-		n.draw_rect(Rect2(r.position.x, hz, r.size.x, 8), Color("#2E3440"))
-		var sx = r.position.x
-		while sx < r.end.x:
-			n.draw_colored_polygon(PackedVector2Array([Vector2(sx, hz + 8), Vector2(sx + 8, hz), Vector2(min(sx + 18, r.end.x), hz), Vector2(min(sx + 10, r.end.x), hz + 8)]), Color("#F2B134"))
-			sx += 20
-	n.draw_rect(Rect2(r.position, Vector2(r.size.x, 5)), steel.lightened(0.3))
+		_hazard(n, Rect2(r.position.x, r.end.y - 9, r.size.x, 9))
+
+
+func _hazard(n: Node2D, hz: Rect2):
+	n.draw_rect(hz, Color("#2E3440"))
+	var sx = hz.position.x - hz.size.y
+	while sx < hz.end.x:
+		var poly = PackedVector2Array([Vector2(sx, hz.end.y), Vector2(sx + hz.size.y, hz.position.y),
+			Vector2(sx + hz.size.y + 10, hz.position.y), Vector2(sx + 10, hz.end.y)])
+		var clip = Geometry2D.intersect_polygons(poly, PackedVector2Array([hz.position,
+			Vector2(hz.end.x, hz.position.y), hz.end, Vector2(hz.position.x, hz.end.y)]))
+		for c in clip:
+			n.draw_colored_polygon(c, Color("#F2B134"))
+		sx += 20.0
 
 
 func _build_flag():
