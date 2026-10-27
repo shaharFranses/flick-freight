@@ -15,7 +15,6 @@ var h: Vector2  # cargo half size
 var mult := 1.0
 var blocks: Array = []
 var trucks: Array = []  # [{truck, target_x, surface: Array}]
-var color := -1
 var spin := 0.0  # M13: fixed spin (rad/s); 0 = ordinary cargo
 var flat := 0.0  # M13: max landing tilt (deg)
 var slides := false  # M11: ice cargo
@@ -31,7 +30,6 @@ func _init(game):
 	p0 = g.current.global_position
 	h = g.current.info.size * 0.5
 	mult = g.current.power_mult()
-	color = g.current.color
 	pads = g.pads
 	var info: Dictionary = g.current.info
 	spin = info.get("spin", 0.0)
@@ -93,9 +91,7 @@ func _truck_info(t: Truck) -> Dictionary:
 		if cost < best:
 			best = cost
 			best_x = x
-	# M9: landing in a truck of another colour is a miss
-	var wrong = color >= 0 and t.color >= 0 and t.color != color
-	return {"truck": t, "target_x": best_x, "surface": surface, "wrong": wrong,
+	return {"truck": t, "target_x": best_x, "surface": surface,
 		"slippery": slides or t.icy}
 
 
@@ -193,8 +189,6 @@ func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 	if v.y > 0 and abs(l.x) < half - h.x * 0.5:
 		var floor_y = -surface_at(info, l.x)
 		if l.y + ext.y >= floor_y:
-			if info.wrong:
-				return INF
 			# M14: the stack must stay under the bridge line
 			if tr.height_limit > 0 and -floor_y + ext.y * 2.0 > tr.height_limit:
 				return INF

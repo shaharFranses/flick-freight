@@ -32,7 +32,7 @@ var level: Dictionary
 var queue: Array = []
 var current: Cargo = null
 var current_ready := false
-var slots: Array = []  # truck configs: [level.truck], or level.trucks (M9 levels)
+var slots: Array = []  # truck configs: [level.truck], or level.trucks (several at once)
 var trucks: Array = []  # current truck per slot (null while the next one is on its way)
 ## The first slot's truck: the only one on single-truck levels.
 var truck: Truck:
@@ -559,23 +559,6 @@ func carrier_velocity(c: Cargo) -> Vector2:
 
 
 # ======================================================================= cargo flow
-## M9: colour of the i-th cargo of the level (-1 = any truck).
-func cargo_color(i: int) -> int:
-	var cols: String = level.get("colors", "")
-	if i < 0 or i >= cols.length() or not cols[i].is_valid_int():
-		return -1
-	return int(cols[i])
-
-
-## Colours of the cargo still to throw, matching remaining_types().
-func remaining_colors() -> Array:
-	var out: Array = []
-	var first = level.cargo.length() - queue.size() - (1 if current else 0)
-	for i in range(first, level.cargo.length()):
-		out.append(cargo_color(i))
-	return out
-
-
 func remaining_types() -> Array:
 	var out: Array = []
 	if current:
@@ -593,7 +576,7 @@ func spawn_next():
 		return
 	var kind: String = queue.pop_front()
 	var c = Cargo.new()
-	c.setup(kind, self, cargo_color(level.cargo.length() - queue.size() - 1))
+	c.setup(kind, self)
 	cargo_root.add_child(c)
 	rest_pos = Vector2(FLICK_X, DOCK_TOP - c.half_height())
 	c.global_position = Vector2(-50, rest_pos.y)
@@ -697,13 +680,7 @@ func _on_resolved(c: Cargo, ok: bool, reason: String):
 	if verbose:
 		print("  cargo %s -> %s (%s) at %s" % [c.kind, "IN" if ok else "out", reason, c.global_position.round()])
 	var t: Truck = truck_of(c) if ok else null
-	if t and c.color >= 0 and t.color >= 0 and c.color != t.color:
-		# M9: wrong truck. It stays in there as dead weight, taking up room.
-		t.add_load(c, false)
-		popup.emit("WRONG TRUCK!", c.global_position + Vector2(0, -50), C_BAD, 40)
-		Sfx.play("fail", -4.0)
-		_check_full(t)
-	elif t and too_high(c, t):
+	if t and too_high(c, t):
 		# M14: sticks up past the bridge line, so it gets knocked off on the way out
 		var p = c.global_position + Vector2(0, -50)
 		popup.emit("TOO HIGH!", p, C_BAD, 40)

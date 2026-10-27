@@ -30,9 +30,9 @@
     },
     {
       "broken": 0,
-      "delivered": 6,
+      "delivered": 5,
       "level": 4,
-      "missed": 1,
+      "missed": 2,
       "pass": true,
       "stars": 2,
       "total": 7
@@ -48,29 +48,29 @@
     },
     {
       "broken": 0,
-      "delivered": 6,
+      "delivered": 7,
       "level": 6,
-      "missed": 1,
+      "missed": 0,
       "pass": true,
-      "stars": 2,
+      "stars": 3,
       "total": 7
     },
     {
       "broken": 0,
-      "delivered": 5,
+      "delivered": 6,
       "level": 7,
-      "missed": 2,
+      "missed": 1,
       "pass": true,
       "stars": 2,
       "total": 7
     },
     {
-      "broken": 2,
-      "delivered": 4,
+      "broken": 1,
+      "delivered": 5,
       "level": 8,
       "missed": 1,
       "pass": true,
-      "stars": 1,
+      "stars": 2,
       "total": 7
     },
     {
@@ -83,12 +83,12 @@
       "total": 8
     },
     {
-      "broken": 1,
-      "delivered": 6,
+      "broken": 0,
+      "delivered": 7,
       "level": 10,
       "missed": 2,
       "pass": true,
-      "stars": 1,
+      "stars": 2,
       "total": 9
     },
     {
@@ -111,29 +111,29 @@
     },
     {
       "broken": 1,
-      "delivered": 6,
+      "delivered": 7,
       "level": 13,
-      "missed": 1,
+      "missed": 0,
       "pass": true,
       "stars": 2,
       "total": 8
     },
     {
       "broken": 1,
-      "delivered": 6,
+      "delivered": 4,
       "level": 14,
-      "missed": 2,
+      "missed": 4,
       "pass": true,
       "stars": 1,
       "total": 9
     },
     {
       "broken": 1,
-      "delivered": 5,
+      "delivered": 9,
       "level": 15,
-      "missed": 4,
+      "missed": 0,
       "pass": true,
-      "stars": 1,
+      "stars": 2,
       "total": 10
     }
   ],
