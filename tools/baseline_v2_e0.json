@@ -1,0 +1,141 @@
+{
+  "error": 0,
+  "levels": [
+    {
+      "broken": 0,
+      "delivered": 4,
+      "level": 1,
+      "missed": 1,
+      "pass": true,
+      "stars": 2,
+      "total": 5
+    },
+    {
+      "broken": 0,
+      "delivered": 5,
+      "level": 2,
+      "missed": 1,
+      "pass": true,
+      "stars": 2,
+      "total": 6
+    },
+    {
+      "broken": 0,
+      "delivered": 6,
+      "level": 3,
+      "missed": 1,
+      "pass": true,
+      "stars": 2,
+      "total": 7
+    },
+    {
+      "broken": 0,
+      "delivered": 6,
+      "level": 4,
+      "missed": 1,
+      "pass": true,
+      "stars": 2,
+      "total": 7
+    },
+    {
+      "broken": 0,
+      "delivered": 6,
+      "level": 5,
+      "missed": 2,
+      "pass": true,
+      "stars": 2,
+      "total": 8
+    },
+    {
+      "broken": 0,
+      "delivered": 5,
+      "level": 6,
+      "missed": 2,
+      "pass": true,
+      "stars": 2,
+      "total": 7
+    },
+    {
+      "broken": 0,
+      "delivered": 6,
+      "level": 7,
+      "missed": 1,
+      "pass": true,
+      "stars": 2,
+      "total": 7
+    },
+    {
+      "broken": 3,
+      "delivered": 4,
+      "level": 8,
+      "missed": 0,
+      "pass": true,
+      "stars": 1,
+      "total": 7
+    },
+    {
+      "broken": 1,
+      "delivered": 6,
+      "level": 9,
+      "missed": 1,
+      "pass": true,
+      "stars": 2,
+      "total": 8
+    },
+    {
+      "broken": 1,
+      "delivered": 6,
+      "level": 10,
+      "missed": 2,
+      "pass": true,
+      "stars": 1,
+      "total": 9
+    },
+    {
+      "broken": 0,
+      "delivered": 7,
+      "level": 11,
+      "missed": 1,
+      "pass": true,
+      "stars": 2,
+      "total": 8
+    },
+    {
+      "broken": 0,
+      "delivered": 7,
+      "level": 12,
+      "missed": 1,
+      "pass": true,
+      "stars": 2,
+      "total": 8
+    },
+    {
+      "broken": 1,
+      "delivered": 6,
+      "level": 13,
+      "missed": 1,
+      "pass": true,
+      "stars": 2,
+      "total": 8
+    },
+    {
+      "broken": 1,
+      "delivered": 7,
+      "level": 14,
+      "missed": 1,
+      "pass": true,
+      "stars": 2,
+      "total": 9
+    },
+    {
+      "broken": 1,
+      "delivered": 8,
+      "level": 15,
+      "missed": 1,
+      "pass": true,
+      "stars": 2,
+      "total": 10
+    }
+  ],
+  "seed": 3
+}

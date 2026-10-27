@@ -8,6 +8,7 @@ signal queue_changed(types: Array)
 signal popup(text: String, pos: Vector2, color: Color, size: int)
 signal first_throw
 signal finished(stars: int, delivered: int, total: int)
+signal cargo_resolved(kind: String, delivered: bool, reason: String)  # for the QA bot
 
 const ROAD_Y := 625.0
 const DOCK_TOP := 430.0
@@ -517,6 +518,7 @@ func throw_with_pull(p: Vector2) -> bool:
 
 func _on_resolved(c: Cargo, ok: bool, reason: String):
 	in_flight -= 1
+	cargo_resolved.emit(c.kind, ok, reason)
 	if verbose:
 		print("  cargo %s -> %s (%s) at %s" % [c.kind, "IN" if ok else "out", reason, c.global_position.round()])
 	if ok and truck and is_instance_valid(truck):
