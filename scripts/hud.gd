@@ -177,7 +177,7 @@ func bind(g: Game):
 	if lv.has("intro"):
 		show_banner(lv.intro.title, lv.intro.text, lv.intro.get("icon", ""))
 	elif lv.get("wind", 0) != 0:
-		show_banner("WIND", "Wind is blowing %s." % ("toward the truck" if lv.wind > 0 else "against you"), "wind")
+		show_banner("WIND", "Tailwind! Throw softer than the line." if lv.wind > 0 else "Headwind! Throw harder than the line.", "wind")
 	else:
 		show_banner("LEVEL %d" % (g.level_index + 1), "Load %d of %d to pass" % [_goal, _total], "", 1.6)
 	if lv.get("tutorial", false) and not SaveData.get_flag("tutorial_done", false):

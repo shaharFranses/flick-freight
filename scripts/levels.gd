@@ -6,7 +6,7 @@ extends RefCounted
 ## goal   : deliveries needed to pass (1 star).  s2: 2 stars.  3 stars = every cargo delivered.
 ## truck  : x = bed centre, amp/period = sine drive (0 = parked), wall = rear wall height
 ## cap    : trucks leave when they hold this many (a new truck drives in)
-## wind   : sideways push in px/s^2 (+ = toward the truck)
+## wind   : sideways push in px/s^2 while airborne (+ = toward the truck); the aim guide ignores it
 ## blocks : static obstacles [x, y, w, h] in world pixels (y = top edge)
 ## guide  : fraction of the aim arc shown (1 = whole arc)
 ## intro  : banner shown the first time a mechanic appears
@@ -52,19 +52,19 @@ const DATA = [
 		"blocks": [[540, 360, 56, 265]]},
 	# ---------------- DESERT ----------------
 	{"world": 2, "cargo": "bbcbbcbb", "goal": 4, "s2": 6,
-		"truck": {"x": 880, "amp": 0, "period": 4.0, "wall": 56}, "cap": 4, "guide": 0.45, "wind": -140,
-		"intro": {"title": "HEADWIND", "text": "Wind pushes your cargo. Watch the flag!", "icon": "wind"}},
+		"truck": {"x": 880, "amp": 0, "period": 4.0, "wall": 56}, "cap": 4, "guide": 0.45, "wind": -200,
+		"intro": {"title": "HEADWIND", "text": "The dotted line ignores wind. Watch the flag, throw long!", "icon": "wind"}},
 	{"world": 2, "cargo": "bcbrbcbr", "goal": 4, "s2": 6,
-		"truck": {"x": 840, "amp": 120, "period": 4.4, "wall": 60}, "cap": 4, "guide": 0.4, "wind": 160},
+		"truck": {"x": 840, "amp": 120, "period": 4.4, "wall": 60}, "cap": 4, "guide": 0.4, "wind": 230},
 	{"world": 2, "cargo": "rbrcrbfr", "goal": 4, "s2": 6,
 		"truck": {"x": 940, "amp": 0, "period": 4.0, "wall": 84}, "cap": 4, "guide": 0.4,
 		"blocks": [[560, 300, 56, 325]],
 		"intro": {"title": "TALL GATE", "text": "This truck has a high tailgate. Drop it in from above."}},
 	{"world": 2, "cargo": "bcfbrcbfb", "goal": 4, "s2": 7,
-		"truck": {"x": 880, "amp": 140, "period": 3.8, "wall": 60}, "cap": 3, "guide": 0.35, "wind": -120,
+		"truck": {"x": 880, "amp": 140, "period": 3.8, "wall": 60}, "cap": 3, "guide": 0.35, "wind": -180,
 		"blocks": [[420, 200, 280, 40]]},
 	{"world": 2, "cargo": "bcrfbcrfbc", "goal": 5, "s2": 8,
-		"truck": {"x": 900, "amp": 170, "period": 3.4, "wall": 64}, "cap": 3, "guide": 0.3, "wind": 120,
+		"truck": {"x": 900, "amp": 170, "period": 3.4, "wall": 64}, "cap": 3, "guide": 0.3, "wind": 180,
 		"blocks": [[560, 380, 56, 245]],
 		"intro": {"title": "FINAL RUN", "text": "Everything at once. Good luck, driver!"}},
 ]
