@@ -685,7 +685,7 @@ func _on_resolved(c: Cargo, ok: bool, reason: String):
 	var t: Truck = truck_of(c) if ok else null
 	if t and c.color >= 0 and t.color >= 0 and c.color != t.color:
 		# M9: wrong truck. It stays in there as dead weight, taking up room.
-		t.add_load(c)
+		t.add_load(c, false)
 		popup.emit("WRONG TRUCK!", c.global_position + Vector2(0, -50), C_BAD, 40)
 		Sfx.play("fail", -4.0)
 		_check_full(t)
@@ -717,6 +717,11 @@ func _on_resolved(c: Cargo, ok: bool, reason: String):
 			Fx.splash(fx_root, Vector2(c.global_position.x, ROAD_Y - 10))
 			Sfx.play("splash", -4.0)
 			c.queue_free()
+		elif reason == "popped":
+			popup.emit("POP!", p, C_BAD, 44)
+			# deferred: we're inside a physics callback and the pop un-freezes bodies
+			_pop.call_deferred(c.global_position, c.info.pop_force)
+			c.queue_free()
 		elif reason == "tilted":
 			popup.emit("NOT FLAT!", p, C_BAD, 38)
 			Sfx.play("thud", -4.0)
@@ -732,6 +737,42 @@ func _on_resolved(c: Cargo, ok: bool, reason: String):
 			c.fade_out()
 	progress_changed.emit(delivered, work_left())
 	_check_end()
+
+
+# ======================================================================= M15 gas canisters
+const POP_RADIUS := 170.0
+
+
+## A canister landed too hard: a puff of smoke pushes nearby cargo away. Cargo knocked
+## out of a truck stops counting (it can land again); fragile neighbours break.
+func _pop(at: Vector2, force: float):
+	Fx.dust(fx_root, at, 2.2)
+	Fx.ring(fx_root, at, Color(0.92, 0.92, 0.9, 0.9), 2.4)
+	Sfx.play("pop", -2.0)
+	for t in live_trucks():
+		for l in t.loads.duplicate():
+			var d: Cargo = l.cargo
+			if not is_instance_valid(d) or d.global_position.distance_to(at) > POP_RADIUS:
+				continue
+			if t.remove_load(d):
+				delivered -= 1
+				progress_changed.emit(delivered, work_left())
+			var dir = (d.global_position - at).normalized()
+			if dir == Vector2.ZERO:
+				dir = Vector2.UP
+			if d.kind == "fragile":
+				popup.emit("BROKEN!", d.global_position + Vector2(0, -40), C_BAD, 38)
+				Fx.shatter(fx_root, d.global_position, Color("#F2C23B"))
+				d.queue_free()
+				continue
+			var k = 1.0 - d.global_position.distance_to(at) / POP_RADIUS
+			d.relaunch()
+			d.linear_velocity = dir * force * (0.5 + k) + Vector2(0, -force * 0.6)
+			d.angular_velocity = randf_range(-4.0, 4.0)
+			in_flight += 1
+	for d in get_tree().get_nodes_in_group("cargo"):
+		if is_instance_valid(d) and d.flying and not d.done and d.global_position.distance_to(at) < POP_RADIUS:
+			d.linear_velocity += (d.global_position - at).normalized() * force * 0.5
 
 
 ## M14: level.height_limit = px above the bed floor that cargo may reach.

@@ -340,7 +340,7 @@ func _physics_process(delta: float):
 				departed.emit()
 				queue_free()
 				return
-	if not ferry.is_empty():
+	if not ferry.is_empty() and state != "away":
 		_ferry_motion(delta)
 	# carried cargo follows the truck
 	for l in loads:
@@ -408,13 +408,23 @@ func on_vehicle(p: Vector2) -> bool:
 	return l.x > -BED_W * 0.5 - WALL_T - 40 and l.x < BED_W * 0.5 + WALL_T + CAB_W + 40 and l.y < FLOOR_T
 
 
-func add_load(c: Cargo):
+func add_load(c: Cargo, counted := true):
 	c.freeze = true
 	c.linear_velocity = Vector2.ZERO
 	c.angular_velocity = 0.0
 	loads.append({"cargo": c, "offset": c.global_position - global_position, "rot": c.rotation,
-		"local": to_local(c.global_position), "lrot": c.rotation - rotation})
+		"local": to_local(c.global_position), "lrot": c.rotation - rotation, "counted": counted})
 	bump()
+
+
+## Take a carried cargo back out (M15 pop). Returns whether it was counted as delivered.
+func remove_load(c: Cargo) -> bool:
+	for i in loads.size():
+		if loads[i].cargo == c:
+			var counted: bool = loads[i].counted
+			loads.remove_at(i)
+			return counted
+	return false
 
 
 func load_count() -> int:
