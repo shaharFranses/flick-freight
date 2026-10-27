@@ -500,6 +500,7 @@ func _new_truck(slot: int):
 	var cfg: Dictionary = slots[slot]
 	var t = Truck.new()
 	t.setup(cfg, level_index + truck_count, cfg.get("wall", 52))
+	t.height_limit = level.get("height_limit", 0.0)
 	t.position = Vector2(1560, ROAD_Y - Truck.FLOOR_T - 18 - Truck.WHEEL_R)
 	if slot > 0:
 		t.z_index = -slot  # far trucks behind near ones while driving in
@@ -688,6 +689,14 @@ func _on_resolved(c: Cargo, ok: bool, reason: String):
 		popup.emit("WRONG TRUCK!", c.global_position + Vector2(0, -50), C_BAD, 40)
 		Sfx.play("fail", -4.0)
 		_check_full(t)
+	elif t and too_high(c, t):
+		# M14: sticks up past the bridge line, so it gets knocked off on the way out
+		var p = c.global_position + Vector2(0, -50)
+		popup.emit("TOO HIGH!", p, C_BAD, 40)
+		Sfx.play("rim", -2.0, 0.8)
+		c.linear_velocity = Vector2(-260, -320)
+		c.angular_velocity = -4.0
+		c.fade_out(0.3)
 	elif t:
 		delivered += 1
 		t.add_load(c)
@@ -708,6 +717,10 @@ func _on_resolved(c: Cargo, ok: bool, reason: String):
 			Fx.splash(fx_root, Vector2(c.global_position.x, ROAD_Y - 10))
 			Sfx.play("splash", -4.0)
 			c.queue_free()
+		elif reason == "tilted":
+			popup.emit("NOT FLAT!", p, C_BAD, 38)
+			Sfx.play("thud", -4.0)
+			c.fade_out()
 		elif reason == "broken":
 			popup.emit("BROKEN!", p, C_BAD, 42)
 			Fx.shatter(fx_root, c.global_position, Color("#F2C23B"))
@@ -719,6 +732,13 @@ func _on_resolved(c: Cargo, ok: bool, reason: String):
 			c.fade_out()
 	progress_changed.emit(delivered, work_left())
 	_check_end()
+
+
+## M14: level.height_limit = px above the bed floor that cargo may reach.
+func too_high(c: Cargo, t: Truck) -> bool:
+	if not level.has("height_limit"):
+		return false
+	return t.global_position.y - c.top_y() > level.height_limit + 4.0
 
 
 func _check_full(t: Truck):

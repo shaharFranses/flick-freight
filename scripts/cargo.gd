@@ -14,6 +14,14 @@ const TYPES = {
 		"bounce": 0.05, "friction": 0.8, "power": 0.95, "snd": "hit_metal", "name": "BARREL"},
 	"fragile": {"tex": "res://art/v2/cargo/fragile.png", "size": Vector2(58, 58), "mass": 1.0,
 		"bounce": 0.05, "friction": 1.0, "power": 1.0, "snd": "hit_wood_light", "name": "FRAGILE"},
+	# ---- expansion types (docs/EXPANSION_PLAN.md)
+	"ice": {"tex": "res://art/v2/cargo/ice.png", "size": Vector2(58, 58), "mass": 1.0,
+		"bounce": 0.02, "friction": 0.02, "power": 1.0, "snd": "hit_wood_light", "name": "ICE BLOCK"},
+	"tire": {"tex": "res://art/v2/cargo/tire.png", "size": Vector2(56, 56), "mass": 0.8,
+		"bounce": 0.6, "friction": 0.9, "power": 1.0, "snd": "boing", "name": "TIRE", "round": true},
+	"plank": {"tex": "res://art/v2/cargo/plank.png", "size": Vector2(150, 24), "mass": 1.5,
+		"bounce": 0.04, "friction": 1.0, "power": 0.95, "snd": "hit_wood", "name": "PLANK",
+		"spin": 2.4, "flat": 20.0},
 }
 
 const SETTLE_SPEED := 14.0
@@ -42,6 +50,11 @@ func setup(k: String, g, col := -1):
 	game = g
 	color = col
 	info = TYPES[k]
+	if k == "plank" and g and g.level.has("plank"):
+		# M13: per-level plank length / spin
+		info = info.duplicate()
+		info.size = Vector2(g.level.plank.get("length", info.size.x), info.size.y)
+		info.spin = g.level.plank.get("spin", info.spin)
 	mass = info.mass
 	gravity_scale = 1.0
 	linear_damp_mode = RigidBody2D.DAMP_MODE_REPLACE
@@ -55,9 +68,14 @@ func setup(k: String, g, col := -1):
 	pm.friction = info.friction
 	physics_material_override = pm
 	var cs = CollisionShape2D.new()
-	var rs = RectangleShape2D.new()
-	rs.size = info.size
-	cs.shape = rs
+	if info.get("round", false):
+		var circle = CircleShape2D.new()
+		circle.radius = info.size.x * 0.5
+		cs.shape = circle
+	else:
+		var rs = RectangleShape2D.new()
+		rs.size = info.size
+		cs.shape = rs
 	add_child(cs)
 	sprite = Sprite2D.new()
 	var tex: Texture2D = load(info.tex)
@@ -90,6 +108,10 @@ func launch(vel: Vector2, wind_accel: float):
 	flying = true
 	linear_velocity = vel
 	angular_velocity = clamp(vel.x * 0.004, -3.0, 3.0)
+	if info.has("spin"):
+		# M13: fixed, readable spin (no damping in the air)
+		angular_velocity = info.spin
+		angular_damp = 0.0
 	constant_force = Vector2(wind * mass, 0)
 
 
@@ -115,7 +137,7 @@ func _physics_process(delta: float):
 		_finish(false, "lost")
 		return
 	if _air > MAX_AIR_TIME:
-		_finish(game.truck_contains(self), "timeout")
+		_finish_in_truck("timeout")
 		return
 	# resting?
 	# (speed is measured relative to the truck when riding in it, so moving trucks still settle)
@@ -123,7 +145,7 @@ func _physics_process(delta: float):
 	if _air > 0.25 and rel.length() < SETTLE_SPEED and abs(angular_velocity) < 0.6:
 		_settle += delta
 		if _settle >= SETTLE_TIME:
-			_finish(game.truck_contains(self), "settled")
+			_finish_in_truck("settled")
 	else:
 		_settle = 0.0
 
@@ -140,6 +162,8 @@ func _on_body_entered(body: Node):
 		Sfx.play(info.snd, vol, randf_range(0.92, 1.08))
 		if impact > 450 and game:
 			game.on_heavy_impact(global_position, impact)
+	if info.has("spin"):
+		angular_damp = 6.0  # M13: stop spinning soon after touching down, so a flat landing stays flat
 	var group = _group_of(body)
 	if group == "truck_wall":
 		touched_wall = true
@@ -156,6 +180,29 @@ func _on_body_entered(body: Node):
 		if impact > 60:
 			Sfx.play("rim", -4.0, 0.9)
 		_finish(false, "cab")
+
+
+func _finish_in_truck(reason: String):
+	var inside = game.truck_contains(self)
+	if inside and info.has("flat") and tilt_deg() > info.flat:
+		_finish(false, "tilted")  # M13: long cargo only counts lying (mostly) flat
+		return
+	_finish(inside, reason)
+
+
+## Angle from lying flat, in degrees (0 = flat either way up).
+func tilt_deg() -> float:
+	var a = fposmod(rotation, PI)
+	return rad_to_deg(min(a, PI - a))
+
+
+## Top edge of the (rotated) cargo in world space.
+func top_y() -> float:
+	var hs = info.size * 0.5
+	var ext = abs(hs.x * sin(rotation)) + abs(hs.y * cos(rotation))
+	if info.get("round", false):
+		ext = hs.x
+	return global_position.y - ext
 
 
 func _group_of(body: Node) -> String:
