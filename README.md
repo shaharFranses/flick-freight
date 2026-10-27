@@ -1,7 +1,7 @@
 # Flick Freight
 
 A physics loading game for the web (Godot 4.3). Drag back and release to throw cargo
-from the loading dock into the truck. 25 levels across 4 worlds, 1–3 stars each.
+from the loading dock into the truck. 35 levels across 5 worlds, 1–3 stars each.
 
 ![cover](marketing/covers/cover_landscape_1920x1080.png)
 
@@ -16,6 +16,9 @@ from the loading dock into the truck. 25 levels across 4 worlds, 1–3 stars eac
 - **Harbor (world 4):** bounce pads (bank shots; a pad never breaks fragile cargo), colour-coded
   trucks (colour + shape; cargo in the wrong truck is a miss and stays as dead weight), and trucks
   bobbing on ferries. Each world is a page in level select; a world opens once the previous one is done.
+- **Snow (world 5):** ice blocks and icy truck beds (everything slides), bouncy tires, planks that spin
+  at a fixed rate and only count if they land flat, and a low-bridge height limit (cargo above the red
+  line is knocked off).
 - Progress (stars, mute, tutorial) is saved locally. New players land straight in level 1.
 
 ## Project layout
@@ -41,6 +44,7 @@ tools/
   cover.gd       renders the CrazyGames cover images
   make_music.py  synthesizes the music loop
   make_sfx.py    synthesizes boing / splash / pop
+  make_cargo_art.py  draws the ice / tire / plank / canister sprites
 art/v2/          Kenney CC0 art + Fredoka (OFL) — see art/v2/CREDITS.md
 marketing/covers 1920x1080, 800x1200, 800x800 covers for portal submission
 ```

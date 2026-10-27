@@ -20,12 +20,17 @@ extends RefCounted
 ## colors : M9 one digit per cargo letter, the colour of each cargo ("-" = any truck)
 ## ferry  : M10 inside a truck: {amp_y (px), amp_rot (deg), period (s)}; the truck bobs on a ferry
 ## water  : M10 [x0, x1] stretch of open water where the road would be (cargo there splashes)
+## icy    : M11 inside a truck: true = icy bed, everything slides. Cargo letter i = ice block
+##          t = tire (M12, bouncy), p = plank (M13, spins at a fixed rate, must land flat)
+## plank  : M13 {length, spin} override for this level's planks (default 150 px, 2.4 rad/s)
+## height_limit : M14 px above the bed floor; cargo sticking up past it is knocked off (a miss)
 
 const WORLDS = [
 	{"name": "TOWN", "bg": "res://art/v2/bg/bg_town.png", "tint": Color(1, 1, 1)},
 	{"name": "WOODS", "bg": "res://art/v2/bg/bg_woods.png", "tint": Color(1, 1, 1)},
 	{"name": "DESERT", "bg": "res://art/v2/bg/bg_desert.png", "tint": Color(1, 1, 1)},
 	{"name": "HARBOR", "backdrop": "harbor", "tint": Color(1, 1, 1)},
+	{"name": "SNOW", "backdrop": "snow", "tint": Color(1, 1, 1)},
 ]
 
 const DATA = [
@@ -124,9 +129,45 @@ const DATA = [
 		"pads": [[815, 579, -8, 1.1]],
 		"water": [880, 1300],
 		"intro": {"title": "HARBOR RUN", "text": "Pads, colours and ferries. Show the harbor how it's done!"}},
+	# ---------------- SNOW ----------------
+	{"world": 4, "cargo": "bibibibi", "goal": 4, "s2": 6,
+		"truck": {"x": 900, "amp": 0, "period": 4.0, "wall": 56}, "cap": 4, "guide": 0.8,
+		"intro": {"title": "ICE BLOCK", "text": "Slippery! It slides until something stops it.", "icon": "ice"}},
+	{"world": 4, "cargo": "bbibcbib", "goal": 4, "s2": 6,
+		"truck": {"x": 880, "amp": 110, "period": 4.6, "wall": 84, "icy": true}, "cap": 4, "guide": 0.55,
+		"intro": {"title": "ICY TRUCK", "text": "The whole bed is slippery. Good thing it has a tall tailgate!"}},
+	{"world": 4, "cargo": "btbtbtbt", "goal": 4, "s2": 6,
+		"truck": {"x": 900, "amp": 0, "period": 4.0, "wall": 70}, "cap": 4, "guide": 0.7,
+		"intro": {"title": "TIRES", "text": "Tires bounce! Drop them in softly.", "icon": "tire"}},
+	{"world": 4, "cargo": "tbtbtbtb", "goal": 4, "s2": 6,
+		"truck": {"x": 980, "amp": 0, "period": 4.0, "wall": 70}, "cap": 4, "guide": 0.55,
+		"blocks": [[380, 300, 420, 36]],
+		"pads": [[560, 579, 4, 1.1]]},
+	{"world": 4, "cargo": "ppbpbbp", "goal": 4, "s2": 6,
+		"truck": {"x": 900, "amp": 0, "period": 4.0, "wall": 52}, "cap": 4, "guide": 0.7,
+		"intro": {"title": "PLANKS", "text": "Planks spin as they fly. Land them flat!", "icon": "plank"}},
+	{"world": 4, "cargo": "pbpbpbp", "goal": 4, "s2": 6,
+		"truck": {"x": 900, "amp": 0, "period": 4.0, "wall": 56}, "cap": 4, "guide": 0.5, "wind": -120,
+		"plank": {"length": 150, "spin": 1.8},
+		"blocks": [[480, 150, 220, 36]]},
+	{"world": 4, "cargo": "ccpfcpfb", "goal": 4, "s2": 6,
+		"truck": {"x": 900, "amp": 0, "period": 4.0, "wall": 60}, "cap": 5, "guide": 0.5,
+		"intro": {"title": "SHELF IT", "text": "A plank on top of crates makes a shelf for fragile cargo."}},
+	{"world": 4, "cargo": "bbbbbbbb", "goal": 5, "s2": 7,
+		"truck": {"x": 900, "amp": 0, "period": 4.0, "wall": 52}, "cap": 3, "guide": 0.6, "height_limit": 70,
+		"intro": {"title": "LOW BRIDGE", "text": "Above the red line gets knocked off. Keep it low!"}},
+	{"world": 4, "cargo": "bibbibib", "colors": "01100110", "goal": 4, "s2": 6,
+		"trucks": [{"x": 560, "amp": 0, "period": 4.0, "wall": 56, "color": 0},
+			{"x": 1010, "amp": 0, "period": 4.0, "wall": 56, "color": 1}], "cap": 4, "guide": 0.5,
+		"height_limit": 70},
+	{"world": 4, "cargo": "tpibtpbitp", "goal": 5, "s2": 8,
+		"truck": {"x": 960, "amp": 0, "period": 4.0, "wall": 64, "icy": true}, "cap": 4, "guide": 0.4, "height_limit": 96,
+		"pads": [[600, 579, 4, 1.0]],
+		"intro": {"title": "WHITEOUT", "text": "Ice, tires, planks and a low bridge. Stay cool!"}},
 ]
 
-const LETTER = {"b": "box", "c": "crate", "r": "barrel", "f": "fragile"}
+const LETTER = {"b": "box", "c": "crate", "r": "barrel", "f": "fragile",
+	"i": "ice", "t": "tire", "p": "plank", "g": "canister"}
 
 
 static func count() -> int:
