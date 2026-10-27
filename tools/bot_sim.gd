@@ -20,6 +20,7 @@ var spin := 0.0  # M13: fixed spin (rad/s); 0 = ordinary cargo
 var flat := 0.0  # M13: max landing tilt (deg)
 var slides := false  # M11: ice cargo
 var bouncy := false  # M12
+var pop_speed := 0.0  # M15: canister pops above this landing speed
 var raw_blocks: Array = []
 var pads: Array = []
 var last_dist := INF  # landing distance from the target spot of the last scored throw
@@ -37,6 +38,7 @@ func _init(game):
 	flat = info.get("flat", 0.0)
 	slides = g.current.kind == "ice"
 	bouncy = g.current.kind == "tire"
+	pop_speed = info.get("pop_speed", 0.0)
 	# cargo spins in flight, so keep its corner radius clear of obstacles
 	var r = h.length()
 	for b in g.level.get("blocks", []):
@@ -180,10 +182,11 @@ func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 	var o = truck_pos(tr, t)
 	var l = (p - o).rotated(-truck_rot(tr, t))
 	var half = Truck.BED_W * 0.5
-	# tailgate (left), bulkhead + cab (right)
-	if l.x + h.x > -half - Truck.WALL_T and l.x - h.x < -half and l.y + h.y > -tr.wall_h:
+	# tailgate (left), bulkhead + cab (right); spinning cargo reaches out to its corners
+	var rr = h.length() if spin == 0.0 else max(_extent(spin * t).x, _extent(spin * t).y)
+	if l.x + rr > -half - Truck.WALL_T and l.x - rr < -half and l.y + rr > -tr.wall_h:
 		return -2.0
-	if l.x + h.x > half and l.x - h.x < half + Truck.WALL_T + Truck.CAB_W and l.y + h.y > -Truck.FRONT_H:
+	if l.x + rr > half and l.x - rr < half + Truck.WALL_T + Truck.CAB_W and l.y + rr > -Truck.FRONT_H:
 		return -2.0
 	var ext = h if spin == 0.0 else _extent(spin * t)
 	if v.y > 0 and abs(l.x) < half - h.x * 0.5:
@@ -202,6 +205,10 @@ func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 				sc += rel_vx * 0.2  # ice keeps sliding on whatever it carries
 			if bouncy:
 				sc += abs(v.y) * 0.08  # tires bounce out of hard landings
+			if pop_speed > 0.0:
+				if v.length() > pop_speed * 0.92:
+					return INF  # would pop
+				sc += v.length() * 0.05
 			if spin != 0.0:
 				var a = fposmod(spin * t, PI)
 				var tilt = rad_to_deg(min(a, PI - a))

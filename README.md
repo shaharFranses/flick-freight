@@ -1,7 +1,7 @@
 # Flick Freight
 
 A physics loading game for the web (Godot 4.3). Drag back and release to throw cargo
-from the loading dock into the truck. 35 levels across 5 worlds, 1–3 stars each.
+from the loading dock into the truck. 40 levels across 6 worlds, 1–3 stars each.
 
 ![cover](marketing/covers/cover_landscape_1920x1080.png)
 
@@ -19,6 +19,10 @@ from the loading dock into the truck. 35 levels across 5 worlds, 1–3 stars eac
 - **Snow (world 5):** ice blocks and icy truck beds (everything slides), bouncy tires, planks that spin
   at a fixed rate and only count if they land flat, and a low-bridge height limit (cargo above the red
   line is knocked off).
+- **Freight Yard (world 6):** gas canisters: land them softly, or they pop in a puff of smoke and knock
+  nearby cargo out of the truck (knocked-out cargo stops counting until it lands again; fragile
+  neighbours break). Level 40 has one of everything.
+- Each new world has its own music loop (`tools/make_music.py <out.ogg> harbor|snow|yard`).
 - Progress (stars, mute, tutorial) is saved locally. New players land straight in level 1.
 
 ## Project layout
@@ -46,7 +50,8 @@ tools/
   make_sfx.py    synthesizes boing / splash / pop
   make_cargo_art.py  draws the ice / tire / plank / canister sprites
 art/v2/          Kenney CC0 art + Fredoka (OFL) — see art/v2/CREDITS.md
-marketing/covers 1920x1080, 800x1200, 800x800 covers for portal submission
+marketing/covers 1920x1080, 800x1200, 800x800 covers for portal submission (Harbor scene)
+docs/EXPANSION_PLAN.md  the plan behind worlds 4-6 and the guardrails
 ```
 
 ## Build & test

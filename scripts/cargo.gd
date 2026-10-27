@@ -22,6 +22,9 @@ const TYPES = {
 	"plank": {"tex": "res://art/v2/cargo/plank.png", "size": Vector2(150, 24), "mass": 1.5,
 		"bounce": 0.04, "friction": 1.0, "power": 0.95, "snd": "hit_wood", "name": "PLANK",
 		"spin": 2.4, "flat": 20.0},
+	"canister": {"tex": "res://art/v2/cargo/canister.png", "size": Vector2(44, 58), "mass": 1.2,
+		"bounce": 0.05, "friction": 0.9, "power": 1.0, "snd": "hit_metal", "name": "GAS CAN",
+		"pop_speed": 950.0, "pop_force": 520.0},
 }
 
 const SETTLE_SPEED := 14.0
@@ -55,6 +58,11 @@ func setup(k: String, g, col := -1):
 		info = info.duplicate()
 		info.size = Vector2(g.level.plank.get("length", info.size.x), info.size.y)
 		info.spin = g.level.plank.get("spin", info.spin)
+	if k == "canister" and g and g.level.has("canister"):
+		# M15: per-level pop threshold / strength
+		info = info.duplicate()
+		info.pop_speed = g.level.canister.get("pop_speed", info.pop_speed)
+		info.pop_force = g.level.canister.get("pop_force", info.pop_force)
 	mass = info.mass
 	gravity_scale = 1.0
 	linear_damp_mode = RigidBody2D.DAMP_MODE_REPLACE
@@ -162,6 +170,12 @@ func _on_body_entered(body: Node):
 		Sfx.play(info.snd, vol, randf_range(0.92, 1.08))
 		if impact > 450 and game:
 			game.on_heavy_impact(global_position, impact)
+	if info.has("pop_speed") and game and game.verbose:
+		print("  canister impact %d (pops above %d)" % [impact, info.pop_speed])
+	if info.has("pop_speed") and impact > info.pop_speed and _group_of(body) != "":
+		# M15: hard landing, the canister pops and shoves its neighbours
+		_finish(false, "popped")
+		return
 	if info.has("spin"):
 		angular_damp = 6.0  # M13: stop spinning soon after touching down, so a flat landing stays flat
 	var group = _group_of(body)
@@ -180,6 +194,15 @@ func _on_body_entered(body: Node):
 		if impact > 60:
 			Sfx.play("rim", -4.0, 0.9)
 		_finish(false, "cab")
+
+
+## Knocked loose again after delivery (M15 pop): fly and resolve once more.
+func relaunch():
+	freeze = false
+	done = false
+	flying = true
+	_air = 0.0
+	_settle = 0.0
 
 
 func _finish_in_truck(reason: String):

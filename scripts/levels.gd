@@ -21,16 +21,19 @@ extends RefCounted
 ## ferry  : M10 inside a truck: {amp_y (px), amp_rot (deg), period (s)}; the truck bobs on a ferry
 ## water  : M10 [x0, x1] stretch of open water where the road would be (cargo there splashes)
 ## icy    : M11 inside a truck: true = icy bed, everything slides. Cargo letter i = ice block
-##          t = tire (M12, bouncy), p = plank (M13, spins at a fixed rate, must land flat)
+##          t = tire (M12, bouncy), p = plank (M13, spins at a fixed rate, must land flat),
+##          g = gas canister (M15, pops on a hard landing and knocks nearby cargo out)
 ## plank  : M13 {length, spin} override for this level's planks (default 150 px, 2.4 rad/s)
 ## height_limit : M14 px above the bed floor; cargo sticking up past it is knocked off (a miss)
+## canister : M15 {pop_speed, pop_force} override (default 950 px/s, 520)
 
 const WORLDS = [
 	{"name": "TOWN", "bg": "res://art/v2/bg/bg_town.png", "tint": Color(1, 1, 1)},
 	{"name": "WOODS", "bg": "res://art/v2/bg/bg_woods.png", "tint": Color(1, 1, 1)},
 	{"name": "DESERT", "bg": "res://art/v2/bg/bg_desert.png", "tint": Color(1, 1, 1)},
-	{"name": "HARBOR", "backdrop": "harbor", "tint": Color(1, 1, 1)},
-	{"name": "SNOW", "backdrop": "snow", "tint": Color(1, 1, 1)},
+	{"name": "HARBOR", "backdrop": "harbor", "tint": Color(1, 1, 1), "music": "res://audio/v2/music_harbor.ogg"},
+	{"name": "SNOW", "backdrop": "snow", "tint": Color(1, 1, 1), "music": "res://audio/v2/music_snow.ogg"},
+	{"name": "FREIGHT YARD", "backdrop": "yard", "tint": Color(1, 1, 1), "music": "res://audio/v2/music_yard.ogg"},
 ]
 
 const DATA = [
@@ -164,6 +167,31 @@ const DATA = [
 		"truck": {"x": 960, "amp": 0, "period": 4.0, "wall": 64, "icy": true}, "cap": 4, "guide": 0.4, "height_limit": 96,
 		"pads": [[600, 579, 4, 1.0]],
 		"intro": {"title": "WHITEOUT", "text": "Ice, tires, planks and a low bridge. Stay cool!"}},
+	# ---------------- FREIGHT YARD ----------------
+	{"world": 5, "cargo": "bgbgbgb", "goal": 4, "s2": 6,
+		"truck": {"x": 820, "amp": 0, "period": 4.0, "wall": 56}, "cap": 4, "guide": 0.8,
+		"canister": {"pop_speed": 1050},
+		"intro": {"title": "GAS CANS", "text": "Land them softly or they pop and scatter the load!", "icon": "canister"}},
+	{"world": 5, "cargo": "gfbgbfg", "goal": 4, "s2": 6,
+		"truck": {"x": 860, "amp": 0, "period": 4.0, "wall": 56}, "cap": 4, "guide": 0.5, "height_limit": 124,
+		"intro": {"title": "ORDER MATTERS", "text": "Keep cans away from fragile cargo, and stay under the line."}},
+	{"world": 5, "cargo": "bcbcbcbcbc", "colors": "0101100101", "goal": 5, "s2": 8,
+		"trucks": [{"x": 560, "amp": 50, "period": 4.4, "wall": 56, "color": 0},
+			{"x": 1010, "amp": 80, "period": 3.8, "wall": 56, "color": 1}], "cap": 5, "guide": 0.4, "wind": 120,
+		"intro": {"title": "CONVOY", "text": "Two trucks on the move, and a tailwind. Keep them apart!"}},
+	{"world": 5, "cargo": "igbigbig", "goal": 4, "s2": 6,
+		"truck": {"x": 880, "amp": 0, "period": 4.0, "wall": 70,
+			"ferry": {"amp_y": 12, "amp_rot": 2.5, "period": 3.0}}, "cap": 4, "guide": 0.45,
+		"canister": {"pop_speed": 1100},
+		"water": [640, 1300]},
+	{"world": 5, "cargo": "bcrfitpgbcb", "colors": "10101100101", "goal": 5, "s2": 8,
+		"trucks": [{"x": 520, "amp": 0, "period": 4.0, "wall": 64, "color": 0},
+			{"x": 1060, "amp": 0, "period": 4.0, "wall": 64, "color": 1,
+				"ferry": {"amp_y": 12, "amp_rot": 2.5, "period": 3.2}}], "cap": 6, "guide": 0.4, "wind": -80,
+		"height_limit": 110,
+		"pads": [[820, 579, -8, 1.1]],
+		"water": [890, 1300],
+		"intro": {"title": "GRAND FINALE", "text": "One of everything. You've got this, driver!"}},
 ]
 
 const LETTER = {"b": "box", "c": "crate", "r": "barrel", "f": "fragile",
