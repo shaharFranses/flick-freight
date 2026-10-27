@@ -113,6 +113,8 @@ func _physics_process(delta: float):
 func _on_body_entered(body: Node):
 	if not flying or done:
 		return
+	# wind only pushes while airborne; it shouldn't shove cargo that has landed
+	constant_force = Vector2.ZERO
 	var impact = _prev_vel.length()
 	if _sound_cd <= 0.0 and impact > 60:
 		_sound_cd = 0.12

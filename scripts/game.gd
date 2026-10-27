@@ -52,6 +52,8 @@ var aim: Node2D
 var beacon: Sprite2D
 var clouds: Array[Sprite2D] = []
 var flag: Node2D
+var wind_fx: Node2D
+var streaks: Array = []
 var _time := 0.0
 
 
@@ -68,6 +70,7 @@ func setup(index: int):
 	_build_blocks()
 	if wind != 0.0:
 		_build_flag()
+		_build_wind_fx()
 	cargo_root = Node2D.new()
 	add_child(cargo_root)
 	fx_root = Node2D.new()
@@ -337,7 +340,7 @@ func _draw_flag():
 	var pts2 = PackedVector2Array()
 	for i in 9:
 		var t = i / 8.0
-		var wave = sin(_time * 9.0 - t * 5.0) * 6.0 * t
+		var wave = sin(_time * (6.0 + abs(wind) * 0.03) - t * 5.0) * 6.0 * t
 		pts.append(Vector2(dir * length * t, -h + 2 + wave))
 		pts2.append(Vector2(dir * length * t, -h + 32 - 12 * t + wave))
 	var poly = pts.duplicate()
@@ -346,8 +349,31 @@ func _draw_flag():
 	flag.draw_colored_polygon(poly, Color("#FF6B57"))
 	for i in range(1, 3):
 		var t = i / 3.0
-		var wave = sin(_time * 9.0 - t * 5.0) * 6.0 * t
+		var wave = sin(_time * (6.0 + abs(wind) * 0.03) - t * 5.0) * 6.0 * t
 		flag.draw_line(Vector2(dir * length * t, -h + 2 + wave), Vector2(dir * length * t, -h + 32 - 12 * t + wave), Color.WHITE, 5.0)
+
+
+## Air streaks blowing across the whole screen, so the wind reads at a glance.
+func _build_wind_fx():
+	wind_fx = Node2D.new()
+	wind_fx.z_index = 3
+	wind_fx.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	wind_fx.draw.connect(_draw_wind_fx)
+	add_child(wind_fx)
+	var n = int(10 + abs(wind) * 0.07)
+	for i in n:
+		streaks.append({"x": randf_range(-200, 1480), "y": randf_range(20, ROAD_Y - 30),
+			"len": randf_range(50, 150), "speed": randf_range(0.7, 1.3), "a": randf_range(0.18, 0.4)})
+
+
+func _draw_wind_fx():
+	var dir = sign(wind)
+	for s in streaks:
+		var wave = sin(_time * 3.0 + s.y * 0.05) * 4.0
+		var head = Vector2(s.x, s.y + wave)
+		var tail = head - Vector2(dir * s.len, 0)
+		wind_fx.draw_line(tail, head, Color(1, 1, 1, s.a * 0.5), 3.0)
+		wind_fx.draw_line(tail.lerp(head, 0.5), head, Color(1, 1, 1, s.a), 3.0)
 
 
 # ======================================================================= trucks
@@ -548,10 +574,24 @@ func _check_end():
 # ======================================================================= per-frame
 func _process(delta: float):
 	_time += delta
+	# clouds drift with the wind (slow leftward drift when calm)
+	var cloud_speed = wind * 0.15 if wind != 0.0 else -12.0
 	for c in clouds:
-		c.position.x -= delta * 12.0
+		c.position.x += delta * cloud_speed
 		if c.position.x < -1024 * 1.3:
 			c.position.x += 2 * 1024 * 1.3
+		elif c.position.x > 1024 * 1.3:
+			c.position.x -= 2 * 1024 * 1.3
+	if wind_fx:
+		for s in streaks:
+			s.x += wind * 2.2 * s.speed * delta
+			if wind > 0 and s.x - s.len > 1300:
+				s.x = randf_range(-150, -20)
+				s.y = randf_range(20, ROAD_Y - 30)
+			elif wind < 0 and s.x + s.len < -20:
+				s.x = randf_range(1300, 1430)
+				s.y = randf_range(20, ROAD_Y - 30)
+		wind_fx.queue_redraw()
 	if beacon:
 		var on = can_aim()
 		beacon.modulate = Color(1, 1, 1, 1) if not on else Color(1.0, 1.0 + 0.25 * sin(_time * 10.0), 1.0, 1.0)
@@ -564,7 +604,8 @@ func _draw_aim():
 		return
 	var p0 = current.global_position
 	var v = launch_velocity(pull)
-	var acc = Vector2(wind, GRAVITY)
+	# the guide shows the calm-air arc on purpose: the wind is for the player to read
+	var acc = Vector2(0, GRAVITY)
 	var guide: float = level.get("guide", 1.0)
 	var t_max = 0.25 + 1.15 * guide
 	var dt = 1.0 / 60.0
