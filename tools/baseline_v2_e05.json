@@ -93,9 +93,9 @@
     },
     {
       "broken": 0,
-      "delivered": 6,
+      "delivered": 7,
       "level": 11,
-      "missed": 2,
+      "missed": 1,
       "pass": true,
       "stars": 2,
       "total": 8

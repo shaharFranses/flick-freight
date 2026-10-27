@@ -32,6 +32,8 @@ const SETTLE_TIME := 0.3
 const MAX_AIR_TIME := 7.0
 const FRAGILE_HITS := 3  # fragile cargo breaks on this many bumps (level key "fragile_hits")
 const HIT_SPEED := 120.0  # a contact faster than this counts as a bump; settling doesn't
+const CAB_REST := 0.25  # s resting on the cab before it's a miss
+const CAB_MAX := 1.0  # s on the cab at most (sliding/rocking on the hood), then a miss
 const HIT_GAP := 0.15  # s; one bump can make several contacts, count it once
 
 var kind := "box"
@@ -50,6 +52,8 @@ var hits := 0  # fragile: bumps so far, shown as cracks
 var _hit_cd := 0.0
 var cracks: Node2D
 var _through_dock := false
+var _cab_time := 0.0
+var _off_cab := 0.0
 var sprite: Sprite2D
 var game  # Game (untyped to avoid a cyclic class reference)
 
@@ -165,6 +169,23 @@ func _physics_process(delta: float):
 	# resting?
 	# (speed is measured relative to the truck when riding in it, so moving trucks still settle)
 	var rel = linear_velocity - game.carrier_velocity(self)
+	# on the driver's cab: it may still bounce into the bed, but if it stays up there it's
+	# a miss quickly (never wait for the full settle/timeout)
+	if _touching_cab():
+		_off_cab = 0.0
+		_cab_time += delta
+		if _cab_time > CAB_MAX or (_cab_time > CAB_REST and rel.length() < 60.0):
+			_finish(false, "cab")
+			return
+	elif _cab_time > 0.0:
+		# short hops along the roof/hood keep the clock running; only a real escape resets it
+		_off_cab += delta
+		_cab_time += delta
+		if _off_cab > 0.3:
+			_cab_time = 0.0
+		elif _cab_time > CAB_MAX:
+			_finish(false, "cab")
+			return
 	if _air > 0.25 and rel.length() < SETTLE_SPEED and abs(angular_velocity) < 0.6:
 		_settle += delta
 		if _settle >= SETTLE_TIME:
@@ -209,11 +230,15 @@ func _on_body_entered(body: Node):
 	if group == "ground":
 		# landed on the road: no way into the truck from here
 		_finish(false, "road")
-	elif group == "truck_cab":
-		# hit the driver's cab: a miss right away (it would otherwise ride on the roof)
-		if impact > 60:
-			Sfx.play("rim", -4.0, 0.9)
-		_finish(false, "cab")
+	elif group == "truck_cab" and impact > 60:
+		Sfx.play("rim", -4.0, 0.9)
+
+
+func _touching_cab() -> bool:
+	for b in get_colliding_bodies():
+		if b.is_in_group("truck_cab"):
+			return true
+	return false
 
 
 func max_hits() -> int:
