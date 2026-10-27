@@ -16,7 +16,8 @@ https://github.com/ETdoFresh/kenney.nl (each pack's original License.txt states 
 | `../../audio/v2/win`, `lose`, `truck_full` | Music Jingles (Pizzicato) |
 
 Self-made (CC0): `audio/v2/music_loop.ogg` (synthesized by `tools/make_music.py`),
-`audio/v2/boing.wav`, `splash.wav`, `pop.wav` (synthesized by `tools/make_sfx.py`), the Harbor/Snow/Yard
+`audio/v2/boing.wav`, `splash.wav`, `pop.wav` (synthesized by `tools/make_sfx.py`),
+`cargo/ice.png`, `tire.png`, `plank.png`, `canister.png` (drawn by `tools/make_cargo_art.py`), the Harbor/Snow/Yard
 backgrounds, bounce pads, ferry and colour badges (drawn in code, `scripts/backdrops.gd` etc.),
 `audio/honk.wav`, `whoosh.wav`, `snap.wav` (see `audio/LICENSE.txt`). The truck is drawn in code.
 

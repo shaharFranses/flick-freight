@@ -13,6 +13,10 @@ const CARGO_TEX = {
 	"crate": preload("res://art/v2/cargo/crate.png"),
 	"barrel": preload("res://art/v2/cargo/barrel.png"),
 	"fragile": preload("res://art/v2/cargo/fragile.png"),
+	"ice": preload("res://art/v2/cargo/ice.png"),
+	"tire": preload("res://art/v2/cargo/tire.png"),
+	"plank": preload("res://art/v2/cargo/plank.png"),
+	"canister": preload("res://art/v2/cargo/canister.png"),
 }
 
 var game: Game

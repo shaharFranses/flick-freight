@@ -44,6 +44,8 @@ var state := "away"  # away / arriving / parked / leaving
 var loads: Array = []  # [{"cargo": Cargo, "offset": Vector2, "rot": float}]
 var color := -1  # M9: index into CARGO_COLORS, -1 = takes any cargo
 var ferry: Dictionary = {}  # M10: {amp_y, amp_rot (deg), period}; empty = on the road
+var icy := false  # M11: icy bed, everything slides
+var height_limit := 0.0  # M14: bridge line above the bed (0 = none)
 
 var _t := 0.0
 var _anim_t := 0.0
@@ -78,6 +80,7 @@ func setup(cfg: Dictionary, palette_index: int, wall_height: float):
 	if color >= 0:
 		palette = COLOR_PALETTES[color]
 	ferry = cfg.get("ferry", {})
+	icy = cfg.get("icy", false)
 	_build_bodies()
 	_build_visuals()
 
@@ -97,7 +100,7 @@ func _build_bodies():
 	floor_body.sync_to_physics = false
 	floor_body.add_to_group("truck_floor")
 	var pm = PhysicsMaterial.new()
-	pm.friction = 1.0
+	pm.friction = 0.02 if icy else 1.0
 	pm.bounce = 0.0
 	floor_body.physics_material_override = pm
 	_rect_shape(floor_body, Vector2(0, FLOOR_T * 0.5), Vector2(BED_W + WALL_T * 2, FLOOR_T))
@@ -210,12 +213,34 @@ func _draw_front():
 	# mudguards
 	for w in wheels:
 		front_layer.draw_arc(w.position, WHEEL_R + 6, PI, TAU, 16, dark, 6.0)
+	if icy:
+		front_layer.draw_rect(Rect2(L - WALL_T, -3, BED_W + WALL_T * 2, 9), Color("#BFE7F7"))
+		for gx in [L + 30, L + 120, L + 210]:
+			front_layer.draw_line(Vector2(gx, 0), Vector2(gx + 22, 0), Color.WHITE, 3.0)
+	if height_limit > 0:
+		_draw_height_line(L)
 	if color >= 0:
 		# sign on a post above the bulkhead: readable even with a full bed
 		var post = Vector2(-L + WALL_T * 0.5, -FRONT_H)
 		front_layer.draw_rect(Rect2(post.x - 4, post.y - 40, 8, 40), Color("#5B6574"))
 		draw_color_badge(front_layer, post + Vector2(0, -66), 34.0, color)
 		draw_color_badge(front_layer, Vector2(cab_x0 + 40, -2), 18.0, color)
+
+
+## M14: dashed "low bridge" line: cargo sticking up past it gets knocked off.
+func _draw_height_line(L: float):
+	var y = -height_limit
+	var x = L - WALL_T
+	while x < -L:
+		front_layer.draw_line(Vector2(x, y), Vector2(min(x + 18, -L), y), NAVY, 7.0)
+		front_layer.draw_line(Vector2(x, y), Vector2(min(x + 18, -L), y), Color("#FF6B57"), 4.0)
+		x += 28.0
+	# little bridge icon at the back end of the line
+	var b = Vector2(L - WALL_T - 30, y)
+	front_layer.draw_rect(Rect2(b.x - 22, b.y - 14, 44, 10), NAVY)
+	front_layer.draw_rect(Rect2(b.x - 20, b.y - 12, 40, 6), Color("#FF6B57"))
+	front_layer.draw_rect(Rect2(b.x - 20, b.y - 6, 6, 18), NAVY)
+	front_layer.draw_rect(Rect2(b.x + 14, b.y - 6, 6, 18), NAVY)
 
 
 ## Ferry hull the truck rides on; it sails in and out with the truck.

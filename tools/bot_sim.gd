@@ -16,6 +16,11 @@ var mult := 1.0
 var blocks: Array = []
 var trucks: Array = []  # [{truck, target_x, surface: Array}]
 var color := -1
+var spin := 0.0  # M13: fixed spin (rad/s); 0 = ordinary cargo
+var flat := 0.0  # M13: max landing tilt (deg)
+var slides := false  # M11: ice cargo
+var bouncy := false  # M12
+var raw_blocks: Array = []
 var pads: Array = []
 var last_dist := INF  # landing distance from the target spot of the last scored throw
 
@@ -27,10 +32,16 @@ func _init(game):
 	mult = g.current.power_mult()
 	color = g.current.color
 	pads = g.pads
+	var info: Dictionary = g.current.info
+	spin = info.get("spin", 0.0)
+	flat = info.get("flat", 0.0)
+	slides = g.current.kind == "ice"
+	bouncy = g.current.kind == "tire"
 	# cargo spins in flight, so keep its corner radius clear of obstacles
 	var r = h.length()
 	for b in g.level.get("blocks", []):
 		blocks.append(Rect2(b[0], b[1], b[2], b[3]).grow(r))
+		raw_blocks.append(Rect2(b[0], b[1], b[2], b[3]))
 	for t in _game_trucks():
 		trucks.append(_truck_info(t))
 
@@ -68,17 +79,22 @@ func _truck_info(t: Truck) -> Dictionary:
 		if x < -Truck.BED_W * 0.5 + margin or x > Truck.BED_W * 0.5 - margin:
 			continue
 		var hgt = 0.0
+		var low = INF
 		for j in cols:
 			var xj = -Truck.BED_W * 0.5 + j * 10.0 + 5.0
 			if abs(xj - x) < h.x:
 				hgt = max(hgt, surface[j])
+				low = min(low, surface[j])
 		var cost = hgt * 4.0 + abs(x - 40.0) * 0.2
+		if g.current.info.has("flat"):
+			cost += (hgt - low) * 12.0  # long cargo needs level ground or it tips
 		if cost < best:
 			best = cost
 			best_x = x
 	# M9: landing in a truck of another colour is a miss
 	var wrong = color >= 0 and t.color >= 0 and t.color != color
-	return {"truck": t, "target_x": best_x, "surface": surface, "wrong": wrong}
+	return {"truck": t, "target_x": best_x, "surface": surface, "wrong": wrong,
+		"slippery": slides or t.icy}
 
 
 func truck_pos(t: Truck, dt: float) -> Vector2:
@@ -98,6 +114,11 @@ func _truck_vx(t: Truck, dt: float) -> float:
 	if t.amp <= 0:
 		return 0.0
 	return t.amp * TAU / t.period * cos(TAU * (t._t + dt) / t.period)
+
+
+## Axis-aligned half extents of the cargo rotated by `rot`.
+func _extent(rot: float) -> Vector2:
+	return Vector2(abs(h.x * cos(rot)) + abs(h.y * sin(rot)), abs(h.x * sin(rot)) + abs(h.y * cos(rot)))
 
 
 func surface_at(info: Dictionary, local_x: float) -> float:
@@ -131,11 +152,19 @@ func score(pull: Vector2) -> float:
 				inside.erase(pd)
 		if p.y + h.y > Game.ROAD_Y or p.x > 1400 or p.x < -100:
 			return INF
-		if p.x - h.x < Game.DOCK_RIGHT and p.y + h.y > Game.DOCK_TOP + 2:
+		var de = h if spin == 0.0 else _extent(spin * t)
+		if p.x - de.x < Game.DOCK_RIGHT and p.y + de.y > Game.DOCK_TOP + 2:
 			return INF  # scraped the dock edge
-		for r in blocks:
-			if r.has_point(p):
-				return INF
+		if spin != 0.0:
+			# M13: exact extents of the spinning plank
+			var e = _extent(spin * t)
+			for r in raw_blocks:
+				if r.grow_individual(e.x, e.y, e.x, e.y).has_point(p):
+					return INF
+		else:
+			for r in blocks:
+				if r.has_point(p):
+					return INF
 		for info in trucks:
 			var r = _vs_truck(info, p, v, t)
 			if r >= 0.0:
@@ -156,12 +185,30 @@ func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 		return -2.0
 	if l.x + h.x > half and l.x - h.x < half + Truck.WALL_T + Truck.CAB_W and l.y + h.y > -Truck.FRONT_H:
 		return -2.0
+	var ext = h if spin == 0.0 else _extent(spin * t)
 	if v.y > 0 and abs(l.x) < half - h.x * 0.5:
 		var floor_y = -surface_at(info, l.x)
-		if l.y + h.y >= floor_y:
+		if l.y + ext.y >= floor_y:
 			if info.wrong:
 				return INF
+			# M14: the stack must stay under the bridge line
+			if tr.height_limit > 0 and -floor_y + ext.y * 2.0 > tr.height_limit:
+				return INF
 			last_dist = abs(l.x - info.target_x)
+			var rel_vx = abs(v.x - _truck_vx(tr, t))
 			# prefer soft, steep landings: forward speed makes cargo slide into the bulkhead
-			return last_dist + abs(v.x - _truck_vx(tr, t)) * 0.05 + v.length() * 0.01
+			var sc = last_dist + rel_vx * 0.05 + v.length() * 0.01
+			if info.slippery:
+				sc += rel_vx * 0.2  # ice keeps sliding on whatever it carries
+			if bouncy:
+				sc += abs(v.y) * 0.08  # tires bounce out of hard landings
+			if spin != 0.0:
+				var a = fposmod(spin * t, PI)
+				var tilt = rad_to_deg(min(a, PI - a))
+				if tilt > flat * 0.8:
+					return INF
+				sc += tilt * 3.0
+				if tilt > 8.0:
+					last_dist = INF  # not a "good" throw for the precision metric
+			return sc
 	return -1.0
