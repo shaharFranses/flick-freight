@@ -26,6 +26,8 @@ var info: Dictionary
 var flying := false
 var done := false
 var touched_wall := false
+var touched_pad := false
+var color := -1  # M9: which coloured truck this belongs in (-1 = any)
 var wind := 0.0
 var _settle := 0.0
 var _air := 0.0
@@ -35,9 +37,10 @@ var sprite: Sprite2D
 var game  # Game (untyped to avoid a cyclic class reference)
 
 
-func setup(k: String, g):
+func setup(k: String, g, col := -1):
 	kind = k
 	game = g
+	color = col
 	info = TYPES[k]
 	mass = info.mass
 	gravity_scale = 1.0
@@ -61,6 +64,10 @@ func setup(k: String, g):
 	sprite.texture = tex
 	sprite.scale = info.size / tex.get_size()
 	add_child(sprite)
+	if color >= 0:
+		var badge = Node2D.new()
+		badge.draw.connect(func(): Truck.draw_color_badge(badge, Vector2.ZERO, 17.0, color))
+		add_child(badge)
 	freeze_mode = RigidBody2D.FREEZE_MODE_KINEMATIC
 	freeze = true
 	contact_monitor = true
@@ -84,6 +91,17 @@ func launch(vel: Vector2, wind_accel: float):
 	linear_velocity = vel
 	angular_velocity = clamp(vel.x * 0.004, -3.0, 3.0)
 	constant_force = Vector2(wind * mass, 0)
+
+
+## M8: bounce pad hit. Reflect the velocity across the pad's normal with `power` as the
+## restitution (>1 = boost). A pad is not a wall: it never breaks fragile cargo.
+func bounce_off(n: Vector2, power: float) -> bool:
+	var vn = linear_velocity.dot(n)
+	if not flying or done or vn >= 0.0:
+		return false
+	linear_velocity -= (1.0 + power) * vn * n
+	touched_pad = true
+	return true
 
 
 func _physics_process(delta: float):

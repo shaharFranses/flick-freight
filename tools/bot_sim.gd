@@ -15,6 +15,8 @@ var h: Vector2  # cargo half size
 var mult := 1.0
 var blocks: Array = []
 var trucks: Array = []  # [{truck, target_x, surface: Array}]
+var color := -1
+var pads: Array = []
 var last_dist := INF  # landing distance from the target spot of the last scored throw
 
 
@@ -23,16 +25,21 @@ func _init(game):
 	p0 = g.current.global_position
 	h = g.current.info.size * 0.5
 	mult = g.current.power_mult()
+	color = g.current.color
+	pads = g.pads
+	# cargo spins in flight, so keep its corner radius clear of obstacles
+	var r = h.length()
 	for b in g.level.get("blocks", []):
-		blocks.append(Rect2(b[0], b[1], b[2], b[3]).grow_individual(h.x, h.y, h.x, h.y))
+		blocks.append(Rect2(b[0], b[1], b[2], b[3]).grow(r))
 	for t in _game_trucks():
 		trucks.append(_truck_info(t))
 
 
 func _game_trucks() -> Array:
 	var out: Array = []
-	if g.truck != null and is_instance_valid(g.truck) and g.truck.is_parked():
-		out.append(g.truck)
+	for t in g.live_trucks():
+		if t.is_parked():
+			out.append(t)
 	return out
 
 
@@ -69,14 +76,22 @@ func _truck_info(t: Truck) -> Dictionary:
 		if cost < best:
 			best = cost
 			best_x = x
-	return {"truck": t, "target_x": best_x, "surface": surface}
+	# M9: landing in a truck of another colour is a miss
+	var wrong = color >= 0 and t.color >= 0 and t.color != color
+	return {"truck": t, "target_x": best_x, "surface": surface, "wrong": wrong}
 
 
 func truck_pos(t: Truck, dt: float) -> Vector2:
 	var p = t.global_position
 	if t.amp > 0:
 		p.x = t.base_x + t.amp * sin(TAU * (t._t + dt) / t.period)
+	if not t.ferry.is_empty():
+		p.y = t.ferry_pose(dt)[0]
 	return p
+
+
+func truck_rot(t: Truck, dt: float) -> float:
+	return 0.0 if t.ferry.is_empty() else t.ferry_pose(dt)[1]
 
 
 func _truck_vx(t: Truck, dt: float) -> float:
@@ -100,12 +115,24 @@ func score(pull: Vector2) -> float:
 	var v = pull * Game.POWER * mult
 	var p = p0
 	var t = 0.0
+	var inside := {}
 	while t < MAX_T:
 		v += Vector2(g.wind, Game.GRAVITY) * DT
 		p += v * DT
 		t += DT
+		# M8: pads reflect on entry, like the game's Area2D
+		for pd in pads:
+			var touching = g.pad_contact(pd, p, h.y)
+			if touching and not inside.has(pd) and v.dot(pd.n) < 0:
+				v -= (1.0 + pd.power) * v.dot(pd.n) * pd.n
+			if touching:
+				inside[pd] = true
+			else:
+				inside.erase(pd)
 		if p.y + h.y > Game.ROAD_Y or p.x > 1400 or p.x < -100:
 			return INF
+		if p.x - h.x < Game.DOCK_RIGHT and p.y + h.y > Game.DOCK_TOP + 2:
+			return INF  # scraped the dock edge
 		for r in blocks:
 			if r.has_point(p):
 				return INF
@@ -122,7 +149,7 @@ func score(pull: Vector2) -> float:
 func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 	var tr: Truck = info.truck
 	var o = truck_pos(tr, t)
-	var l = p - o
+	var l = (p - o).rotated(-truck_rot(tr, t))
 	var half = Truck.BED_W * 0.5
 	# tailgate (left), bulkhead + cab (right)
 	if l.x + h.x > -half - Truck.WALL_T and l.x - h.x < -half and l.y + h.y > -tr.wall_h:
@@ -132,6 +159,8 @@ func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 	if v.y > 0 and abs(l.x) < half - h.x * 0.5:
 		var floor_y = -surface_at(info, l.x)
 		if l.y + h.y >= floor_y:
+			if info.wrong:
+				return INF
 			last_dist = abs(l.x - info.target_x)
 			# prefer soft, steep landings: forward speed makes cargo slide into the bulkhead
 			return last_dist + abs(v.x - _truck_vx(tr, t)) * 0.05 + v.length() * 0.01
