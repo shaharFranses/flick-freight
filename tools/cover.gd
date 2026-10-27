@@ -44,26 +44,27 @@ func _build(shot):
 	cam.make_current()
 	# real level scenery
 	var g = Game.new()
-	g.setup(5)  # woods, with a pillar
+	g.setup(24)  # harbor finale: water, bounce pad, wind
 	g.set_process(false)
 	world.add_child(g)
-	# a parked truck with cargo
+	# a colour-coded truck on its ferry, loaded with old and new cargo
 	var t = Truck.new()
-	t.setup({"x": 900, "amp": 0}, 0, 56)
-	t.position = Vector2(900, Game.ROAD_Y - Truck.FLOOR_T - 18 - Truck.WHEEL_R)
-	t.set_physics_process(false)
+	t.setup({"x": 1010, "amp": 0, "color": 1, "ferry": {"amp_y": 0, "amp_rot": 0}}, 0, 56)
+	t.position = Vector2(1010, Game.ROAD_Y - Truck.FLOOR_T - 18 - Truck.WHEEL_R)
 	world.add_child(t)
-	_sprite(world, "box", Vector2(800, t.position.y - 30), 0.0)
-	_sprite(world, "crate", Vector2(866, t.position.y - 31), 0.0)
-	_sprite(world, "barrel", Vector2(930, t.position.y - 32), 0.0)
-	_sprite(world, "box", Vector2(835, t.position.y - 90), 0.12)
+	t.set_physics_process(false)  # after entering the tree, or _ready turns it back on
+	_sprite(world, "box", Vector2(910, t.position.y - 30), 0.0)
+	_sprite(world, "ice", Vector2(974, t.position.y - 29), 0.0)
+	_sprite(world, "canister", Vector2(1030, t.position.y - 29), 0.0)
+	_sprite(world, "tire", Vector2(1090, t.position.y - 28), 0.0)
+	_sprite(world, "plank", Vector2(955, t.position.y - 72), 0.0)
 	# cargo mid-flight along a dotted arc from the dock
 	var arc = Node2D.new()
 	arc.z_index = 30
 	world.add_child(arc)
 	var pts: Array = []
 	var p = Vector2(Game.FLICK_X, Game.DOCK_TOP - 30)
-	var v = Vector2(560, -820)
+	var v = Vector2(660, -820)
 	for k in 70:
 		v += Vector2(0, Game.GRAVITY) / 60.0
 		p += v / 60.0
@@ -73,6 +74,11 @@ func _build(shot):
 			arc.draw_circle(pts[k], 8.5, Color(0.106, 0.165, 0.255, 0.75))
 			arc.draw_circle(pts[k], 6.0, Color(1, 1, 1, 0.95)))
 	_sprite(world, "fragile", pts[67], -0.5, 1.15)
+	var badge = Node2D.new()
+	badge.position = pts[67]
+	badge.z_index = 31
+	badge.draw.connect(func(): Truck.draw_color_badge(badge, Vector2.ZERO, 19.0, 1))
+	world.add_child(badge)
 	_sprite(world, "box", Vector2(Game.FLICK_X, Game.DOCK_TOP - 30), 0.0)
 	# speed streaks behind the flying cargo
 	var fx = Node2D.new()

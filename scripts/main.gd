@@ -66,7 +66,7 @@ func start_level(i: int):
 	hud.pause_pressed.connect(_show_pause)
 	game.finished.connect(_on_finished)
 	game.start()
-	Sfx.start_music()
+	Sfx.start_music(Levels.world_of(level_index).get("music", Sfx.MUSIC))
 
 
 func _show_pause():

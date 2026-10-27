@@ -1,15 +1,26 @@
 """Synthesize the Flick Freight background loop (CC0, no samples).
 
-Usage: python3 tools/make_music.py audio/v2/music_loop.ogg
+Usage: python3 tools/make_music.py audio/v2/music_loop.ogg [variant]
 Pizzicato-style plucks + soft pad + light percussion, 104 BPM, 8 bars, seamless loop.
+Variants (one per expansion world): harbor, snow, yard. No variant = the original loop.
 """
 import subprocess
 import sys
 
 import numpy as np
 
+VARIANT = sys.argv[2] if len(sys.argv) > 2 else ""
+# per-variant: tempo, transpose (semitones), chord progression, melody tweak, timbre
+VARIANTS = {
+    "": {"bpm": 104, "shift": 0, "prog": [0, 1, 2, 3], "bell": 0.0, "swing": 0.0},
+    "harbor": {"bpm": 96, "shift": -5, "prog": [0, 3, 0, 1], "bell": 0.0, "swing": 0.08},
+    "snow": {"bpm": 90, "shift": 2, "prog": [2, 3, 0, 1], "bell": 0.5, "swing": 0.0},
+    "yard": {"bpm": 116, "shift": -3, "prog": [0, 3, 1, 0], "bell": 0.0, "swing": 0.12},
+}
+V = VARIANTS[VARIANT]
+
 SR = 32000
-BPM = 104
+BPM = V["bpm"]
 BEAT = 60.0 / BPM
 BARS = 8
 LEN = int(SR * BEAT * 4 * BARS)
@@ -17,13 +28,16 @@ rng = np.random.default_rng(7)
 
 
 def midi(n):
-    return 440.0 * 2 ** ((n - 69) / 12)
+    return 440.0 * 2 ** ((n + V["shift"] - 69) / 12)
 
 
 def pluck(freq, dur, vol):
     t = np.arange(int(SR * dur)) / SR
     env = np.exp(-t * 9.0) * (1 - np.exp(-t * 400))
     w = np.sin(2 * np.pi * freq * t) + 0.35 * np.sin(4 * np.pi * freq * t) * np.exp(-t * 6) + 0.12 * np.sin(6 * np.pi * freq * t) * np.exp(-t * 14)
+    if V["bell"]:
+        # glassy overtone for the snow world
+        w = w + V["bell"] * np.sin(2 * np.pi * freq * 3.01 * t) * np.exp(-t * 4)
     return vol * env * w
 
 
@@ -61,7 +75,7 @@ mel_a = [72, 76, 79, 76, 74, 79, 74, 71, 72, 76, 81, 76, 77, 72, 69, 72]
 mel_b = [79, 76, 72, 76, 79, 81, 79, 74, 76, 72, 69, 72, 77, 76, 74, 72]
 for bar in range(BARS):
     t0 = bar * 4 * BEAT
-    root, triad = chords[bar % 4]
+    root, triad = chords[V["prog"][bar % 4]]
     put(pad([midi(n) for n in triad], 4 * BEAT, 0.07), t0)
     for b in range(4):
         put(pluck(midi(root), 0.6, 0.30), t0 + b * BEAT)
@@ -72,7 +86,7 @@ for bar in range(BARS):
         n = mel[(bar % 4) * 4 + k]
         put(pluck(midi(n), 0.5, 0.17), t0 + k * BEAT)
         if k % 2 == 1:
-            put(pluck(midi(triad[k % 3] + 12), 0.3, 0.07), t0 + k * BEAT + BEAT / 2)
+            put(pluck(midi(triad[k % 3] + 12), 0.3, 0.07), t0 + k * BEAT + BEAT / 2 + V["swing"] * BEAT)
 
 # fold the tail back into the start so the loop is seamless
 loop = out[:LEN].copy()

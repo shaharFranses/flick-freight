@@ -65,8 +65,17 @@ static func play(n: String, vol_db := 0.0, pitch := 1.0):
 	p.play()
 
 
-static func start_music():
-	if inst and not inst.music.playing:
+## Plays the world's loop (each expansion world has its own; see WORLDS.music).
+static func start_music(path := MUSIC):
+	if inst == null:
+		return
+	if inst.music.stream == null or inst.music.stream.resource_path != path:
+		var m = load(path)
+		if m is AudioStreamOggVorbis:
+			m.loop = true
+		inst.music.stream = m
+		inst.music.play()
+	elif not inst.music.playing:
 		inst.music.play()
 
 
