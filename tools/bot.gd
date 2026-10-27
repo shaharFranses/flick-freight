@@ -1,13 +1,30 @@
 extends SceneTree
-## QA bot. Plays levels by solving throws ballistically (+ optional aim error).
-##   godot --headless -s res://tools/bot.gd -- --levels=1-15 --error=0.0
+## QA bot. Plays levels by solving throws (+ optional aim error).
+##   godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-15 --error=0.0
 ## Prints per-level results; exits non-zero if a level can't be passed by a perfect thrower.
 ## Also used windowed with --write-movie for screenshots/video.
+##
+## Options:
+##   --levels=A-B|all      level range (1-based)
+##   --error=E             aim error (0 = perfect, 0.5 = human-like)
+##   --seed=N              base seed; each level gets its own RNG seeded from (N, level)
+##   --solver=auto|analytic|sim
+##                         auto = analytic for the frozen levels 1-15, sim for everything after
+##   --json=res://...      write per-level results as JSON
+##   --compare=res://...   fail (exit 1) if any level in that JSON gives a different result
+##   --seconds=S, --stay, --verbose, --fresh=0
+
+const FROZEN_LEVELS := 15
 
 var main: Node
 var levels: Array = []
 var li := 0
 var error := 0.0
+var base_seed := 3
+var solver := "auto"
+var json_out := ""
+var compare_path := ""
+var rng := RandomNumberGenerator.new()
 var results: Array = []
 var wait := 0.0
 var level_time := 0.0
@@ -15,6 +32,10 @@ var shots := 0
 var stop_after := -1.0
 var t_total := 0.0
 var stay := false
+var _game_id := 0
+var _broken := 0
+var _candidates := 0
+var _good := 0
 
 
 func _init():
@@ -22,13 +43,17 @@ func _init():
 	for a in OS.get_cmdline_user_args():
 		var p = a.trim_prefix("--").split("=")
 		args[p[0]] = p[1] if p.size() > 1 else "1"
-	var r = args.get("levels", "1-15").split("-")
+	var r = args.get("levels", "1-15").replace("all", "1-%d" % Levels.count()).split("-")
 	for i in range(int(r[0]), int(r[r.size() - 1]) + 1):
 		levels.append(i - 1)
 	error = float(args.get("error", "0"))
 	stop_after = float(args.get("seconds", "-1"))
 	stay = args.has("stay")
-	seed(int(args.get("seed", "3")))
+	base_seed = int(args.get("seed", "3"))
+	solver = args.get("solver", "auto")
+	json_out = args.get("json", "")
+	compare_path = args.get("compare", "")
+	seed(base_seed)
 	if args.get("fresh", "1") == "1":
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveData.PATH))
 	Game.verbose = args.has("verbose")
@@ -45,18 +70,16 @@ func _process(delta: float) -> bool:
 		return false
 	if main.level_index != levels[li]:
 		main.start_level(levels[li])
-		level_time = 0.0
-		shots = 0
 		return false
-	level_time += delta
 	var g: Game = main.game
+	if g.get_instance_id() != _game_id:
+		_begin_level(g)
+	level_time += delta
 	if g.ended:
 		wait += delta
 		if wait > 2.0:
 			wait = 0.0
-			var stars = SaveData.stars(g.level_index)
-			results.append([g.level_index + 1, g.delivered, g.level.cargo.length(), Levels.stars_for(g.level_index, g.delivered), int(level_time)])
-			print("LEVEL %d: loaded %d/%d  stars=%d  time=%ds" % results[-1])
+			_record(g)
 			if stay:
 				return false
 			li += 1
@@ -64,29 +87,95 @@ func _process(delta: float) -> bool:
 				_report()
 				return true
 			main.start_level(levels[li])
-			level_time = 0.0
 		return false
 	if g.can_aim():
 		wait += delta
 		if wait > 0.35:
 			wait = 0.0
-			var p = solve(g)
+			var p = solve(g) if _use_analytic(g) else solve_sim(g)
 			if error > 0:
-				p = p.rotated(randf_range(-error, error) * 0.12) * (1.0 + randf_range(-error, error) * 0.1)
+				p = p.rotated(rng.randf_range(-error, error) * 0.12) * (1.0 + rng.randf_range(-error, error) * 0.1)
 			g.throw_with_pull(p)
 			shots += 1
 	return false
 
 
+## Every level gets its own RNG so results don't depend on which levels ran before
+## (or on random numbers the game itself draws for effects).
+func _begin_level(g: Game):
+	_game_id = g.get_instance_id()
+	rng.seed = hash([base_seed, g.level_index])
+	level_time = 0.0
+	shots = 0
+	wait = 0.0
+	_broken = 0
+	_candidates = 0
+	_good = 0
+	g.cargo_resolved.connect(func(_kind, _ok, reason):
+		if reason == "broken":
+			_broken += 1)
+
+
+func _use_analytic(g: Game) -> bool:
+	if solver == "analytic":
+		return true
+	if solver == "sim":
+		return false
+	return g.level_index < FROZEN_LEVELS
+
+
+func _record(g: Game):
+	var total: int = Levels.cargo_list(g.level_index).size()
+	var stars = Levels.stars_for(g.level_index, g.delivered)
+	var r = {"level": g.level_index + 1, "pass": stars > 0, "stars": stars, "delivered": g.delivered,
+		"missed": total - g.delivered - _broken, "broken": _broken, "total": total}
+	results.append(r)
+	var extra = ""
+	if _candidates > 0:
+		# share of candidate throws (over the whole level) that would have landed in a truck
+		extra = "  sim: %d cands, %.1f%% good" % [_candidates, 100.0 * _good / _candidates]
+	print("LEVEL %d: loaded %d/%d  stars=%d  broken=%d  time=%ds%s" % [r.level, r.delivered, total, stars, _broken, int(level_time), extra])
+	if _candidates > 0 and stars == 3 and float(_good) / _candidates < 0.02:
+		print("  WARNING: level %d needs very precise throws (<2%% of candidates land)" % r.level)
+
+
 func _report():
 	var fails = 0
 	for r in results:
-		if r[3] == 0:
+		if not r.pass:
 			fails += 1
 	print("BOT DONE: %d levels, %d failed" % [results.size(), fails])
-	quit(1 if fails > 0 and error == 0.0 else 0)
+	if json_out != "":
+		var f = FileAccess.open(json_out, FileAccess.WRITE)
+		f.store_string(JSON.stringify({"error": error, "seed": base_seed, "levels": results}, "  ") + "\n")
+		f.close()
+		print("wrote %s" % json_out)
+	var regress = _compare() if compare_path != "" else 0
+	quit(1 if (fails > 0 and error == 0.0) or regress > 0 else 0)
 
 
+func _compare() -> int:
+	var data = JSON.parse_string(FileAccess.get_file_as_string(compare_path))
+	if data == null:
+		print("REGRESSION: cannot read %s" % compare_path)
+		return 1
+	var mine = {}
+	for r in results:
+		mine[int(r.level)] = r
+	var diffs = 0
+	for b in data.levels:
+		var lv = int(b.level)
+		if not mine.has(lv):
+			continue
+		for k in ["pass", "stars", "delivered", "missed", "broken", "total"]:
+			if str(mine[lv][k]) != str(b[k] if typeof(b[k]) != TYPE_FLOAT else int(b[k])):
+				print("REGRESSION: level %d %s = %s, baseline %s" % [lv, k, mine[lv][k], b[k]])
+				diffs += 1
+	print("REGRESSION GATE: %s (%d differences vs %s)" % ["PASS" if diffs == 0 else "FAIL", diffs, compare_path])
+	return diffs
+
+
+## Analytic solver, kept unchanged for levels 1-15 so the regression baseline stays identical.
 ## Search pull vectors, simulate the arc, and pick the one whose landing point
 ## is closest to the bed centre at the moment of landing.
 func solve(g: Game) -> Vector2:
@@ -138,5 +227,26 @@ func solve(g: Game) -> Vector2:
 			err += v.length() * 0.01
 			if err < best_err:
 				best_err = err
+				best = pull
+	return best
+
+
+# ======================================================================= simulation solver
+## Search solver for levels 16+. Samples a grid of (angle, power), steps each throw
+## frame by frame through a model of the level (wind, obstacles, truck motion and
+## walls; later mechanics plug in via BotSim) and scores where it ends up.
+func solve_sim(g: Game) -> Vector2:
+	var sim = BotSim.new(g)
+	var best = Vector2(100, -100)
+	var best_score = INF
+	for ang in range(-6, 84, 2):
+		for ln in range(40, int(Game.MAX_PULL) + 1, 3):
+			var pull = Vector2(cos(deg_to_rad(ang)), -sin(deg_to_rad(ang))) * ln
+			var s = sim.score(pull)
+			_candidates += 1
+			if sim.last_dist < BotSim.GOOD:
+				_good += 1
+			if s < best_score:
+				best_score = s
 				best = pull
 	return best

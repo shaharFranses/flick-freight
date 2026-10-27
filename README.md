@@ -30,7 +30,10 @@ scripts/
   save_data.gd   user:// persistence
   sfx.gd, fx.gd  audio + particles
 tools/
-  bot.gd         QA bot: solves throws ballistically, plays every level
+  bot.gd         QA bot: plays levels (analytic solver for 1-15, search solver after)
+  bot_sim.gd     throw model for the search solver
+  frozen_check.gd  hash check that levels 1-15 never change
+  baseline_v2_*.json  regression baselines for levels 1-15
   cover.gd       renders the CrazyGames cover images
   make_music.py  synthesizes the music loop
 art/v2/          Kenney CC0 art + Fredoka (OFL) — see art/v2/CREDITS.md
@@ -44,9 +47,28 @@ godot --headless --import
 godot --headless --export-release "Web" export/index.html     # single-threaded web build
 
 # play every level with perfect aim (exit 1 if any level can't be passed)
-godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-15 --error=0
+godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=all --error=0
 # simulate a human (aim error)
-godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-15 --error=0.5
+godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=all --error=0.5
+```
+
+### Guardrails (run by CI on every branch, see `docs/EXPANSION_PLAN.md`)
+
+Levels 1–15 and the mechanics they use are frozen. Three checks enforce it:
+
+```bash
+# levels 1-15 data unchanged (hash in tools/frozen_levels.sha256)
+godot --headless -s res://tools/frozen_check.gd
+# regression gate: levels 1-15 must give exactly the baseline results
+# (always run the full 1-15 range: physics stacking makes single levels differ)
+godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-15 --error=0   --compare=res://tools/baseline_v2_e0.json
+godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-15 --error=0.5 --compare=res://tools/baseline_v2_e05.json
+```
+
+The bot uses the original analytic solver for levels 1–15 and a search solver
+(`tools/bot_sim.gd`, `--solver=sim`) for later levels. The search solver steps every
+candidate throw through a model of the level and reports how many candidates land.
+`--json=res://out.json` writes per-level results (regenerate a baseline only on purpose).
 
 # covers (needs a display, e.g. xvfb-run)
 godot --rendering-driver opengl3 -s res://tools/cover.gd -- --out=marketing/covers
