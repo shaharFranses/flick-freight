@@ -32,7 +32,13 @@ var level: Dictionary
 var queue: Array = []
 var current: Cargo = null
 var current_ready := false
-var truck: Truck = null
+var slots: Array = []  # truck configs: [level.truck], or level.trucks (M9 levels)
+var trucks: Array = []  # current truck per slot (null while the next one is on its way)
+## The first slot's truck: the only one on single-truck levels.
+var truck: Truck:
+	get:
+		return trucks[0] if not trucks.is_empty() else null
+var pads: Array = []  # M8: [{node, n, power, squash}]
 var truck_count := 0
 var delivered := 0
 var thrown := 0
@@ -64,11 +70,18 @@ func setup(index: int):
 	queue = Levels.cargo_list(index)
 	wind = level.get("wind", 0.0)
 	cap = level.get("cap", 99)
+	slots = level.trucks if level.has("trucks") else [level.truck]
+	trucks.resize(slots.size())
+	trucks.fill(null)
 	world = self
 	_build_background()
 	_build_road()
+	if level.has("water"):
+		_build_water()
 	_build_dock()
 	_build_blocks()
+	if level.has("pads"):
+		_build_pads()
 	if wind != 0.0:
 		_build_flag()
 		_build_wind_fx()
@@ -85,7 +98,8 @@ func setup(index: int):
 
 
 func start():
-	_new_truck()
+	for i in slots.size():
+		_new_truck(i)
 	get_tree().create_timer(0.35, false).timeout.connect(spawn_next)
 	queue_changed.emit(remaining_types())
 	progress_changed.emit(delivered, queue.size())
@@ -101,6 +115,12 @@ func _static_node() -> Node2D:
 
 func _build_background():
 	var w = Levels.world_of(level_index)
+	if w.has("backdrop"):
+		var bd = _static_node()
+		bd.z_index = -20
+		bd.draw.connect(Backdrops.draw.bind(bd, w.backdrop))
+		_build_clouds()
+		return
 	var bg = Sprite2D.new()
 	bg.texture = load(w.bg)
 	bg.centered = false
@@ -109,6 +129,10 @@ func _build_background():
 	bg.z_index = -20
 	bg.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	add_child(bg)
+	_build_clouds()
+
+
+func _build_clouds():
 	var ctex = load("res://art/v2/bg/clouds.png")
 	for i in 2:
 		var c = Sprite2D.new()
@@ -280,6 +304,100 @@ func _build_blocks():
 		v.draw.connect(_draw_girder.bind(v, r))
 
 
+# ======================================================================= M8 bounce pads
+const PAD_W := 120.0
+const PAD_H := 30.0
+
+
+## level.pads: [[x, y, angle_deg, power]]. (x, y) = middle of the spring plate's face,
+## angle 0 = facing straight up, +90 = facing right. power = restitution (1 = elastic).
+func _build_pads():
+	for d in level.pads:
+		var a = Area2D.new()
+		a.position = Vector2(d[0], d[1])
+		a.rotation = deg_to_rad(d[2])
+		a.add_to_group("pad")
+		var cs = CollisionShape2D.new()
+		var rs = RectangleShape2D.new()
+		rs.size = Vector2(PAD_W, PAD_H)
+		cs.shape = rs
+		cs.position = Vector2(0, PAD_H * 0.5 - 6)  # face sits 6 px into the area
+		a.add_child(cs)
+		add_child(a)
+		var vis = Node2D.new()
+		vis.z_index = 1
+		vis.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+		a.add_child(vis)
+		var pd = {"node": a, "vis": vis, "n": Vector2.UP.rotated(a.rotation), "power": float(d[3]), "squash": 0.0}
+		vis.draw.connect(_draw_pad.bind(pd))
+		a.body_entered.connect(_on_pad_body.bind(pd))
+		pads.append(pd)
+
+
+func _on_pad_body(body: Node, pd: Dictionary):
+	if body is Cargo and body.bounce_off(pd.n, pd.power):
+		pd.squash = 1.0
+		Sfx.play("boing", -4.0, randf_range(0.95, 1.1))
+
+
+## Does a cargo centred at p (half extent `half` along the normal) touch the pad's face?
+func pad_contact(pd: Dictionary, p: Vector2, half: float) -> bool:
+	var a: Area2D = pd.node
+	var l = (p - a.position).rotated(-a.rotation)
+	return abs(l.x) < PAD_W * 0.5 + half * 0.5 and l.y > -half - 6 and l.y < PAD_H
+
+
+func _draw_pad(pd: Dictionary):
+	var n: Node2D = pd.vis
+	var sq = sin(pd.squash * PI) * 10.0
+	var w = PAD_W
+	var outline = Color("#1B2A41")
+	# base on the ground
+	n.draw_rect(Rect2(-w * 0.5 - 2, PAD_H - 12, w + 4, 14), outline)
+	n.draw_rect(Rect2(-w * 0.5, PAD_H - 10, w, 10), Color("#5B6574"))
+	# two coil springs (pushed down by `sq` on a hit)
+	var top = sq + 6.0
+	for sx in [-w * 0.27, w * 0.27]:
+		var pts = PackedVector2Array()
+		for k in 7:
+			pts.append(Vector2(sx + (-12 if k % 2 == 0 else 12), lerp(PAD_H - 10.0, top, k / 6.0)))
+		n.draw_polyline(pts, outline, 9.0)
+		n.draw_polyline(pts, Color("#D3D8DF"), 5.0)
+	# plate: its face sits at y = 0
+	var plate = Rect2(-w * 0.5, top - 14, w, 14)
+	n.draw_rect(plate.grow(2), outline)
+	n.draw_rect(plate, Color("#FF6B57"))
+	n.draw_rect(Rect2(plate.position, Vector2(w, 4)), Color("#FFC2B8"))
+	var x = plate.position.x + 8
+	while x < plate.end.x - 14:  # yellow chevrons
+		n.draw_colored_polygon(PackedVector2Array([Vector2(x, plate.end.y - 3), Vector2(x + 7, plate.position.y + 5),
+			Vector2(x + 14, plate.end.y - 3)]), Color("#FFD34E"))
+		x += 22.0
+
+
+# ======================================================================= M10 harbor water
+## level.water: [x0, x1] stretch of road that is open water (ferry levels). Cargo that
+## lands there splashes. Physics is the same as the road (it's a miss either way).
+func _build_water():
+	var n = _static_node()
+	n.z_index = -9
+	var w = level.water
+	n.draw.connect(func():
+		n.draw_rect(Rect2(w[0], ROAD_Y - 18, w[1] - w[0], 140), Color("#2B6CB0"))
+		n.draw_rect(Rect2(w[0], ROAD_Y - 18, w[1] - w[0], 8), Color("#63A4E8"))
+		var x = w[0] + 10.0
+		while x < w[1] - 30:
+			n.draw_line(Vector2(x, ROAD_Y + 30), Vector2(x + 26, ROAD_Y + 30), Color(1, 1, 1, 0.35), 3.0)
+			x += 70.0
+		# quay edges
+		n.draw_rect(Rect2(w[0] - 10, ROAD_Y - 18, 10, 120), Color("#5B6170"))
+		n.draw_rect(Rect2(w[1], ROAD_Y - 18, 10, 120), Color("#5B6170")))
+
+
+func in_water(p: Vector2) -> bool:
+	return level.has("water") and p.x > level.water[0] and p.x < level.water[1]
+
+
 func _draw_girder(n: Node2D, r: Rect2):
 	var steel = Color("#AAB4BF")
 	var dark = Color("#7D8894")
@@ -378,34 +496,71 @@ func _draw_wind_fx():
 
 
 # ======================================================================= trucks
-func _new_truck():
-	truck = Truck.new()
-	truck.setup(level.truck, level_index + truck_count, level.truck.get("wall", 52))
-	truck.position = Vector2(1560, ROAD_Y - Truck.FLOOR_T - 18 - Truck.WHEEL_R)
-	add_child(truck)
+func _new_truck(slot: int):
+	var cfg: Dictionary = slots[slot]
+	var t = Truck.new()
+	t.setup(cfg, level_index + truck_count, cfg.get("wall", 52))
+	t.position = Vector2(1560, ROAD_Y - Truck.FLOOR_T - 18 - Truck.WHEEL_R)
+	if slot > 0:
+		t.z_index = -slot  # far trucks behind near ones while driving in
+	add_child(t)
+	trucks[slot] = t
 	truck_count += 1
-	truck.departed.connect(_on_truck_departed)
-	truck.arrive()
+	t.departed.connect(_on_truck_departed.bind(slot))
+	t.arrive()
 
 
-func _on_truck_departed():
-	truck = null
+func _on_truck_departed(slot: int):
+	trucks[slot] = null
 	if not ended and work_left() > 0:
-		_new_truck()
+		_new_truck(slot)
+
+
+func live_trucks() -> Array:
+	var out: Array = []
+	for t in trucks:
+		if t != null and is_instance_valid(t):
+			out.append(t)
+	return out
+
+
+func truck_of(c: Cargo) -> Truck:
+	for t in live_trucks():
+		if t.contains_point(c.global_position):
+			return t
+	return null
 
 
 func truck_contains(c: Cargo) -> bool:
-	return truck != null and is_instance_valid(truck) and truck.contains_point(c.global_position)
+	return truck_of(c) != null
 
 
 func carrier_velocity(c: Cargo) -> Vector2:
 	# anything resting on the truck (bed, tailgate top, ...) moves with it
-	if truck != null and is_instance_valid(truck) and truck.on_vehicle(c.global_position):
-		return Vector2(truck.velocity_x, 0)
+	for t in live_trucks():
+		if t.on_vehicle(c.global_position):
+			return t.point_velocity(c.global_position)
 	return Vector2.ZERO
 
 
 # ======================================================================= cargo flow
+## M9: colour of the i-th cargo of the level (-1 = any truck).
+func cargo_color(i: int) -> int:
+	var cols: String = level.get("colors", "")
+	if i < 0 or i >= cols.length() or not cols[i].is_valid_int():
+		return -1
+	return int(cols[i])
+
+
+## Colours of the cargo still to throw, matching remaining_types().
+func remaining_colors() -> Array:
+	var out: Array = []
+	var first = level.cargo.length() - queue.size() - (1 if current else 0)
+	for i in range(first, level.cargo.length()):
+		out.append(cargo_color(i))
+	return out
+
+
 func remaining_types() -> Array:
 	var out: Array = []
 	if current:
@@ -423,7 +578,7 @@ func spawn_next():
 		return
 	var kind: String = queue.pop_front()
 	var c = Cargo.new()
-	c.setup(kind, self)
+	c.setup(kind, self, cargo_color(level.cargo.length() - queue.size() - 1))
 	cargo_root.add_child(c)
 	rest_pos = Vector2(FLICK_X, DOCK_TOP - c.half_height())
 	c.global_position = Vector2(-50, rest_pos.y)
@@ -438,7 +593,12 @@ func spawn_next():
 
 
 func can_aim() -> bool:
-	return not ended and current != null and current_ready and truck != null and truck.is_parked()
+	if ended or current == null or not current_ready:
+		return false
+	for t in live_trucks():
+		if t.is_parked():
+			return true
+	return false
 
 
 func launch_velocity(p: Vector2) -> Vector2:
@@ -521,9 +681,16 @@ func _on_resolved(c: Cargo, ok: bool, reason: String):
 	cargo_resolved.emit(c.kind, ok, reason)
 	if verbose:
 		print("  cargo %s -> %s (%s) at %s" % [c.kind, "IN" if ok else "out", reason, c.global_position.round()])
-	if ok and truck and is_instance_valid(truck):
+	var t: Truck = truck_of(c) if ok else null
+	if t and c.color >= 0 and t.color >= 0 and c.color != t.color:
+		# M9: wrong truck. It stays in there as dead weight, taking up room.
+		t.add_load(c)
+		popup.emit("WRONG TRUCK!", c.global_position + Vector2(0, -50), C_BAD, 40)
+		Sfx.play("fail", -4.0)
+		_check_full(t)
+	elif t:
 		delivered += 1
-		truck.add_load(c)
+		t.add_load(c)
 		var top = c.global_position + Vector2(0, -50)
 		if not c.touched_wall:
 			popup.emit("SWISH!", top, C_GOLD, 46)
@@ -531,17 +698,17 @@ func _on_resolved(c: Cargo, ok: bool, reason: String):
 			popup.emit("+1", top, C_GOOD, 46)
 		Fx.delivered(fx_root, c.global_position)
 		Sfx.play("deliver", -5.0, 1.0 + 0.05 * min(delivered, 8))
-		if truck.load_count() >= cap and work_left() > 0:
-			var t = truck
-			get_tree().create_timer(0.45, false).timeout.connect(func():
-				if is_instance_valid(t) and t.state == "parked":
-					popup.emit("TRUCK FULL!", t.top_center() + Vector2(0, -40), C_GOLD, 40)
-					t.leave())
+		_check_full(t)
 	else:
 		var p = c.global_position
 		p.x = clamp(p.x, 80, 1200)
 		p.y = clamp(p.y - 40, 160, ROAD_Y - 40)
-		if reason == "broken":
+		if reason == "road" and in_water(c.global_position):
+			popup.emit("SPLASH!", p, C_BAD, 38)
+			Fx.splash(fx_root, Vector2(c.global_position.x, ROAD_Y - 10))
+			Sfx.play("splash", -4.0)
+			c.queue_free()
+		elif reason == "broken":
 			popup.emit("BROKEN!", p, C_BAD, 42)
 			Fx.shatter(fx_root, c.global_position, Color("#F2C23B"))
 			Sfx.play("break", -2.0)
@@ -552,6 +719,14 @@ func _on_resolved(c: Cargo, ok: bool, reason: String):
 			c.fade_out()
 	progress_changed.emit(delivered, work_left())
 	_check_end()
+
+
+func _check_full(t: Truck):
+	if t.load_count() >= cap and work_left() > 0:
+		get_tree().create_timer(0.45, false).timeout.connect(func():
+			if is_instance_valid(t) and t.state == "parked":
+				popup.emit("TRUCK FULL!", t.top_center() + Vector2(0, -40), C_GOLD, 40)
+				t.leave())
 
 
 func on_heavy_impact(pos: Vector2, impact: float):
@@ -599,6 +774,10 @@ func _process(delta: float):
 		beacon.modulate = Color(1, 1, 1, 1) if not on else Color(1.0, 1.0 + 0.25 * sin(_time * 10.0), 1.0, 1.0)
 	if flag:
 		flag.queue_redraw()
+	for pd in pads:
+		if pd.squash > 0:
+			pd.squash = max(0.0, pd.squash - delta * 4.0)
+			pd.vis.queue_redraw()
 
 
 func _draw_aim():
@@ -617,11 +796,16 @@ func _draw_aim():
 	var blocks: Array = []
 	for b in level.get("blocks", []):
 		blocks.append(Rect2(b[0], b[1], b[2], b[3]))
+	var pad_hit := {}
 	while t < t_max:
 		v += acc * dt
 		p += v * dt
 		t += dt
 		i += 1
+		for pd in pads:
+			if not pad_hit.has(pd) and pad_contact(pd, p, 30.0) and v.dot(pd.n) < 0:
+				v -= (1.0 + pd.power) * v.dot(pd.n) * pd.n
+				pad_hit[pd] = true
 		if p.y > ROAD_Y:
 			break
 		var hit = false

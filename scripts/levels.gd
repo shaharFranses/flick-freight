@@ -10,11 +10,22 @@ extends RefCounted
 ## blocks : static obstacles [x, y, w, h] in world pixels (y = top edge)
 ## guide  : fraction of the aim arc shown (1 = whole arc)
 ## intro  : banner shown the first time a mechanic appears
+##
+## Expansion keys (all optional; a missing key = mechanic off, see docs/EXPANSION_PLAN.md):
+## pads   : M8 bounce pads [x, y, angle_deg, power]. (x, y) = middle of the spring face,
+##          angle 0 = facing up, 90 = facing right; power = restitution (1 = elastic, >1 = boost)
+## trucks : M9 several trucks at once, instead of "truck": [{x, amp, period, wall, color, ferry}]
+##          color = 0 red/circle, 1 blue/triangle, 2 yellow/square (cargo of another colour = miss,
+##          and it stays in that truck as dead weight)
+## colors : M9 one digit per cargo letter, the colour of each cargo ("-" = any truck)
+## ferry  : M10 inside a truck: {amp_y (px), amp_rot (deg), period (s)}; the truck bobs on a ferry
+## water  : M10 [x0, x1] stretch of open water where the road would be (cargo there splashes)
 
 const WORLDS = [
 	{"name": "TOWN", "bg": "res://art/v2/bg/bg_town.png", "tint": Color(1, 1, 1)},
 	{"name": "WOODS", "bg": "res://art/v2/bg/bg_woods.png", "tint": Color(1, 1, 1)},
 	{"name": "DESERT", "bg": "res://art/v2/bg/bg_desert.png", "tint": Color(1, 1, 1)},
+	{"name": "HARBOR", "backdrop": "harbor", "tint": Color(1, 1, 1)},
 ]
 
 const DATA = [
@@ -67,6 +78,52 @@ const DATA = [
 		"truck": {"x": 900, "amp": 170, "period": 3.4, "wall": 64}, "cap": 3, "guide": 0.3, "wind": 180,
 		"blocks": [[560, 380, 56, 245]],
 		"intro": {"title": "FINAL RUN", "text": "Everything at once. Good luck, driver!"}},
+	# ---------------- HARBOR ----------------
+	{"world": 3, "cargo": "bbbbbb", "goal": 3, "s2": 5,
+		"truck": {"x": 980, "amp": 0, "period": 4.0, "wall": 52}, "cap": 6, "guide": 0.9,
+		"blocks": [[380, 300, 420, 36]],
+		"pads": [[560, 579, 4, 1.1]],
+		"intro": {"title": "BOUNCE PAD", "text": "Throw low under the beam and bounce it in!"}},
+	{"world": 3, "cargo": "bbcbbcb", "goal": 4, "s2": 5,
+		"truck": {"x": 1000, "amp": 0, "period": 4.0, "wall": 56}, "cap": 4, "guide": 0.6,
+		"blocks": [[460, -100, 56, 440]],
+		"pads": [[560, 579, 4, 1.1]],
+		"intro": {"title": "BANK SHOT", "text": "Sneak under the pillar, then off the pad."}},
+	{"world": 3, "cargo": "bfbbfbf", "goal": 4, "s2": 6,
+		"truck": {"x": 980, "amp": 0, "period": 4.0, "wall": 56}, "cap": 4, "guide": 0.55, "wind": -120,
+		"blocks": [[380, 300, 420, 36]],
+		"pads": [[560, 579, 4, 1.1]]},
+	{"world": 3, "cargo": "bbbbbbbb", "colors": "01011010", "goal": 5, "s2": 7,
+		"trucks": [{"x": 560, "amp": 0, "period": 4.0, "wall": 52, "color": 0},
+			{"x": 1010, "amp": 0, "period": 4.0, "wall": 52, "color": 1}], "cap": 4, "guide": 0.7,
+		"intro": {"title": "COLOR TRUCKS", "text": "Match the cargo's colour and shape to the truck."}},
+	{"world": 3, "cargo": "bbbbbbbb", "colors": "10100101", "goal": 5, "s2": 7,
+		"trucks": [{"x": 560, "amp": 0, "period": 4.0, "wall": 52, "color": 0},
+			{"x": 1000, "amp": 90, "period": 4.6, "wall": 56, "color": 1}], "cap": 4, "guide": 0.55},
+	{"world": 3, "cargo": "bcbcbcbc", "colors": "01100110", "goal": 4, "s2": 6,
+		"trucks": [{"x": 560, "amp": 0, "period": 4.0, "wall": 80, "color": 1},
+			{"x": 1010, "amp": 0, "period": 4.0, "wall": 56, "color": 2}], "cap": 4, "guide": 0.5},
+	{"world": 3, "cargo": "bbbbbb", "goal": 3, "s2": 5,
+		"truck": {"x": 960, "amp": 0, "period": 4.0, "wall": 56,
+			"ferry": {"amp_y": 14, "amp_rot": 3.0, "period": 3.2}}, "cap": 6, "guide": 0.6,
+		"water": [700, 1300],
+		"intro": {"title": "FERRY", "text": "The truck rides the waves. Time your throw!"}},
+	{"world": 3, "cargo": "brbfrbfr", "goal": 4, "s2": 6,
+		"truck": {"x": 960, "amp": 0, "period": 4.0, "wall": 60,
+			"ferry": {"amp_y": 16, "amp_rot": 4.0, "period": 2.8}}, "cap": 4, "guide": 0.5,
+		"water": [700, 1300]},
+	{"world": 3, "cargo": "bbcbbbcb", "colors": "01101001", "goal": 5, "s2": 7,
+		"trucks": [{"x": 500, "amp": 40, "period": 4.2, "wall": 52, "color": 0},
+			{"x": 1030, "amp": 0, "period": 4.0, "wall": 56, "color": 1,
+				"ferry": {"amp_y": 14, "amp_rot": 3.0, "period": 3.0}}], "cap": 4, "guide": 0.45,
+		"water": [830, 1300]},
+	{"world": 3, "cargo": "bcbfbcbbfb", "colors": "0110100110", "goal": 6, "s2": 8,
+		"trucks": [{"x": 470, "amp": 0, "period": 4.0, "wall": 56, "color": 0},
+			{"x": 1070, "amp": 0, "period": 4.0, "wall": 56, "color": 1,
+				"ferry": {"amp_y": 14, "amp_rot": 3.0, "period": 3.0}}], "cap": 5, "guide": 0.4, "wind": 140,
+		"pads": [[815, 579, -8, 1.1]],
+		"water": [880, 1300],
+		"intro": {"title": "HARBOR RUN", "text": "Pads, colours and ferries. Show the harbor how it's done!"}},
 ]
 
 const LETTER = {"b": "box", "c": "crate", "r": "barrel", "f": "fragile"}
@@ -97,6 +154,14 @@ static func stars_for(i: int, delivered: int) -> int:
 	if delivered >= lv.goal:
 		return 1
 	return 0
+
+
+static func levels_in_world(w: int) -> Array:
+	var out: Array = []
+	for i in DATA.size():
+		if DATA[i].world == w:
+			out.append(i)
+	return out
 
 
 static func world_of(i: int) -> Dictionary:

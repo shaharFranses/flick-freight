@@ -1,7 +1,7 @@
 # Flick Freight
 
 A physics loading game for the web (Godot 4.3). Drag back and release to throw cargo
-from the loading dock into the truck. 15 levels across 3 worlds, 1–3 stars each.
+from the loading dock into the truck. 25 levels across 4 worlds, 1–3 stars each.
 
 ![cover](marketing/covers/cover_landscape_1920x1080.png)
 
@@ -13,6 +13,9 @@ from the loading dock into the truck. 15 levels across 3 worlds, 1–3 stars eac
 - **Trucks** leave when full and a new one drives in.
 - **Mechanics** (introduced one at a time): moving trucks, heavy crates (need more power),
   barrels (tip over), fragile cargo (breaks on walls/road), pillars and low beams, wind, tall tailgates.
+- **Harbor (world 4):** bounce pads (bank shots; a pad never breaks fragile cargo), colour-coded
+  trucks (colour + shape; cargo in the wrong truck is a miss and stays as dead weight), and trucks
+  bobbing on ferries. Each world is a page in level select; a world opens once the previous one is done.
 - Progress (stars, mute, tutorial) is saved locally. New players land straight in level 1.
 
 ## Project layout
@@ -23,7 +26,8 @@ scripts/
   game.gd        one level: scene build, cargo queue, aiming, scoring
   truck.gd       side-view truck (code-drawn), motion, carried cargo
   cargo.gd       cargo physics + resolve (delivered / missed / broken)
-  levels.gd      ALL level data (add a level = add a dictionary)
+  levels.gd      ALL level data (add a level = add a dictionary; keys documented at the top)
+  backdrops.gd   code-drawn backgrounds for Harbor and later worlds
   hud.gd         top bar, banners, pop-ups, tutorial
   screens.gd     pause, results (stars), level select
   ui_theme.gd    shared theme (Fredoka font, buttons, cards)
@@ -36,6 +40,7 @@ tools/
   baseline_v2_*.json  regression baselines for levels 1-15
   cover.gd       renders the CrazyGames cover images
   make_music.py  synthesizes the music loop
+  make_sfx.py    synthesizes boing / splash / pop
 art/v2/          Kenney CC0 art + Fredoka (OFL) — see art/v2/CREDITS.md
 marketing/covers 1920x1080, 800x1200, 800x800 covers for portal submission
 ```
@@ -73,5 +78,7 @@ candidate throw through a model of the level and reports how many candidates lan
 # covers (needs a display, e.g. xvfb-run)
 godot --rendering-driver opengl3 -s res://tools/cover.gd -- --out=marketing/covers
 ```
+
+Screenshots (needs a display): `xvfb-run -a godot --rendering-driver opengl3 -s res://tools/bot.gd -- --levels=16 --snap=shot.png --snap_at=5`
 
 `?level=N` in the URL (or `-- --level=N` on the command line) jumps to a level for testing.

@@ -12,6 +12,7 @@ extends SceneTree
 ##                         auto = analytic for the frozen levels 1-15, sim for everything after
 ##   --json=res://...      write per-level results as JSON
 ##   --compare=res://...   fail (exit 1) if any level in that JSON gives a different result
+##   --snap=path.png --snap_at=S   save a screenshot after S seconds (needs a display, e.g. xvfb-run)
 ##   --seconds=S, --stay, --verbose, --fresh=0
 
 const FROZEN_LEVELS := 15
@@ -32,6 +33,8 @@ var shots := 0
 var stop_after := -1.0
 var t_total := 0.0
 var stay := false
+var snap := ""
+var snap_at := 0.0
 var _game_id := 0
 var _broken := 0
 var _candidates := 0
@@ -49,6 +52,8 @@ func _init():
 	error = float(args.get("error", "0"))
 	stop_after = float(args.get("seconds", "-1"))
 	stay = args.has("stay")
+	snap = args.get("snap", "")
+	snap_at = float(args.get("snap_at", "3"))
 	base_seed = int(args.get("seed", "3"))
 	solver = args.get("solver", "auto")
 	json_out = args.get("json", "")
@@ -63,6 +68,10 @@ func _init():
 
 func _process(delta: float) -> bool:
 	t_total += delta
+	if snap != "" and t_total >= snap_at:
+		root.get_texture().get_image().save_png(snap)
+		print("snap: %s" % snap)
+		snap = ""
 	if stop_after > 0 and t_total > stop_after:
 		quit(0)
 		return true

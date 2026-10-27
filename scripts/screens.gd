@@ -172,7 +172,7 @@ func show_levels(can_close: bool):
 	d.color = Color(NAVY, 0.88)
 	var v = VBoxContainer.new()
 	v.add_theme_constant_override("separation", 14)
-	v.position = Vector2(140, 40)
+	v.position = Vector2(140, 28)
 	v.custom_minimum_size = Vector2(1000, 0)
 	d.add_child(v)
 	var head = HBoxContainer.new()
@@ -192,28 +192,78 @@ func show_levels(can_close: bool):
 	st.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	head.add_child(st)
 	v.add_child(head)
-	var per_world = {}
-	for i in Levels.count():
-		var w = Levels.get_level(i).world
-		if not per_world.has(w):
-			per_world[w] = []
-		per_world[w].append(i)
-	for w in per_world.keys():
-		var row = HBoxContainer.new()
-		row.add_theme_constant_override("separation", 14)
-		var wl = Label.new()
-		wl.text = Levels.WORLDS[w].name
-		wl.custom_minimum_size = Vector2(150, 0)
-		wl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		wl.add_theme_font_size_override("font_size", 28)
-		wl.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
-		row.add_child(wl)
-		for i in per_world[w]:
-			row.add_child(_level_tile(i))
-		v.add_child(row)
+	var page = VBoxContainer.new()
+	page.add_theme_constant_override("separation", 16)
+	v.add_child(page)
+	_levels_page = page
+	_fill_world_page(Levels.get_level(get_parent().level_index).world)  # open on the current world
 	if can_close:
 		var back = _button("BACK", func(): close_levels.emit(), "SecondaryButton")
 		v.add_child(_row([back]))
+
+
+var _levels_page: VBoxContainer
+
+
+## One world per page (arrows to flip). A world opens once the previous one is complete.
+func _fill_world_page(w: int):
+	for c in _levels_page.get_children():
+		c.queue_free()
+	var ids = Levels.levels_in_world(w)
+	var nav = HBoxContainer.new()
+	nav.alignment = BoxContainer.ALIGNMENT_CENTER
+	nav.add_theme_constant_override("separation", 24)
+	var prev = _arrow_button(true)
+	prev.disabled = w == 0
+	prev.pressed.connect(func():
+		Sfx.play("click")
+		_fill_world_page(w - 1))
+	nav.add_child(prev)
+	var name_box = VBoxContainer.new()
+	name_box.custom_minimum_size = Vector2(420, 0)
+	name_box.add_theme_constant_override("separation", -6)
+	var wl = _title(Levels.WORLDS[w].name, 44, Color.WHITE)
+	name_box.add_child(wl)
+	var got = 0
+	for i in ids:
+		got += SaveData.stars(i)
+	var sl = _title("WORLD %d   %d / %d STARS" % [w + 1, got, ids.size() * 3], 22, GOLD)
+	name_box.add_child(sl)
+	nav.add_child(name_box)
+	var nxt = _arrow_button(false)
+	nxt.disabled = w >= Levels.WORLDS.size() - 1 or Levels.levels_in_world(w + 1).is_empty()
+	nxt.pressed.connect(func():
+		Sfx.play("click")
+		_fill_world_page(w + 1))
+	nav.add_child(nxt)
+	_levels_page.add_child(nav)
+	var grid = GridContainer.new()
+	grid.columns = 5
+	grid.add_theme_constant_override("h_separation", 18)
+	grid.add_theme_constant_override("v_separation", 18)
+	var center = CenterContainer.new()
+	center.add_child(grid)
+	_levels_page.add_child(center)
+	for i in ids:
+		grid.add_child(_level_tile(i))
+	if not ids.is_empty() and not SaveData.unlocked(ids[0]) and w > 0:
+		_levels_page.add_child(_title("Finish %s to unlock" % Levels.WORLDS[w - 1].name, 26, Color(1, 1, 1, 0.75)))
+
+
+func _arrow_button(left: bool) -> Button:
+	var b = Button.new()
+	b.icon = load("res://art/v2/icons/right.png")
+	b.expand_icon = true
+	b.custom_minimum_size = Vector2(76, 76)
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_constant_override("icon_max_width", 44)
+	b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	b.theme_type_variation = "IconButton"
+	if left:
+		var img: Image = b.icon.get_image()
+		img.flip_x()
+		b.icon = ImageTexture.create_from_image(img)
+	return b
 
 
 func _level_tile(i: int) -> Button:

@@ -66,3 +66,8 @@ static func ring(parent: Node, pos: Vector2, color: Color, size := 1.2):
 	tw.tween_property(s, "scale", Vector2.ONE * size, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_property(s, "modulate:a", 0.0, 0.35)
 	tw.chain().tween_callback(s.queue_free)
+
+
+static func splash(parent: Node, pos: Vector2):
+	burst(parent, pos, TEX_RING, Color("#BFE7F7"), 14, 420.0, 0.7, 0.18, 1100.0, 35.0, Vector2.UP)
+	ring(parent, pos, Color("#BFE7F7"), 1.0)
