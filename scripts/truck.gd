@@ -37,6 +37,7 @@ var loads: Array = []  # [{"cargo": Cargo, "offset": Vector2, "rot": float}]
 var ferry: Dictionary = {}  # M10: {amp_y, amp_rot (deg), period}; empty = on the road
 var icy := false  # M11: icy bed, everything slides
 var height_limit := 0.0  # M14: bridge line above the bed (0 = none)
+var glue := true  # false: delivered cargo stays physical (see Game.GLUE_LOADS)
 
 var _t := 0.0
 var _anim_t := 0.0
@@ -264,6 +265,14 @@ func arrive():
 
 
 func leave():
+	# whatever is aboard is strapped down for the drive out
+	for l in loads:
+		if is_instance_valid(l.cargo) and not l.cargo.freeze:
+			_glue(l.cargo)
+			l.offset = l.cargo.global_position - global_position
+			l.rot = l.cargo.rotation
+			l.local = to_local(l.cargo.global_position)
+			l.lrot = l.cargo.rotation - rotation
 	state = "leaving"
 	_from_x = position.x
 	_to_x = 1700.0
@@ -311,7 +320,7 @@ func _physics_process(delta: float):
 	# carried cargo follows the truck
 	for l in loads:
 		var c: Cargo = l.cargo
-		if is_instance_valid(c):
+		if is_instance_valid(c) and c.freeze:
 			if ferry.is_empty():
 				c.global_position = global_position + l.offset
 				c.rotation = l.rot
@@ -375,12 +384,17 @@ func on_vehicle(p: Vector2) -> bool:
 
 
 func add_load(c: Cargo, counted := true):
-	c.freeze = true
-	c.linear_velocity = Vector2.ZERO
-	c.angular_velocity = 0.0
+	if glue:
+		_glue(c)
 	loads.append({"cargo": c, "offset": c.global_position - global_position, "rot": c.rotation,
 		"local": to_local(c.global_position), "lrot": c.rotation - rotation, "counted": counted})
 	bump()
+
+
+func _glue(c: Cargo):
+	c.freeze = true
+	c.linear_velocity = Vector2.ZERO
+	c.angular_velocity = 0.0
 
 
 ## Take a carried cargo back out (M15 pop). Returns whether it was counted as delivered.
