@@ -11,6 +11,8 @@ const SCRIPTS = {
 	"dump": "res://scripts/vehicle_dump.gd",  # V5
 	"flatbed": "res://scripts/vehicle_flatbed.gd",  # V6
 	"flatcar": "res://scripts/vehicle_flatcar.gd",  # V7
+	"heli": "res://scripts/vehicle_heli.gd",  # V8
+	"balloon": "res://scripts/vehicle_balloon.gd",  # V9
 }
 
 

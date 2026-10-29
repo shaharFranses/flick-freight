@@ -1,4 +1,4 @@
-"""Synthesizes the self-made sound effects (CC0): boing (bounce pad), splash, pop (gas canister).
+"""Synthesizes the self-made sound effects (CC0): boing (bounce pad), splash, pop (gas canister), rotor (helicopter).
     python3 tools/make_sfx.py
 """
 import math, random, struct, wave
@@ -46,7 +46,24 @@ def pop(dur=0.5):
     return out
 
 
+def rotor(dur=1.6, rate=13.0):
+    """Helicopter blades: filtered noise chopped into whumps, with a low engine hum."""
+    random.seed(23)
+    out, lp, lp2 = [], 0.0, 0.0
+    for i in range(int(RATE * dur)):
+        t = i / RATE
+        lp += (random.uniform(-1, 1) - lp) * 0.08
+        lp2 += (lp - lp2) * 0.2
+        ph = (t * rate) % 1.0
+        chop = math.exp(-ph * 9.0)
+        hum = 0.25 * math.sin(2 * math.pi * 62 * t) + 0.12 * math.sin(2 * math.pi * 124 * t)
+        env = min(1, t * 6) * min(1, (dur - t) * 4)
+        out.append((3.2 * lp2 * chop + hum * (0.4 + 0.6 * chop)) * env)
+    return out
+
+
 if __name__ == "__main__":
+    write("audio/v2/rotor.wav", rotor())
     write("audio/v2/boing.wav", boing())
     write("audio/v2/splash.wav", splash())
     write("audio/v2/pop.wav", pop())

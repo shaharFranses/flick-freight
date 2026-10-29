@@ -2,7 +2,7 @@
 
 Usage: python3 tools/make_music.py audio/v2/music_loop.ogg [variant]
 Pizzicato-style plucks + soft pad + light percussion, 104 BPM, 8 bars, seamless loop.
-Variants (one per expansion world): harbor, snow, yard. No variant = the original loop.
+Variants (one per expansion world): harbor, snow, yard, sky. No variant = the original loop.
 """
 import subprocess
 import sys
@@ -16,6 +16,7 @@ VARIANTS = {
     "harbor": {"bpm": 96, "shift": -5, "prog": [0, 3, 0, 1], "bell": 0.0, "swing": 0.08},
     "snow": {"bpm": 90, "shift": 2, "prog": [2, 3, 0, 1], "bell": 0.5, "swing": 0.0},
     "yard": {"bpm": 116, "shift": -3, "prog": [0, 3, 1, 0], "bell": 0.0, "swing": 0.12},
+    "sky": {"bpm": 100, "shift": 4, "prog": [0, 2, 3, 1], "bell": 0.7, "swing": 0.05},
 }
 V = VARIANTS[VARIANT]
 

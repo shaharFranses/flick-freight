@@ -29,7 +29,8 @@ extends RefCounted
 ## Plan 2 (docs/EXPANSION_PLAN_2.md). IDs 41+ are appended; "act": 2 puts a level in its
 ## world's Act II.
 ## vehicle : inside a truck config: "moto" (V1), "pickup" (V2), "garbage" (V3), "dump" (V5),
-##           "flatbed" (V6), "flatcar" (V7, rolls across; "once": true = no new one after it)
+##           "flatbed" (V6), "flatcar" (V7, rolls across; "once": true = no new one after it),
+##           "heli" (V8, net on a swinging cable), "balloon" (V9, rising / sinking basket)
 ##           (scripts/vehicles.gd)
 ## movers  : moving obstacles [{"type", "phase", ...}] (scripts/movers.gd):
 ##           crane (M16), garage_door (M17), bus (M18, also kind "train"), ski_lift (M19),
@@ -44,16 +45,17 @@ extends RefCounted
 ## (in WORLD_ORDER) has its Act I done.
 
 const WORLDS = [
-	{"name": "TOWN", "bg": "res://art/v2/bg/bg_town.png", "tint": Color(1, 1, 1), "bridge": "stone"},
-	{"name": "WOODS", "bg": "res://art/v2/bg/bg_woods.png", "tint": Color(1, 1, 1), "bridge": "wood"},
-	{"name": "DESERT", "bg": "res://art/v2/bg/bg_desert.png", "tint": Color(1, 1, 1), "bridge": "rock"},
-	{"name": "HARBOR", "backdrop": "harbor", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_harbor.ogg"},
-	{"name": "SNOW", "backdrop": "snow", "tint": Color(1, 1, 1), "bridge": "snow_rock", "music": "res://audio/v2/music_snow.ogg"},
-	{"name": "FREIGHT YARD", "backdrop": "yard", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_yard.ogg"},
+	{"name": "TOWN", "bg": "res://art/v2/bg/bg_town.png", "tint": Color(1, 1, 1), "bridge": "stone", "icon": "moto"},
+	{"name": "WOODS", "bg": "res://art/v2/bg/bg_woods.png", "tint": Color(1, 1, 1), "bridge": "wood", "icon": "pickup"},
+	{"name": "DESERT", "bg": "res://art/v2/bg/bg_desert.png", "tint": Color(1, 1, 1), "bridge": "rock", "icon": "dump"},
+	{"name": "HARBOR", "backdrop": "harbor", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_harbor.ogg", "icon": "ferry"},
+	{"name": "SNOW", "backdrop": "snow", "tint": Color(1, 1, 1), "bridge": "snow_rock", "music": "res://audio/v2/music_snow.ogg", "icon": "lift"},
+	{"name": "FREIGHT YARD", "backdrop": "yard", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_yard.ogg", "icon": "flatcar"},
+	{"name": "SKY PORT", "backdrop": "sky", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_sky.ogg", "icon": "heli"},
 ]
 
 ## Display / play order of the worlds (indices into WORLDS).
-const WORLD_ORDER = [0, 1, 2, 3, 4, 5]
+const WORLD_ORDER = [0, 1, 2, 3, 4, 5, 6]
 
 const DATA = [
 	# ---------------- TOWN ----------------
@@ -340,6 +342,42 @@ const DATA = [
 		"guide": 0.4,
 		"movers": [{"type": "bus", "kind": "train", "period": 360, "speed": 12.0, "phase": 150}],
 		"intro": {"title": "YARD BOSS", "text": "Load the passing flatcars while freight trains cut across."}},
+	# ---------------- SKY PORT (IDs 71-80) ----------------
+	{"world": 6, "cargo": "bbbbb", "goal": 2, "need": 2, "throw_stars": [2, 3],
+		"truck": {"x": 880, "vehicle": "heli", "y": 165, "cable": 300, "swing": 8}, "guide": 0.8,
+		"intro": {"title": "HELICOPTER", "text": "Drop cargo into the hanging net. It swings: time your throw!"}},
+	{"world": 6, "cargo": "bbbbbb", "goal": 3, "need": 3, "throw_stars": [3, 5],
+		"truck": {"x": 900, "vehicle": "heli", "y": 165, "cable": 300, "swing": 14}, "guide": 0.7},
+	{"world": 6, "cargo": "bbcbbb", "goal": 3, "need": 3, "throw_stars": [3, 5],
+		"truck": {"x": 920, "vehicle": "heli", "y": 175, "cable": 300, "swing": 12,
+			"bob": 30, "bob_period": 360}, "guide": 0.6,
+		"intro": {"title": "BOBBING", "text": "The pilot can't hold still. Watch the net rise and fall."}},
+	{"world": 6, "cargo": "bbbbbb", "goal": 3, "need": 3, "throw_stars": [4, 6],
+		"truck": {"x": 900, "vehicle": "heli", "y": 165, "cable": 300, "swing": 12}, "guide": 0.5,
+		"wind": -90},
+	{"world": 6, "cargo": "bcbbcbb", "goal": 3, "need": 3, "throw_stars": [4, 6],
+		"truck": {"x": 880, "vehicle": "heli", "y": 165, "cable": 300, "swing": 10,
+			"drift": 120, "drift_period": 720}, "guide": 0.5,
+		"intro": {"title": "DRIFTING", "text": "Now it drifts across the pad too. Lead the net."}},
+	{"world": 6, "cargo": "bbbbbb", "goal": 3, "need": 3, "throw_stars": [3, 5],
+		"truck": {"x": 960, "vehicle": "balloon", "y": 470, "rise": 60, "rise_period": 360}, "guide": 0.7,
+		"intro": {"title": "HOT-AIR BALLOON", "text": "The basket rises and sinks. Throw under the balloon, not over it!"}},
+	{"world": 6, "cargo": "bbbcbbb", "goal": 3, "need": 3, "throw_stars": [4, 6],
+		"truck": {"x": 980, "vehicle": "balloon", "y": 460, "rise": 70, "rise_period": 360, "sway": 60, "sway_period": 720},
+		"guide": 0.5, "wind": 80},
+	{"world": 6, "cargo": "bbbbbbbb", "goal": 4, "need": 4, "throw_stars": [4, 6],
+		"trucks": [{"x": 630, "vehicle": "heli", "y": 155, "cable": 300, "swing": 12},
+			{"x": 1090, "vehicle": "heli", "y": 185, "cable": 300, "swing": 12, "phase": 90}],
+		"guide": 0.5,
+		"intro": {"title": "TWO HELICOPTERS", "text": "Two nets, swinging out of step. Fill both!"}},
+	{"world": 6, "cargo": "bbcbbcbb", "goal": 4, "need": 4, "throw_stars": [5, 7],
+		"trucks": [{"x": 1080, "vehicle": "balloon", "y": 470, "rise": 60, "rise_period": 360},
+			{"x": 700, "vehicle": "heli", "y": 175, "cable": 300, "swing": 12, "bob": 24, "bob_period": 360}],
+		"guide": 0.4},
+	{"world": 6, "cargo": "bbcbbcbbb", "goal": 4, "need": 4, "throw_stars": [5, 7],
+		"truck": {"x": 900, "vehicle": "heli", "y": 165, "cable": 300, "swing": 14,
+			"drift": 100, "drift_period": 720, "bob": 20, "bob_period": 360}, "guide": 0.4, "wind": -70,
+		"intro": {"title": "SKY BOSS", "text": "Drifting, swinging, bobbing, in a crosswind. Every throw counts."}},
 ]
 
 const LETTER = {"b": "box", "c": "crate", "r": "barrel", "f": "fragile",

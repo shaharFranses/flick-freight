@@ -24,6 +24,7 @@ const SOUNDS = {
 	"boing": "res://audio/v2/boing.wav",
 	"splash": "res://audio/v2/splash.wav",
 	"pop": "res://audio/v2/pop.wav",
+	"rotor": "res://audio/v2/rotor.wav",
 }
 const MUSIC = "res://audio/v2/music_loop.ogg"
 const MUSIC_DB = -15.0
