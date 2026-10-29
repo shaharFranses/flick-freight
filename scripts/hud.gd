@@ -171,7 +171,7 @@ func bind(g: Game):
 	_s2 = lv.get("s2", lv.cargo.length())
 	_total = lv.cargo.length()
 	_delivered = 0
-	level_label.text = "LEVEL %d" % (g.level_index + 1)
+	level_label.text = "LEVEL %d" % Levels.number_of(g.level_index)
 	world_label.text = Levels.world_of(g.level_index).name
 	g.progress_changed.connect(_on_progress)
 	g.queue_changed.connect(_on_queue)
@@ -183,7 +183,7 @@ func bind(g: Game):
 	elif lv.get("wind", 0) != 0:
 		show_banner("WIND", "Tailwind! Throw softer than the line." if lv.wind > 0 else "Headwind! Throw harder than the line.", "wind")
 	else:
-		show_banner("LEVEL %d" % (g.level_index + 1), "Load %d of %d to pass" % [_goal, _total], "", 1.6)
+		show_banner("LEVEL %d" % Levels.number_of(g.level_index), "Load %d of %d to pass" % [_goal, _total], "", 1.6)
 	if lv.get("tutorial", false) and not SaveData.get_flag("tutorial_done", false):
 		_show_tutorial()
 

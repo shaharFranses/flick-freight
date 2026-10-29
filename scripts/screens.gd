@@ -123,7 +123,7 @@ func show_results(level_index: int, stars: int, delivered: int, total: int):
 	var d = _dim()
 	var won = stars > 0
 	var v = _card(d, 600)
-	v.add_child(_title("LEVEL %d COMPLETE!" % (level_index + 1) if won else "NOT QUITE!", 48))
+	v.add_child(_title("LEVEL %d COMPLETE!" % Levels.number_of(level_index) if won else "NOT QUITE!", 48))
 	var star_row = HBoxContainer.new()
 	star_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	star_row.add_theme_constant_override("separation", 14)
@@ -148,7 +148,7 @@ func show_results(level_index: int, stars: int, delivered: int, total: int):
 	v.add_child(_title(sub, 28, Color.WHITE))
 	var buttons: Array = [_button("LEVELS", func(): open_levels.emit(), "SecondaryButton"),
 		_button("RETRY", func(): restart.emit(), "SecondaryButton" if won else "BigButton")]
-	if won and level_index < Levels.count() - 1:
+	if won and Levels.next_of(level_index) >= 0 and Levels.unlocked(Levels.next_of(level_index)):
 		buttons.append(_button("NEXT", func(): next_level.emit(), "BigButton"))
 	v.add_child(_row(buttons))
 	# stars pop in one by one
@@ -205,19 +205,20 @@ func show_levels(can_close: bool):
 var _levels_page: VBoxContainer
 
 
-## One world per page (arrows to flip). A world opens once the previous one is complete.
+## One world per page (arrows flip through Levels.WORLD_ORDER): its Act I, then Act II.
 func _fill_world_page(w: int):
 	for c in _levels_page.get_children():
 		c.queue_free()
-	var ids = Levels.levels_in_world(w)
+	var ids = Levels.levels_in_world_ordered(w)
+	var wk = Levels.WORLD_ORDER.find(w)
 	var nav = HBoxContainer.new()
 	nav.alignment = BoxContainer.ALIGNMENT_CENTER
 	nav.add_theme_constant_override("separation", 24)
 	var prev = _arrow_button(true)
-	prev.disabled = w == 0
+	prev.disabled = wk <= 0
 	prev.pressed.connect(func():
 		Sfx.play("click")
-		_fill_world_page(w - 1))
+		_fill_world_page(Levels.WORLD_ORDER[wk - 1]))
 	nav.add_child(prev)
 	var name_box = VBoxContainer.new()
 	name_box.custom_minimum_size = Vector2(420, 0)
@@ -227,14 +228,14 @@ func _fill_world_page(w: int):
 	var got = 0
 	for i in ids:
 		got += SaveData.stars(i)
-	var sl = _title("WORLD %d   %d / %d STARS" % [w + 1, got, ids.size() * 3], 22, GOLD)
+	var sl = _title("WORLD %d   %d / %d STARS" % [wk + 1, got, ids.size() * 3], 22, GOLD)
 	name_box.add_child(sl)
 	nav.add_child(name_box)
 	var nxt = _arrow_button(false)
-	nxt.disabled = w >= Levels.WORLDS.size() - 1 or Levels.levels_in_world(w + 1).is_empty()
+	nxt.disabled = wk >= Levels.WORLD_ORDER.size() - 1
 	nxt.pressed.connect(func():
 		Sfx.play("click")
-		_fill_world_page(w + 1))
+		_fill_world_page(Levels.WORLD_ORDER[wk + 1]))
 	nav.add_child(nxt)
 	_levels_page.add_child(nav)
 	var grid = GridContainer.new()
@@ -244,10 +245,14 @@ func _fill_world_page(w: int):
 	var center = CenterContainer.new()
 	center.add_child(grid)
 	_levels_page.add_child(center)
+	var compact = ids.size() > 10  # Act II makes three rows: smaller tiles
 	for i in ids:
-		grid.add_child(_level_tile(i))
-	if not ids.is_empty() and not SaveData.unlocked(ids[0]) and w > 0:
-		_levels_page.add_child(_title("Finish %s to unlock" % Levels.WORLDS[w - 1].name, 26, Color(1, 1, 1, 0.75)))
+		grid.add_child(_level_tile(i, compact))
+	if not ids.is_empty() and not SaveData.unlocked(ids[0]) and wk > 0:
+		var msg = "Finish %s to unlock" % Levels.WORLDS[Levels.WORLD_ORDER[wk - 1]].name
+		if Levels.WORLDS[w].has("unlock_stars"):
+			msg = "Collect %d stars to unlock (you have %d)" % [Levels.WORLDS[w].unlock_stars, SaveData.total_stars()]
+		_levels_page.add_child(_title(msg, 26, Color(1, 1, 1, 0.75)))
 
 
 func _arrow_button(left: bool) -> Button:
@@ -266,9 +271,9 @@ func _arrow_button(left: bool) -> Button:
 	return b
 
 
-func _level_tile(i: int) -> Button:
+func _level_tile(i: int, compact := false) -> Button:
 	var b = Button.new()
-	b.custom_minimum_size = Vector2(150, 130)
+	b.custom_minimum_size = Vector2(150, 108 if compact else 130)
 	b.focus_mode = Control.FOCUS_NONE
 	var unlocked = SaveData.unlocked(i)
 	b.disabled = not unlocked
@@ -281,7 +286,7 @@ func _level_tile(i: int) -> Button:
 	b.add_child(v)
 	if unlocked:
 		var n = Label.new()
-		n.text = str(i + 1)
+		n.text = str(Levels.number_of(i))
 		n.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		n.add_theme_font_size_override("font_size", 48)
 		n.add_theme_color_override("font_color", NAVY)
