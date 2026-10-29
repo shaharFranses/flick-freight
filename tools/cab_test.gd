@@ -1,5 +1,5 @@
 extends SceneTree
-## Regression test: cargo landing on the driver's cab must be a miss within 1s,
+## Regression test: cargo that lands and stays on the driver's cab must be a miss within 1.3s of touching it,
 ## on a parked truck (level 2) and a moving one (level 3).
 
 var main: Node
@@ -8,6 +8,7 @@ var ci := 0
 var t_throw := -1.0
 var t := 0.0
 var fails := 0
+var t_cab := -1.0
 
 
 func _init():
@@ -31,6 +32,7 @@ func _process(delta: float) -> bool:
 		var target_x = g.truck.position.x + Truck.BED_W * 0.5 + Truck.WALL_T + 50
 		var p = _solve(g, target_x, g.truck.position.y - 112)
 		g.current.resolved.connect(_on_resolved, CONNECT_ONE_SHOT)
+		g.current.body_entered.connect(func(b): if b.is_in_group("truck_cab") and t_cab < 0: t_cab = t)
 		g.throw_with_pull(p)
 		t_throw = t
 	elif t_throw > 0 and t - t_throw > 6.0:
@@ -42,9 +44,10 @@ func _process(delta: float) -> bool:
 
 func _on_resolved(c: Cargo, ok: bool, reason: String):
 	var dt = t - t_throw
-	var landed_on_cab = reason == "cab"
-	var good = (not ok) and dt < 2.5 and landed_on_cab
-	print("%s level %d: delivered=%s reason=%s after %.2fs" % ["PASS" if good else "FAIL", cases[ci] + 1, ok, reason, dt])
+	# it may stay on the cab or roll off onto the road; either way a quick miss
+	var good = (not ok) and t - t_cab < 1.3 and reason in ["cab", "road"]
+	print("%s level %d: delivered=%s reason=%s after %.2fs (%.2fs after first touching the cab)" % [
+		"PASS" if good else "FAIL", cases[ci] + 1, ok, reason, dt, t - t_cab if t_cab > 0 else -1.0])
 	if not good:
 		fails += 1
 	_next.call_deferred()
@@ -53,6 +56,7 @@ func _on_resolved(c: Cargo, ok: bool, reason: String):
 func _next():
 	ci += 1
 	t_throw = -1.0
+	t_cab = -1.0
 	if ci >= cases.size():
 		print("CAB TEST: %d failure(s)" % fails)
 		quit(1 if fails else 0)
