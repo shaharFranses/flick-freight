@@ -45,7 +45,7 @@ tools/
   bot.gd         QA bot: plays levels (analytic solver for 1-15, search solver after)
   bot_sim.gd     throw model for the search solver
   frozen_check.gd  hash check that levels 1-15 never change
-  baseline_v2_*.json  regression baselines for levels 1-15
+  baseline_1_40*.json  regression snapshot of levels 1-40 (results + throws)
   cover.gd       renders the CrazyGames cover images
   make_music.py  synthesizes the music loop
   make_sfx.py    synthesizes boing / splash / pop
