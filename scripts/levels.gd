@@ -26,14 +26,23 @@ extends RefCounted
 ## height_limit : M14 px above the bed floor; cargo sticking up past it is knocked off (a miss)
 ## canister : M15 {pop_speed, pop_force} override (default 950 px/s, 520)
 
+## Level IDs: a level's ID is its index in DATA and never changes (saves are keyed by it).
+## New levels are only ever appended to DATA. The order players meet them in is separate:
+## world by world in WORLD_ORDER, each world's Act I then its Act II ("act": 2).
+## A world with "unlock_stars" opens at that star total; otherwise once the world before it
+## (in WORLD_ORDER) has its Act I done.
+
 const WORLDS = [
-	{"name": "TOWN", "bg": "res://art/v2/bg/bg_town.png", "tint": Color(1, 1, 1)},
-	{"name": "WOODS", "bg": "res://art/v2/bg/bg_woods.png", "tint": Color(1, 1, 1)},
-	{"name": "DESERT", "bg": "res://art/v2/bg/bg_desert.png", "tint": Color(1, 1, 1)},
-	{"name": "HARBOR", "backdrop": "harbor", "tint": Color(1, 1, 1), "music": "res://audio/v2/music_harbor.ogg"},
-	{"name": "SNOW", "backdrop": "snow", "tint": Color(1, 1, 1), "music": "res://audio/v2/music_snow.ogg"},
-	{"name": "FREIGHT YARD", "backdrop": "yard", "tint": Color(1, 1, 1), "music": "res://audio/v2/music_yard.ogg"},
+	{"name": "TOWN", "bg": "res://art/v2/bg/bg_town.png", "tint": Color(1, 1, 1), "bridge": "stone"},
+	{"name": "WOODS", "bg": "res://art/v2/bg/bg_woods.png", "tint": Color(1, 1, 1), "bridge": "wood"},
+	{"name": "DESERT", "bg": "res://art/v2/bg/bg_desert.png", "tint": Color(1, 1, 1), "bridge": "rock"},
+	{"name": "HARBOR", "backdrop": "harbor", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_harbor.ogg"},
+	{"name": "SNOW", "backdrop": "snow", "tint": Color(1, 1, 1), "bridge": "snow_rock", "music": "res://audio/v2/music_snow.ogg"},
+	{"name": "FREIGHT YARD", "backdrop": "yard", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_yard.ogg"},
 ]
+
+## Display / play order of the worlds (indices into WORLDS).
+const WORLD_ORDER = [0, 1, 2, 3, 4, 5]
 
 const DATA = [
 	# ---------------- TOWN ----------------
@@ -232,6 +241,78 @@ static func levels_in_world(w: int) -> Array:
 		if DATA[i].world == w:
 			out.append(i)
 	return out
+
+
+# ------------------------------------------------------------------ play order + unlocks
+static var _order: Array = []
+
+
+## Level IDs in play order.
+static func order() -> Array:
+	if _order.is_empty():
+		for w in WORLD_ORDER:
+			for act in [1, 2]:
+				for i in DATA.size():
+					if DATA[i].world == w and DATA[i].get("act", 1) == act:
+						_order.append(i)
+	return _order
+
+
+## The level number players see (position in play order, from 1).
+static func number_of(i: int) -> int:
+	return order().find(i) + 1
+
+
+static func id_of_number(n: int) -> int:
+	return order()[clampi(n - 1, 0, order().size() - 1)]
+
+
+static func next_of(i: int) -> int:
+	var k = order().find(i)
+	return order()[k + 1] if k >= 0 and k + 1 < order().size() else -1
+
+
+static func act_of(i: int) -> int:
+	return DATA[i].get("act", 1)
+
+
+## Levels of a world in play order (Act I then Act II).
+static func levels_in_world_ordered(w: int) -> Array:
+	var out: Array = []
+	for i in order():
+		if DATA[i].world == w:
+			out.append(i)
+	return out
+
+
+static func unlocked(i: int) -> bool:
+	var w: int = DATA[i].world
+	var act = act_of(i)
+	var same: Array = []
+	for j in levels_in_world_ordered(w):
+		if act_of(j) == act:
+			same.append(j)
+	var k = same.find(i)
+	if k > 0:
+		return SaveData.stars(same[k - 1]) > 0  # chain within an act
+	if act == 2:
+		# Act II opens once this world's Act I is complete
+		for j in levels_in_world_ordered(w):
+			if act_of(j) == 1 and SaveData.stars(j) == 0:
+				return false
+		return true
+	# first level of a world's Act I
+	var wk = WORLD_ORDER.find(w)
+	if wk <= 0:
+		return true
+	if WORLDS[w].has("unlock_stars"):
+		return SaveData.total_stars() >= WORLDS[w].unlock_stars
+	if DATA[i].world <= 5 and i > 0 and DATA[i - 1].get("act", 1) == 1:
+		return SaveData.stars(i - 1) > 0  # the original 40 levels: one chain, as before
+	for j in levels_in_world_ordered(WORLD_ORDER[wk - 1]):
+		if act_of(j) == 1 and SaveData.stars(j) == 0:
+			return false
+	return true
 
 
 static func world_of(i: int) -> Dictionary:

@@ -17,7 +17,7 @@ func _ready():
 	add_child(screens)
 	screens.resume.connect(_resume)
 	screens.restart.connect(func(): start_level(level_index))
-	screens.next_level.connect(func(): start_level(level_index + 1))
+	screens.next_level.connect(func(): start_level(Levels.next_of(level_index)))
 	screens.open_levels.connect(func(): screens.show_levels(game != null and not game.ended))
 	screens.play_level.connect(start_level)
 	screens.close_levels.connect(func():
@@ -28,7 +28,7 @@ func _ready():
 	var q = _query()
 	var start = SaveData.first_unbeaten()
 	if q.has("level"):
-		start = clampi(int(q.level) - 1, 0, Levels.count() - 1)
+		start = Levels.id_of_number(int(q.level))  # the number players see
 	start_level(start)
 
 

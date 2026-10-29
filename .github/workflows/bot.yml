@@ -17,18 +17,13 @@ jobs:
         run: godot --headless -s res://tools/layout_check.gd
       - name: Cab test (cargo that stays on the cab is a quick miss)
         run: godot --headless --fixed-fps 60 -s res://tools/cab_test.gd
-      - name: Frozen data (levels 1-15 unchanged)
+      - name: Frozen data (levels 1-40 unchanged)
         run: godot --headless -s res://tools/frozen_check.gd
-      - name: Regression gate, perfect aim (levels 1-15 vs baseline)
+      - name: Parity, levels 1-40 (one level per process, results and throws vs the pre-Plan-2 snapshot)
         shell: bash
-        run: |
-          set -o pipefail
-          godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-15 --error=0 --compare=res://tools/baseline_v2_e0.json 2>&1 | tee gate0.txt
-      - name: Regression gate, human aim (levels 1-15 vs baseline)
-        shell: bash
-        run: |
-          set -o pipefail
-          godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-15 --error=0.5 --compare=res://tools/baseline_v2_e05.json 2>&1 | tee gate5.txt
+        run: tools/parity.sh check 2>&1 | tee parity.txt
+      - name: Save compatibility
+        run: godot --headless -s res://tools/save_test.gd
       - name: All levels, perfect aim (every level must be passable)
         shell: bash
         run: |
@@ -39,12 +34,20 @@ jobs:
         run: |
           set -o pipefail
           godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=all --error=0.5 2>&1 | tee bot5.txt
+      - name: Release-time search (dev timed gate)
+        run: tools/timing_test.sh
+      - name: Deterministic replay, new levels (3 runs each)
+        run: tools/replay_check.sh 41 200
+      - name: Performance smoke test (heaviest levels, native headless physics time)
+        shell: bash
+        run: |
+          for L in 25 35 38 40; do godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=$L --error=0 --perf 2>&1 | grep "^LEVEL"; done | tee perf.txt
       - name: Annotate results
         if: always()
         shell: bash
         run: |
-          for f in gate0 gate5 bot0 bot5; do
-            [ -f $f.txt ] && echo "::notice title=$f::$(grep -E 'LEVEL|BOT DONE|REGRESS|SCRIPT ERROR|WARNING: level' $f.txt | tr '\n' '|' | head -c 3500)"
+          for f in parity bot0 bot5 perf; do
+            [ -f $f.txt ] && echo "::notice title=$f::$(grep -E 'LEVEL|BOT DONE|REGRESS|PARITY|SCRIPT ERROR|WARNING: level' $f.txt | tr '\n' '|' | head -c 3500)"
           done
           true
       - name: Web export builds

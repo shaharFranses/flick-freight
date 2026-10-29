@@ -36,6 +36,10 @@ scripts/
   cargo.gd       cargo physics + resolve (delivered / missed / broken)
   levels.gd      ALL level data (add a level = add a dictionary; keys documented at the top)
   backdrops.gd   code-drawn backgrounds for Harbor and later worlds
+  cargo_vehicle.gd  the interface every vehicle implements (the truck is V0)
+  vehicles.gd    vehicle factory ("vehicle" key in a truck config)
+  mover.gd, movers.gd  moving obstacles: pose = f(level clock), AnimatableBody2D
+  bridges.gd     the low bridges (height limit), one style per world
   hud.gd         top bar, banners, pop-ups, tutorial
   screens.gd     pause, results (stars), level select
   ui_theme.gd    shared theme (Fredoka font, buttons, cards)
@@ -43,9 +47,13 @@ scripts/
   sfx.gd, fx.gd  audio + particles
 tools/
   bot.gd         QA bot: plays levels (analytic solver for 1-15, search solver after)
-  bot_sim.gd     throw model for the search solver
+  bot_sim.gd     throw model for the search solver (vehicles, movers, release timing)
+  parity.sh      levels 1-40, one process each, must match the pre-Plan-2 snapshot
+  replay_check.sh  new levels must replay identically 3 times
+  timing_test.sh release-time search test with a dev gate (tools/test/)
+  save_test.gd, layout_check.gd, cab_test.gd  other CI checks
   frozen_check.gd  hash check that levels 1-15 never change
-  baseline_v2_*.json  regression baselines for levels 1-15
+  baseline_1_40*.json  regression snapshot of levels 1-40 (results + throws)
   cover.gd       renders the CrazyGames cover images
   make_music.py  synthesizes the music loop
   make_sfx.py    synthesizes boing / splash / pop
@@ -67,17 +75,18 @@ godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=all --error=0
 godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=all --error=0.5
 ```
 
-### Guardrails (run by CI on every branch, see `docs/EXPANSION_PLAN.md`)
+### Guardrails (run by CI on every branch)
 
-Levels 1–15 and the mechanics they use are frozen. Three checks enforce it:
+Levels 1–40 are frozen (`docs/EXPANSION_PLAN_2.md` §1). The checks:
 
 ```bash
-# levels 1-15 data unchanged (hash in tools/frozen_levels.sha256)
-godot --headless -s res://tools/frozen_check.gd
-# regression gate: levels 1-15 must give exactly the baseline results
-# (always run the full 1-15 range: physics stacking makes single levels differ)
-godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-15 --error=0   --compare=res://tools/baseline_v2_e0.json
-godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-15 --error=0.5 --compare=res://tools/baseline_v2_e05.json
+godot --headless -s res://tools/frozen_check.gd       # levels 1-40 data unchanged
+godot --headless -s res://tools/layout_check.gd       # no vehicle drives through an obstacle
+godot --headless --fixed-fps 60 -s res://tools/cab_test.gd
+godot --headless -s res://tools/save_test.gd          # old saves unlock levels 1-40 as before
+# parity: each of levels 1-40 in its own process must give the same results AND the same
+# throws as the snapshot taken before Plan 2 (one process per level: no level can affect another)
+tools/parity.sh check
 ```
 
 The bot uses the original analytic solver for levels 1–15 and a search solver
@@ -91,4 +100,8 @@ godot --rendering-driver opengl3 -s res://tools/cover.gd -- --out=marketing/cove
 
 Screenshots (needs a display): `xvfb-run -a godot --rendering-driver opengl3 -s res://tools/bot.gd -- --levels=16 --snap=shot.png --snap_at=5`
 
-`?level=N` in the URL (or `-- --level=N` on the command line) jumps to a level for testing.
+Levels have permanent IDs (their index in `Levels.DATA`, the save key); the number players
+see follows play order (`Levels.order()`: each world's Act I, then its Act II). Moving
+obstacles read the level clock `Game.frame`; in debug builds `[` / `]` scrub it by half a second.
+
+`?level=N` in the URL (the number players see) (or `-- --level=N` on the command line) jumps to a level for testing.

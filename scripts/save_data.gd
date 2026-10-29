@@ -35,14 +35,15 @@ static func total_stars() -> int:
 
 
 static func unlocked(level: int) -> bool:
-	return level == 0 or stars(level - 1) > 0
+	return Levels.unlocked(level)
 
 
+## First level (in play order) that's open but not beaten yet.
 static func first_unbeaten() -> int:
-	for i in Levels.count():
-		if stars(i) == 0:
+	for i in Levels.order():
+		if stars(i) == 0 and Levels.unlocked(i):
 			return i
-	return Levels.count() - 1
+	return Levels.order()[-1]
 
 
 static func get_flag(key: String, default_val = false):
