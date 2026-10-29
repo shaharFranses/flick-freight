@@ -22,6 +22,7 @@ var pop_speed := 0.0  # M15: canister pops above this landing speed
 var raw_blocks: Array = []
 var pads: Array = []
 var movers: Array = []
+var _shapes := {}  # frame -> mover shapes grown by the cargo radius (shared by all candidates)
 var r_spin := 0.0  # corner radius of the cargo (it spins in flight)
 var t0 := 0.0  # seconds until release (release-time search)
 var f0 := 0  # level clock frame at release
@@ -93,6 +94,8 @@ func _truck_info(t: CargoVehicle) -> Dictionary:
 		if cost < best:
 			best = cost
 			best_x = x
+	if pr.get("aim_x") != null:
+		best_x = pr.aim_x  # the vehicle says where to aim (e.g. a hopper opening)
 	return {"truck": t, "target_x": best_x, "surface": surface, "profile": pr,
 		"slippery": slides or pr.slippery}
 
@@ -166,6 +169,8 @@ func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 	var half = pr.floor_w * 0.5
 	# rear wall (left), front block e.g. bulkhead + cab (right); spinning cargo reaches out to its corners
 	var rr = h.length() if spin == 0.0 else max(_extent(spin * t).x, _extent(spin * t).y)
+	if pr.get("tight", false):
+		rr = max(h.x, h.y) + 2.0  # small racks/hoppers: a box's own half size
 	if l.x + rr > -half - pr.rear_t and l.x - rr < -half and l.y + rr > -pr.rear_h:
 		return -2.0
 	if l.x + rr > pr.front_x0 and l.x - rr < pr.front_x0 + pr.front_w and l.y + rr > -pr.front_h:
@@ -199,13 +204,22 @@ func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 
 ## Does the cargo (centre p, spinning corner radius) touch a moving obstacle at frame f?
 func _hits_mover(p: Vector2, f: int) -> bool:
-	for m in movers:
-		for sh in m.sim_shapes(f + m.phase):
-			if sh is Rect2:
-				if sh.grow(r_spin).has_point(p):
-					return true
-			elif Geometry2D.is_point_in_polygon(p, sh) or _near_polygon(p, sh, r_spin):
+	var list = _shapes.get(f)
+	if list == null:
+		list = []
+		for m in movers:
+			for sh in m.sim_shapes(f + m.phase):
+				if sh is Rect2:
+					list.append(sh.grow(r_spin))
+				else:
+					list.append([sh, VehicleBase._poly_rect(sh).grow(r_spin)])
+		_shapes[f] = list
+	for sh in list:
+		if sh is Rect2:
+			if sh.has_point(p):
 				return true
+		elif sh[1].has_point(p) and (Geometry2D.is_point_in_polygon(p, sh[0]) or _near_polygon(p, sh[0], r_spin)):
+			return true
 	return false
 
 

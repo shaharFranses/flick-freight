@@ -179,7 +179,7 @@ func _use_analytic(g: Game) -> bool:
 
 func _record(g: Game):
 	var total: int = Levels.cargo_list(g.level_index).size()
-	var stars = Levels.stars_for(g.level_index, g.delivered)
+	var stars = Levels.stars_for(g.level_index, g.delivered, g.thrown)
 	var r = {"level": g.level_index + 1, "pass": stars > 0, "stars": stars, "delivered": g.delivered,
 		"missed": total - g.delivered - _broken, "broken": _broken, "total": total, "throws": _throws.duplicate()}
 	results.append(r)
@@ -204,7 +204,7 @@ func _record(g: Game):
 		r["phys_ms_max"] = snappedf(_phys_ms.max(), 0.01)
 		extra += "  physics: avg %.2f ms, max %.2f ms per frame" % [avg, _phys_ms.max()]
 	print("LEVEL %d: loaded %d/%d  stars=%d  broken=%d  time=%ds%s" % [r.level, r.delivered, total, stars, _broken, int(level_time), extra])
-	if _candidates > 0 and stars == 3 and float(_good) / _candidates < 0.02:
+	if _candidates > 0 and stars == 3 and float(_good) / _candidates < 0.02 and _windows.is_empty():
 		print("  WARNING: level %d needs very precise throws (<2%% of candidates land)" % r.level)
 
 
@@ -349,50 +349,76 @@ func solve_sim(g: Game) -> Vector2:
 
 
 ## Moving obstacles: also search when to throw (Plan 2 §5.1). Coarse grid over one cycle,
-## then refine around the best. Records the timing window and the ±3 frame jitter check.
+## refine around the best, then among the best candidates pick the one with the widest
+## release window (what a fair player aims for), released in the middle of that window.
+## Records the window and the ±3 frame jitter check.
 func _solve_timed(g: Game, sim: BotSim, period: int) -> Vector2:
-	var best = Vector2(100, -100)
-	var best_w = 0
-	var best_score = INF
-	for w in range(0, period, 5):
-		for ang in range(-40, 84, 4):
-			for ln in range(40, int(Game.MAX_PULL) + 1, 6):
+	var top: Array = []  # [[score, pull, wait]] best first, capped
+	var keep = func(sc: float, pull: Vector2, w: int):
+		if sc == INF:
+			return
+		if top.size() >= 40 and sc >= top[-1][0]:
+			return
+		top.append([sc, pull, w])
+		top.sort_custom(func(a, b): return a[0] < b[0])
+		if top.size() > 40:
+			top.pop_back()
+	for w in range(0, period, 6):
+		for ang in range(-40, 84, 5):
+			for ln in range(40, int(Game.MAX_PULL) + 1, 8):
 				var pull = Vector2(cos(deg_to_rad(ang)), -sin(deg_to_rad(ang))) * ln
 				var s = sim.score(pull, w)
 				_candidates += 1
 				if sim.last_dist < BotSim.GOOD:
 					_good += 1
-				if s < best_score:
-					best_score = s
-					best = pull
-					best_w = w
-	var a0 = rad_to_deg(-best.angle())
-	var l0 = best.length()
-	for w in range(max(0, best_w - 4), best_w + 5):
+				keep.call(s, pull, w)
+	if top.is_empty():
+		_windows.append(0)
+		return Vector2(100, -100)
+	var b0 = top[0]
+	var a0 = rad_to_deg(-b0[1].angle())
+	var l0 = b0[1].length()
+	for w in range(max(0, b0[2] - 4), b0[2] + 5):
 		for da in range(-4, 5, 1):
 			for dl in range(-6, 7, 2):
 				var ln = clamp(l0 + dl, 40.0, Game.MAX_PULL)
 				var pull = Vector2(cos(deg_to_rad(a0 + da)), -sin(deg_to_rad(a0 + da))) * ln
-				var s = sim.score(pull, w)
-				if s < best_score:
-					best_score = s
-					best = pull
-					best_w = w
-	# fairness: how many frames around the chosen release still work, and ±3 frame jitter
-	var ok = func(w): return sim.score(best, posmod(w, period)) < INF
-	var lo = best_w
-	while lo > best_w - period and ok.call(lo - 1):
-		lo -= 1
-	var hi = best_w
-	while hi < best_w + period and ok.call(hi + 1):
-		hi += 1
-	_windows.append(hi - lo + 1 if best_score < INF else 0)
-	# release in the middle of the window, not on its edge (what a fair player aims for)
-	var mid = max((lo + hi) / 2, 0)
-	if best_score < INF and ok.call(mid):
+				keep.call(sim.score(pull, w), pull, w)
+	# best-scoring candidate whose release window is comfortable (>= 30 frames, 0.5 s);
+	# if none is, the one with the widest window
+	var best = top[0][1]
+	var best_w = top[0][2]
+	var best_win = -1
+	var best_lo = best_w
+	var best_hi = best_w
+	var comfy = false
+	for c in top:
+		var ok = func(w): return sim.score(c[1], posmod(w, period)) < INF
+		var lo = c[2]
+		while lo > c[2] - period and ok.call(lo - 1):
+			lo -= 1
+		var hi = c[2]
+		while hi < c[2] + period and ok.call(hi + 1):
+			hi += 1
+		var win = hi - lo + 1
+		var take = false
+		if win >= 30:
+			take = not comfy  # top is sorted by score: first comfortable one wins
+			comfy = true
+		elif not comfy and win > best_win:
+			take = true
+		if take:
+			best_win = win
+			best = c[1]
+			best_w = c[2]
+			best_lo = lo
+			best_hi = hi
+	_windows.append(best_win)
+	var mid = max((best_lo + best_hi) / 2, 0)
+	if sim.score(best, posmod(mid, period)) < INF:
 		best_w = mid
 	for d in [-3, -2, -1, 1, 2, 3]:
-		if best_score < INF and not ok.call(best_w + d):
+		if sim.score(best, posmod(best_w + d, period)) == INF:
 			_jitter_fail += 1
 			break
 	_wait_frames = best_w

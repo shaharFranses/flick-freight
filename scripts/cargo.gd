@@ -116,6 +116,8 @@ func power_mult() -> float:
 
 func launch(vel: Vector2, wind_accel: float):
 	wind = wind_accel
+	if game and game.flying_mask:
+		collision_mask |= game.flying_mask  # obstacles that only stop cargo in the air
 	if game and game.dock_body:
 		# a throw never scrapes the deck it was resting on (low throws at a pad keep their
 		# power); the dock is ignored until the cargo has cleared its edge
@@ -298,6 +300,8 @@ func _finish(delivered: bool, reason: String):
 	done = true
 	flying = false
 	constant_force = Vector2.ZERO
+	if game and game.flying_mask:
+		set_deferred("collision_mask", collision_mask & ~game.flying_mask)
 	resolved.emit(self, delivered, reason)
 
 

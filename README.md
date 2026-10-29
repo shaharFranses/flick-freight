@@ -1,7 +1,7 @@
 # Flick Freight
 
 A physics loading game for the web (Godot 4.3). Drag back and release to throw cargo
-from the loading dock into the truck. 40 levels across 6 worlds, 1–3 stars each.
+from the loading dock into the truck. 50 levels across 6 worlds, 1–3 stars each.
 
 ![cover](marketing/covers/cover_landscape_1920x1080.png)
 
@@ -23,6 +23,12 @@ from the loading dock into the truck. 40 levels across 6 worlds, 1–3 stars eac
 - **Freight Yard (world 6):** gas canisters: land them softly, or they pop in a puff of smoke and knock
   nearby cargo out of the truck (knocked-out cargo stops counting until it lands again; fragile
   neighbours break). Level 40 has one of everything.
+- **Act II (Plan 2, `docs/EXPANSION_PLAN_2.md`):** each world gets 5 more levels after its Act I,
+  unlocked once Act I is done. Town: a garage door that opens and closes, a bus passing in front
+  (it only stops cargo in the air), courier motorcycles (one parcel per bike, stars for few
+  throws) and a garbage truck with a small hopper. Harbor: a swinging gantry-crane container and
+  a forklift patrolling the quay. Moving obstacles run on the level clock, so they're identical
+  on every restart; warning lights and sounds tell you what's coming.
 - Each new world has its own music loop (`tools/make_music.py <out.ogg> harbor|snow|yard`).
 - Progress (stars, mute, tutorial) is saved locally. New players land straight in level 1.
 
@@ -37,6 +43,8 @@ scripts/
   levels.gd      ALL level data (add a level = add a dictionary; keys documented at the top)
   backdrops.gd   code-drawn backgrounds for Harbor and later worlds
   cargo_vehicle.gd  the interface every vehicle implements (the truck is V0)
+  vehicle_base.gd  shared code for the new vehicles; vehicle_moto.gd, vehicle_garbage.gd
+  movers/        crane, garage_door, bus (also a train), forklift
   vehicles.gd    vehicle factory ("vehicle" key in a truck config)
   mover.gd, movers.gd  moving obstacles: pose = f(level clock), AnimatableBody2D
   bridges.gd     the low bridges (height limit), one style per world

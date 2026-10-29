@@ -5,6 +5,8 @@ extends RefCounted
 
 const SCRIPTS = {
 	"truck": "res://scripts/truck.gd",
+	"moto": "res://scripts/vehicle_moto.gd",  # V1
+	"garbage": "res://scripts/vehicle_garbage.gd",  # V3
 }
 
 
