@@ -17,6 +17,7 @@ const CARGO_TEX = {
 	"tire": preload("res://art/v2/cargo/tire.png"),
 	"plank": preload("res://art/v2/cargo/plank.png"),
 	"canister": preload("res://art/v2/cargo/canister.png"),
+	"parcel": preload("res://art/v2/cargo/parcel.png"),
 }
 
 var game: Game

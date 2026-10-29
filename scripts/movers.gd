@@ -12,6 +12,7 @@ const SCRIPTS = {
 	"windmill": "res://scripts/movers/windmill.gd",  # M21
 	"tumbleweed": "res://scripts/movers/tumbleweed.gd",  # Desert pusher (M22 reskin)
 	"conveyor": "res://scripts/movers/conveyor.gd",  # M23
+	"tower_crane": "res://scripts/movers/tower_crane.gd",  # M16 variant (Construction)
 }
 
 

@@ -55,6 +55,20 @@ func _draw():
 			draw_rect(Rect2(48, 14, 28, 16), Color("#C98E4A"))
 			for x in [16, 32, 64, 80]:
 				_wheel(Vector2(x, 44), 7)
+		"mailvan":
+			draw_rect(Rect2(4, 10, 62, 32), Color("#F2F2EE"))
+			draw_rect(Rect2(4, 10, 62, 32), NAVY, false, 2.0)
+			draw_rect(Rect2(2, 22, 6, 6), NAVY)  # the slot
+			draw_colored_polygon(PackedVector2Array([Vector2(66, 42), Vector2(66, 16), Vector2(82, 16), Vector2(92, 30), Vector2(92, 42)]), Color("#F2F2EE"))
+			draw_rect(Rect2(4, 30, 88, 4), Color("#E4572E"))
+			_wheel(Vector2(20, 46), 8)
+			_wheel(Vector2(78, 46), 8)
+		"crane":
+			draw_rect(Rect2(20, 6, 6, 50), Color("#F2B134"))
+			draw_rect(Rect2(4, 6, 88, 6), Color("#F2B134"))
+			draw_rect(Rect2(4, 10, 14, 10), Color("#6B7A8F"))
+			draw_line(Vector2(70, 12), Vector2(70, 34), NAVY, 2.0)
+			draw_rect(Rect2(52, 34, 36, 7), Color("#C0392B"))
 		"heli":
 			draw_line(Vector2(6, 6), Vector2(90, 6), NAVY, 4.0)
 			draw_rect(Rect2(46, 6, 4, 6), NAVY)

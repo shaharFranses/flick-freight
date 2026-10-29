@@ -25,6 +25,10 @@ const TYPES = {
 	"canister": {"tex": "res://art/v2/cargo/canister.png", "size": Vector2(44, 58), "mass": 1.2,
 		"bounce": 0.05, "friction": 0.9, "power": 1.0, "snd": "hit_metal", "name": "GAS CAN",
 		"pop_speed": 950.0, "pop_force": 520.0},
+	# ---- Plan 2
+	"parcel": {"tex": "res://art/v2/cargo/parcel.png", "size": Vector2(46, 30), "mass": 0.6,
+		"bounce": 0.06, "friction": 1.0, "power": 1.0, "snd": "hit_wood_light", "name": "PARCEL",
+		"spin": 0.0},  # flies flat (no tumble), so it can go through a mail slot
 }
 
 const SETTLE_SPEED := 14.0

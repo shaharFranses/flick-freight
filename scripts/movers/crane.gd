@@ -6,6 +6,7 @@ extends Mover
 ##      slide (trolley travel, px), slide_period, phase
 
 const BOX := Vector2(140, 64)
+var load_size := BOX  # what hangs on the hook (the tower crane hangs a steel beam)
 
 var box: AnimatableBody2D
 var px := 640.0
@@ -25,7 +26,7 @@ func _build():
 	per = int(cfg.get("period", 200))
 	slide = cfg.get("slide", 0.0)
 	slide_per = int(cfg.get("slide_period", per * 2))
-	box = make_body("block", [Rect2(-BOX * 0.5, BOX)], 0.15)
+	box = make_body("block", [Rect2(-load_size * 0.5, load_size)], 0.15)
 
 
 func period_frames() -> int:
@@ -42,7 +43,7 @@ func _angle(f: int) -> float:
 
 func _box_xf(f: int) -> Transform2D:
 	var a = _angle(f)
-	var c = _pivot(f) + Vector2(sin(a), cos(a)) * (cable + BOX.y * 0.5)
+	var c = _pivot(f) + Vector2(sin(a), cos(a)) * (cable + load_size.y * 0.5)
 	return Transform2D(-a, c)
 
 
@@ -58,7 +59,7 @@ func pose_at(f: int):
 
 func sim_shapes(f: int) -> Array:
 	var t = _box_xf(f)
-	var h = BOX * 0.5
+	var h = load_size * 0.5
 	return [PackedVector2Array([t * Vector2(-h.x, -h.y), t * Vector2(h.x, -h.y), t * Vector2(h.x, h.y), t * Vector2(-h.x, h.y)])]
 
 
@@ -73,9 +74,9 @@ func _draw():
 	draw_rect(Rect2(p.x - 24, py - 6, 48, 18), navy)
 	# cable + container
 	var t = _box_xf(f)
-	var top = t * Vector2(0, -BOX.y * 0.5)
+	var top = t * Vector2(0, -load_size.y * 0.5)
 	draw_line(p + Vector2(0, 12), top, navy, 4.0)
-	var h = BOX * 0.5
+	var h = load_size * 0.5
 	var poly = PackedVector2Array([t * Vector2(-h.x, -h.y), t * Vector2(h.x, -h.y), t * Vector2(h.x, h.y), t * Vector2(-h.x, h.y)])
 	draw_colored_polygon(Geometry2D.offset_polygon(poly, 3)[0], navy)
 	draw_colored_polygon(poly, Color("#C9826B"))

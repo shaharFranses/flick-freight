@@ -29,7 +29,8 @@ var f0 := 0  # level clock frame at release
 var last_dist := INF  # landing distance from the target spot of the last scored throw
 
 
-var last_caught := false  # the last scored throw rode a belt / chair
+var last_caught := false
+var steady := false  # the cargo keeps its angle in flight (extents, not its corner radius)  # the last scored throw rode a belt / chair
 
 
 func _init(game):
@@ -41,6 +42,7 @@ func _init(game):
 	movers = g.movers
 	var info: Dictionary = g.current.info
 	spin = info.get("spin", 0.0)
+	steady = info.has("spin") and spin == 0.0  # e.g. parcels: no tumble in flight
 	slides = g.current.kind == "ice"
 	bouncy = g.current.kind == "tire"
 	pop_speed = info.get("pop_speed", 0.0)
@@ -199,13 +201,22 @@ func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 	var rr = h.length() if spin == 0.0 else max(_extent(spin * t).x, _extent(spin * t).y)
 	if pr.get("tight", false):
 		rr = max(h.x, h.y) + 2.0  # small racks/hoppers: a box's own half size
-	if l.x + rr > -half - pr.rear_t and l.x - rr < -half and l.y + rr > -pr.rear_h:
-		return -2.0
-	if l.x + rr > pr.front_x0 and l.x - rr < pr.front_x0 + pr.front_w and l.y + rr > -pr.front_h:
-		return -2.0
+	if pr.has("solids"):
+		# walls with openings (mail slot, serving window): check each solid on its own
+		var e = h + Vector2(2, 2) if steady else Vector2(rr, rr)
+		for r in pr.solids:
+			if r.grow_individual(e.x, e.y, e.x, e.y).has_point(l):
+				return -2.0
+	else:
+		if l.x + rr > -half - pr.rear_t and l.x - rr < -half and l.y + rr > -pr.rear_h:
+			return -2.0
+		if l.x + rr > pr.front_x0 and l.x - rr < pr.front_x0 + pr.front_w and l.y + rr > -pr.front_h:
+			return -2.0
 	var ext = h if spin == 0.0 else _extent(spin * t)
 	if v.y > 0 and abs(l.x) < half - h.x * 0.5:
 		var floor_y = -surface_at(info, l.x)
+		if pr.has("solids") and l.y + ext.y - v.y * DT > floor_y + 1.0:
+			return -1.0  # underneath a high floor (between the wheels), not landing on it
 		if l.y + ext.y >= floor_y:
 			# M14: the stack must stay under the bridge line
 			if tr.height_limit > 0 and -floor_y + ext.y * 2.0 > tr.height_limit:
@@ -216,6 +227,8 @@ func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 				if (later - pr.exit_x) * signf(tr.predict_vx(0.0)) > 0.0:
 					return INF
 			last_dist = abs(l.x - info.target_x)
+			if pr.get("any_spot", false):
+				last_dist = 0.0
 			var rel_vx = abs(v.x - tr.predict_vx(t + t0))
 			# prefer soft, steep landings: forward speed makes cargo slide into the bulkhead
 			var sc = last_dist + rel_vx * 0.05 + v.length() * 0.01
