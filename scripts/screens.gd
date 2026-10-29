@@ -8,7 +8,6 @@ signal next_level
 signal open_levels
 signal play_level(index: int)
 signal close_levels
-signal toggle_glue
 
 const NAVY = Color("#1B2A41")
 const GOLD = Color("#FFD34E")
@@ -117,10 +116,6 @@ func show_pause():
 	v.add_child(_row([
 		_button("RESTART", func(): restart.emit(), "SecondaryButton"),
 		_button("LEVELS", func(): open_levels.emit(), "SecondaryButton")]))
-	# cargo mode: glued boxes stay put; unglued stacks can topple (restarts the level)
-	var mode = _button("GLUED CARGO: %s" % ("ON" if Game.glue_loads else "OFF"), func(): toggle_glue.emit(), "SecondaryButton")
-	mode.add_theme_font_size_override("font_size", 24)
-	v.add_child(_row([mode]))
 
 
 # ------------------------------------------------------------------ results

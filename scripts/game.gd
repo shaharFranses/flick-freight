@@ -12,7 +12,7 @@ signal cargo_resolved(kind: String, delivered: bool, reason: String)  # for the 
 
 const ROAD_Y := 625.0
 const DOCK_TOP := 430.0
-const DOCK_RIGHT := 315.0
+const DOCK_RIGHT := 266.0  # flush with the cargo's front edge: low throws don't scrape a lip
 const BELT_RIGHT := 189.0
 const FLICK_X := 235.0
 const MAX_PULL := 170.0
@@ -20,10 +20,8 @@ const POWER := 6.6
 const GRAVITY := 1200.0
 const TILE := 63.0  # Kenney 70px tiles at 0.9
 const NEXT_DELAY := 0.65
-## Cargo mode. true (default) = delivered cargo is glued to the truck. false = it stays
-## physical: stacks can shift or topple, and cargo that falls out stops counting.
-## Set from the pause menu or ?glue=0 / ?glue=1 (saved), see Main.
-static var glue_loads := true
+## Delivered cargo is not glued to the truck: it stays physical, so stacks can shift or
+## topple, and cargo that falls out stops counting.
 const FALL_OUT_TIME := 0.25  # s outside the bed before a delivered cargo counts as fallen out
 const END_SETTLE := 1.2  # s to let stacks settle before the level is scored
 
@@ -211,8 +209,8 @@ func _build_dock():
 	var belts = ["ind_049", "ind_050", "ind_051"]
 	for i in 3:
 		_tile(dock, "res://art/v2/tiles/%s.png" % belts[i], Vector2(i * TILE, DOCK_TOP))
-	# beacon that pulses when cargo is ready to throw
-	beacon = _tile(dock, "res://art/v2/tiles/ind_040.png", Vector2(DOCK_RIGHT - 46, DOCK_TOP - TILE + 2))
+	# beacon that pulses when cargo is ready to throw (on the warehouse roof)
+	beacon = _tile(dock, "res://art/v2/tiles/ind_040.png", Vector2(WAREHOUSE_RIGHT - 70, WAREHOUSE_TOP - TILE + 2))
 	var body = StaticBody2D.new()
 	dock_body = body
 	body.add_to_group("dock")
@@ -521,7 +519,6 @@ func _new_truck(slot: int):
 	var t = Truck.new()
 	t.setup(cfg, level_index + truck_count, cfg.get("wall", 52))
 	t.height_limit = level.get("height_limit", 0.0)
-	t.glue = glue_loads
 	t.position = Vector2(1560, ROAD_Y - Truck.FLOOR_T - 18 - Truck.WHEEL_R)
 	if slot > 0:
 		t.z_index = -slot  # far trucks behind near ones while driving in
@@ -720,10 +717,6 @@ func _on_resolved(c: Cargo, ok: bool, reason: String):
 			# deferred: we're inside a physics callback and the pop un-freezes bodies
 			_pop.call_deferred(c.global_position, c.info.pop_force)
 			c.queue_free()
-		elif reason == "tilted":
-			popup.emit("NOT FLAT!", p, C_BAD, 38)
-			Sfx.play("thud", -4.0)
-			c.fade_out()
 		elif reason == "broken":
 			popup.emit("BROKEN!", p, C_BAD, 42)
 			Fx.shatter(fx_root, c.global_position, Color("#F2C23B"))
@@ -801,16 +794,11 @@ func _check_end():
 		ended = true
 		aiming = false
 		aim.queue_redraw()
-		if not glue_loads:
-			# let the stacks settle (things can still fall out), then strap it all down and score
-			get_tree().create_timer(END_SETTLE, false).timeout.connect(func():
-				for t in live_trucks():
-					for l in t.loads:
-						if is_instance_valid(l.cargo):
-							t._glue(l.cargo)
-				_score())
-			return
-		_score()
+		# let the stacks settle (things can still fall out), then strap it all down and score
+		get_tree().create_timer(END_SETTLE, false).timeout.connect(func():
+			for t in live_trucks():
+				t.glue_all()
+			_score())
 
 
 func _score():
@@ -820,10 +808,8 @@ func _score():
 		finished.emit(stars, delivered, level.cargo.length()))
 
 
-## Unglued loads: anything that has left the bed for a moment (or hit the road) has fallen out.
+## Delivered loads: anything that has left the bed for a moment (or hit the road) has fallen out.
 func _physics_process(delta: float):
-	if glue_loads:
-		return
 	for t in live_trucks():
 		if t.state != "parked":
 			continue

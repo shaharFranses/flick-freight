@@ -13,6 +13,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Import
         run: godot --headless --import || true
+      - name: Layout (no truck drives through an obstacle or pad)
+        run: godot --headless -s res://tools/layout_check.gd
       - name: Cab test (cargo that stays on the cab is a quick miss)
         run: godot --headless --fixed-fps 60 -s res://tools/cab_test.gd
       - name: Frozen data (levels 1-15 unchanged)
@@ -37,16 +39,11 @@ jobs:
         run: |
           set -o pipefail
           godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=all --error=0.5 2>&1 | tee bot5.txt
-      - name: All levels, unglued cargo mode (?glue=0), perfect aim
-        shell: bash
-        run: |
-          set -o pipefail
-          godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=all --error=0 --glue=0 2>&1 | tee bot_unglued.txt
       - name: Annotate results
         if: always()
         shell: bash
         run: |
-          for f in gate0 gate5 bot0 bot5 bot_unglued; do
+          for f in gate0 gate5 bot0 bot5; do
             [ -f $f.txt ] && echo "::notice title=$f::$(grep -E 'LEVEL|BOT DONE|REGRESS|SCRIPT ERROR|WARNING: level' $f.txt | tr '\n' '|' | head -c 3500)"
           done
           true

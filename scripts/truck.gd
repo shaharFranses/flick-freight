@@ -37,7 +37,6 @@ var loads: Array = []  # [{"cargo": Cargo, "offset": Vector2, "rot": float}]
 var ferry: Dictionary = {}  # M10: {amp_y, amp_rot (deg), period}; empty = on the road
 var icy := false  # M11: icy bed, everything slides
 var height_limit := 0.0  # M14: bridge line above the bed (0 = none)
-var glue := true  # false: delivered cargo stays physical (see Game.glue_loads)
 
 var _t := 0.0
 var _anim_t := 0.0
@@ -265,14 +264,7 @@ func arrive():
 
 
 func leave():
-	# whatever is aboard is strapped down for the drive out
-	for l in loads:
-		if is_instance_valid(l.cargo) and not l.cargo.freeze:
-			_glue(l.cargo)
-			l.offset = l.cargo.global_position - global_position
-			l.rot = l.cargo.rotation
-			l.local = to_local(l.cargo.global_position)
-			l.lrot = l.cargo.rotation - rotation
+	glue_all()  # whatever is aboard is strapped down for the drive out
 	state = "leaving"
 	_from_x = position.x
 	_to_x = 1700.0
@@ -384,11 +376,24 @@ func on_vehicle(p: Vector2) -> bool:
 
 
 func add_load(c: Cargo, counted := true):
-	if glue:
-		_glue(c)
+	# cargo stays physical in the bed; it's only strapped down to drive off (glue_all)
 	loads.append({"cargo": c, "offset": c.global_position - global_position, "rot": c.rotation,
 		"local": to_local(c.global_position), "lrot": c.rotation - rotation, "counted": counted})
 	bump()
+
+
+## Strap down every loose load where it is *now*. The follow code then
+## keeps each box at this spot, not where it first landed.
+func glue_all():
+	for l in loads:
+		var c: Cargo = l.cargo
+		if not is_instance_valid(c) or c.freeze:
+			continue
+		_glue(c)
+		l.offset = c.global_position - global_position
+		l.rot = c.rotation
+		l.local = to_local(c.global_position)
+		l.lrot = c.rotation - rotation
 
 
 func _glue(c: Cargo):

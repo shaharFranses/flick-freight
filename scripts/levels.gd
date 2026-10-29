@@ -19,7 +19,7 @@ extends RefCounted
 ## ferry  : M10 inside a truck: {amp_y (px), amp_rot (deg), period (s)}; the truck bobs on a ferry
 ## water  : M10 [x0, x1] stretch of open water where the road would be (cargo there splashes)
 ## icy    : M11 inside a truck: true = icy bed, everything slides. Cargo letter i = ice block
-##          t = tire (M12, bouncy), p = plank (M13, spins at a fixed rate, must land flat),
+##          t = tire (M12, bouncy), p = plank (M13, long, spins at a fixed rate; counts at any angle),
 ##          g = gas canister (M15, pops on a hard landing and knocks nearby cargo out)
 ## plank  : M13 {length, spin} override for this level's planks (default 150 px, 2.4 rad/s)
 ## fragile_hits : fragile cargo breaks on this bump (default 3); every bump before it shows a crack
@@ -66,7 +66,7 @@ const DATA = [
 		"blocks": [[400, 190, 300, 40]],
 		"intro": {"title": "LOW BEAM", "text": "Keep your throws under the beam."}},
 	{"world": 1, "cargo": "bcrbfcbrb", "goal": 4, "s2": 7,
-		"truck": {"x": 880, "amp": 150, "period": 3.6, "wall": 60}, "guide": 0.4,
+		"truck": {"x": 880, "amp": 115, "period": 3.6, "wall": 60}, "guide": 0.4,
 		"blocks": [[540, 360, 56, 265]]},
 	# ---------------- DESERT ----------------
 	{"world": 2, "cargo": "bbcbbcbb", "goal": 4, "s2": 6,
@@ -82,7 +82,7 @@ const DATA = [
 		"truck": {"x": 880, "amp": 140, "period": 3.8, "wall": 60}, "guide": 0.35, "wind": -180,
 		"blocks": [[420, 200, 280, 40]]},
 	{"world": 2, "cargo": "bcrfbcrfbc", "goal": 5, "s2": 8,
-		"truck": {"x": 900, "amp": 170, "period": 3.4, "wall": 64}, "guide": 0.3, "wind": 180,
+		"truck": {"x": 900, "amp": 115, "period": 3.4, "wall": 64}, "guide": 0.3, "wind": 180,
 		"blocks": [[560, 380, 56, 245]],
 		"intro": {"title": "FINAL RUN", "text": "Everything at once. Good luck, driver!"}},
 	# ---------------- HARBOR ----------------
@@ -151,7 +151,7 @@ const DATA = [
 		"pads": [[560, 579, 4, 1.1]]},
 	{"world": 4, "cargo": "ppbpbbp", "goal": 4, "s2": 6,
 		"truck": {"x": 900, "amp": 0, "period": 4.0, "wall": 52}, "guide": 0.7,
-		"intro": {"title": "PLANKS", "text": "Planks spin as they fly. Land them flat!", "icon": "plank"}},
+		"intro": {"title": "PLANKS", "text": "Planks spin as they fly. A tilted plank still counts!", "icon": "plank"}},
 	{"world": 4, "cargo": "pbpbpbp", "goal": 3, "s2": 5,
 		"truck": {"x": 900, "amp": 0, "period": 4.0, "wall": 56}, "guide": 0.5, "wind": -120,
 		"plank": {"length": 150, "spin": 1.8},
@@ -165,8 +165,8 @@ const DATA = [
 	{"world": 4, "cargo": "bibbibib", "goal": 4, "s2": 6,
 		"truck": {"x": 900, "amp": 0, "period": 4.0, "wall": 56}, "cap": 3, "guide": 0.5,
 		"height_limit": 70},
-	{"world": 4, "cargo": "tpibtpbitp", "goal": 5, "s2": 8,
-		"truck": {"x": 960, "amp": 0, "period": 4.0, "wall": 64, "icy": true}, "cap": 4, "guide": 0.4, "height_limit": 96,
+	{"world": 4, "cargo": "tpibtpbitp", "goal": 4, "s2": 7,
+		"truck": {"x": 960, "amp": 0, "period": 4.0, "wall": 64, "icy": true}, "cap": 4, "guide": 0.4, "height_limit": 110,
 		"pads": [[600, 579, 4, 1.0]],
 		"intro": {"title": "WHITEOUT", "text": "Ice, tires, planks and a low bridge. Stay cool!"}},
 	# ---------------- FREIGHT YARD ----------------
