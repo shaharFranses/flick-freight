@@ -13,7 +13,8 @@ signal departed
 var state := "away"  # away / arriving / parked / leaving
 var loads: Array = []  # [{"cargo": Cargo, "offset", "rot", "local", "lrot", "counted"}]
 var height_limit := 0.0  # M14: low bridge clearance above the load floor (0 = none)
-var lift_off_on_win := false  # helicopter, balloon: leave() as the showcase when the level is won
+var lift_off_on_win := false
+var full_text := "TRUCK FULL!"  # popup when it's loaded up and drives off  # helicopter, balloon: leave() as the showcase when the level is won
 
 
 func setup(_cfg: Dictionary, _palette_index: int, _wall_height: float):
