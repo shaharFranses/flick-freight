@@ -170,6 +170,11 @@ func bind(g: Game):
 	_goal = lv.goal
 	_s2 = lv.get("s2", lv.cargo.length())
 	_total = lv.cargo.length()
+	if lv.has("need"):
+		# few-throws level: the bar fills to `need`; stars come from the throw count
+		_goal = lv.need
+		_s2 = lv.need
+		_total = lv.need
 	_delivered = 0
 	level_label.text = "LEVEL %d" % Levels.number_of(g.level_index)
 	world_label.text = Levels.world_of(g.level_index).name
@@ -183,7 +188,10 @@ func bind(g: Game):
 	elif lv.get("wind", 0) != 0:
 		show_banner("WIND", "Tailwind! Throw softer than the line." if lv.wind > 0 else "Headwind! Throw harder than the line.", "wind")
 	else:
-		show_banner("LEVEL %d" % Levels.number_of(g.level_index), "Load %d of %d to pass" % [_goal, _total], "", 1.6)
+		var how = "Load %d of %d to pass" % [_goal, _total]
+		if lv.has("need"):
+			how = "Load %d, in as few throws as you can" % lv.need
+		show_banner("LEVEL %d" % Levels.number_of(g.level_index), how, "", 1.6)
 	if lv.get("tutorial", false) and not SaveData.get_flag("tutorial_done", false):
 		_show_tutorial()
 

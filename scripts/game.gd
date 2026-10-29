@@ -44,6 +44,9 @@ var truck: CargoVehicle:
 		return trucks[0] if not trucks.is_empty() else null
 var dock_body: StaticBody2D
 var movers: Array = []  # Plan 2 moving obstacles (scripts/mover.gd)
+## Extra collision layers cargo only meets while in flight (e.g. M18 bus/train lane).
+var flying_mask := 0
+const LAYER_FLIGHT := 4  # physics layer 3
 var pads: Array = []  # M8: [{node, n, power, squash}]
 var truck_count := 0
 var delivered := 0
@@ -651,7 +654,9 @@ func can_aim() -> bool:
 	if ended or current == null or not current_ready:
 		return false
 	for t in live_trucks():
-		if t.is_parked():
+		# one-parcel vehicles (cap 1, e.g. couriers): wait for the parcel in the air to land;
+		# a loaded one is about to ride off, so it's not a target
+		if t.is_parked() and not (cap == 1 and (t.load_count() >= 1 or in_flight > 0)):
 			return true
 	return false
 
@@ -849,7 +854,8 @@ func _check_end():
 		return
 	var left = work_left()
 	var lost_cause = delivered + left < level.goal
-	if left == 0 or (lost_cause and in_flight == 0):
+	var done_early = level.has("need") and delivered >= level.need and in_flight == 0
+	if left == 0 or done_early or (lost_cause and in_flight == 0):
 		ended = true
 		aiming = false
 		aim.queue_redraw()
@@ -861,7 +867,7 @@ func _check_end():
 
 
 func _score():
-	var stars = Levels.stars_for(level_index, delivered)
+	var stars = Levels.stars_for(level_index, delivered, thrown)
 	SaveData.set_stars(level_index, stars)
 	if stars > 0 and level.has("height_limit"):
 		# showcase: the loaded truck drives out under the low bridge

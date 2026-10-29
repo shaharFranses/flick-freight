@@ -25,6 +25,14 @@ extends RefCounted
 ## fragile_hits : fragile cargo breaks on this bump (default 3); every bump before it shows a crack
 ## height_limit : M14 px above the bed floor; cargo sticking up past it is knocked off (a miss)
 ## canister : M15 {pop_speed, pop_force} override (default 950 px/s, 520)
+##
+## Plan 2 (docs/EXPANSION_PLAN_2.md). IDs 41+ are appended; "act": 2 puts a level in its
+## world's Act II.
+## vehicle : inside a truck config: "moto" (V1), "garbage" (V3)... (scripts/vehicles.gd)
+## movers  : moving obstacles [{"type", "phase", ...}] (scripts/movers.gd):
+##           crane (M16), garage_door (M17), bus (M18, also kind "train"), forklift (M22)
+## need / throw_stars : finish once `need` are loaded; 3 stars within throw_stars[0] throws,
+##           2 stars within throw_stars[1] (few-throws levels, e.g. the motorcycle)
 
 ## Level IDs: a level's ID is its index in DATA and never changes (saves are keyed by it).
 ## New levels are only ever appended to DATA. The order players meet them in is separate:
@@ -202,6 +210,50 @@ const DATA = [
 		"pads": [[560, 579, 4, 1.1]],
 		"water": [760, 1300],
 		"intro": {"title": "GRAND FINALE", "text": "One of everything. You've got this, driver!"}},
+	# ================= Plan 2 =================
+	# ---------------- TOWN, Act II (IDs 41-45) ----------------
+	{"world": 0, "act": 2, "cargo": "bbbbbb", "goal": 3, "s2": 5,
+		"truck": {"x": 900, "amp": 0, "period": 4.0, "wall": 52}, "guide": 0.8,
+		"movers": [{"type": "garage_door", "x": 600, "top": 250, "period": 240, "open": 120}],
+		"intro": {"title": "GARAGE DOOR", "text": "Throw through while it's open. Amber light = closing!"}},
+	{"world": 0, "act": 2, "cargo": "bbbbbbbb", "goal": 3, "need": 3, "throw_stars": [3, 5],
+		"truck": {"x": 820, "amp": 0, "period": 4.0, "vehicle": "moto"}, "cap": 1, "guide": 0.8,
+		"intro": {"title": "COURIERS", "text": "One parcel per bike. 3 bikes, as few throws as you can!"}},
+	{"world": 0, "act": 2, "cargo": "bcbcbbc", "goal": 4, "s2": 6,
+		"truck": {"x": 960, "amp": 0, "period": 4.0, "wall": 56}, "guide": 0.6,
+		"movers": [{"type": "bus", "period": 420, "speed": 9.0}],
+		"intro": {"title": "BUS STOP", "text": "Wait for the bus to pass. Red lights = it's coming!"}},
+	{"world": 0, "act": 2, "cargo": "bbbbbb", "goal": 3, "s2": 5,
+		"truck": {"x": 900, "amp": 0, "period": 4.0, "vehicle": "garbage"}, "guide": 0.7,
+		"intro": {"title": "GARBAGE TRUCK", "text": "Drop it through the hopper: throw high and steep."}},
+	{"world": 0, "act": 2, "cargo": "bbfbbfb", "goal": 3, "need": 3, "throw_stars": [4, 6],
+		"truck": {"x": 780, "amp": 0, "period": 4.0, "vehicle": "moto"}, "cap": 1, "guide": 0.5,
+		"movers": [{"type": "garage_door", "x": 540, "top": 200, "period": 240, "open": 120}],
+		"intro": {"title": "LAST DELIVERY", "text": "Motorcycle behind a closing door. Make every throw count."}},
+	# ---------------- HARBOR, Act II (IDs 46-50) ----------------
+	{"world": 3, "act": 2, "cargo": "bbbbbb", "goal": 3, "s2": 5,
+		"truck": {"x": 980, "amp": 0, "period": 4.0, "wall": 52}, "guide": 0.8,
+		"movers": [{"type": "crane", "x": 620, "y": 100, "length": 200, "swing": 28, "period": 200}],
+		"intro": {"title": "CRANE", "text": "The container swings. Listen for the creak and time it!"}},
+	{"world": 3, "act": 2, "cargo": "bbbbbbb", "goal": 4, "s2": 6,
+		"truck": {"x": 1000, "amp": 0, "period": 4.0, "wall": 56}, "guide": 0.6,
+		"blocks": [[380, 300, 420, 36]],
+		"pads": [[560, 579, 4, 1.1]],
+		"movers": [{"type": "forklift", "x0": 340, "x1": 470, "period": 300, "forks": 80}],
+		"intro": {"title": "FORKLIFT", "text": "It patrols the quay. Bounce off the pad behind it."}},
+	{"world": 3, "act": 2, "cargo": "bcbcbcb", "goal": 4, "s2": 6,
+		"truck": {"x": 990, "amp": 0, "period": 4.0, "wall": 56}, "guide": 0.5, "wind": -100,
+		"movers": [{"type": "crane", "x": 600, "y": 100, "length": 210, "swing": 22, "period": 260}]},
+	{"world": 3, "act": 2, "cargo": "bbcbbbcb", "goal": 4, "s2": 7,
+		"truck": {"x": 1000, "amp": 0, "period": 4.4, "wall": 56}, "guide": 0.45,
+		"movers": [{"type": "crane", "x": 650, "y": 100, "length": 150, "swing": 22, "period": 240},
+			{"type": "forklift", "x0": 340, "x1": 470, "period": 260, "forks": 80, "phase": 60}]},
+	{"world": 3, "act": 2, "cargo": "bbcbfbcbb", "goal": 5, "s2": 7,
+		"truck": {"x": 1010, "amp": 0, "period": 4.0, "wall": 56,
+			"ferry": {"amp_y": 14, "amp_rot": 3.0, "period": 3.0}}, "guide": 0.4,
+		"water": [760, 1300],
+		"movers": [{"type": "crane", "x": 700, "y": 100, "length": 190, "swing": 28, "period": 240}],
+		"intro": {"title": "DOCK BOSS", "text": "A ferry behind a swinging container. Timing is everything."}},
 ]
 
 const LETTER = {"b": "box", "c": "crate", "r": "barrel", "f": "fragile",
@@ -223,8 +275,18 @@ static func cargo_list(i: int) -> Array:
 	return out
 
 
-static func stars_for(i: int, delivered: int) -> int:
+static func stars_for(i: int, delivered: int, thrown := -1) -> int:
 	var lv = get_level(i)
+	if lv.has("need"):
+		# few-throws levels (e.g. V1 motorcycle): load `need`; stars count the throws it took
+		if delivered < lv.need:
+			return 0
+		var ts: Array = lv.get("throw_stars", [lv.need, lv.need + 1])
+		if thrown >= 0 and thrown <= ts[0]:
+			return 3
+		if thrown >= 0 and thrown <= ts[1]:
+			return 2
+		return 1
 	var total = lv.cargo.length()
 	if delivered >= total:
 		return 3

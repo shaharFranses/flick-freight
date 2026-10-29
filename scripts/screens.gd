@@ -145,6 +145,10 @@ func show_results(level_index: int, stars: int, delivered: int, total: int):
 	var sub = "Loaded %d of %d" % [delivered, total]
 	if not won:
 		sub += "  -  you need %d" % lv.goal
+	if lv.has("need"):
+		var ts: Array = lv.get("throw_stars", [lv.need, lv.need + 1])
+		var thrown = get_parent().game.thrown if get_parent().game else 0
+		sub = "%d loaded in %d throws  -  %d throws for 3 stars" % [delivered, thrown, ts[0]]
 	v.add_child(_title(sub, 28, Color.WHITE))
 	var buttons: Array = [_button("LEVELS", func(): open_levels.emit(), "SecondaryButton"),
 		_button("RETRY", func(): restart.emit(), "SecondaryButton" if won else "BigButton")]
