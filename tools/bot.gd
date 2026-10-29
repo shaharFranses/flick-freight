@@ -13,6 +13,8 @@ extends SceneTree
 ##   --json=res://...      write per-level results as JSON
 ##   --compare=res://...   fail (exit 1) if any level in that JSON gives a different result
 ##   --append              merge into the --json file instead of overwriting it
+##   --perf                log physics frame time per level
+##   --test_mover=res://   add a dev moving obstacle (tools/timing_test.sh)
 ##   --snap=path.png --snap_at=S   save a screenshot after S seconds (needs a display, e.g. xvfb-run)
 ##   --seconds=S, --stay, --verbose, --fresh=0
 
@@ -27,6 +29,9 @@ var solver := "auto"
 var json_out := ""
 var compare_path := ""
 var append := false
+var test_mover := ""
+var perf := false
+var _phys_ms: Array = []
 var rng := RandomNumberGenerator.new()
 var results: Array = []
 var wait := 0.0
@@ -41,6 +46,12 @@ var _game_id := 0
 var _broken := 0
 var _candidates := 0
 var _throws: Array = []  # every throw this level, as pull vectors (parity check)
+# release-time search (levels with moving obstacles)
+var _wait_frames := 0
+var _planned := Vector2.ZERO
+var _planned_at := -1
+var _windows: Array = []  # per throw: frames of release timing that work around the chosen one
+var _jitter_fail := 0
 var _good := 0
 
 
@@ -62,6 +73,8 @@ func _init():
 	json_out = args.get("json", "")
 	compare_path = args.get("compare", "")
 	append = args.has("append")
+	test_mover = args.get("test_mover", "")
+	perf = args.has("perf")
 	seed(base_seed)
 	if args.get("fresh", "1") == "1":
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveData.PATH))
@@ -87,7 +100,15 @@ func _process(delta: float) -> bool:
 	var g: Game = main.game
 	if g.get_instance_id() != _game_id:
 		_begin_level(g)
+		if test_mover != "":
+			# --test_mover=res://... : add a dev obstacle to the level (tools/timing_test.gd)
+			var m = load(test_mover).new()
+			g.add_child(m)
+			m.setup(g, {})
+			g.movers.append(m)
 	level_time += delta
+	if perf:
+		_phys_ms.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0)
 	if g.ended:
 		wait += delta
 		if wait > 2.0:
@@ -101,6 +122,14 @@ func _process(delta: float) -> bool:
 				return true
 			main.start_level(levels[li])
 		return false
+	if _planned_at >= 0:
+		# moving obstacles: release on the planned frame of the level clock
+		if g.frame >= _planned_at and g.can_aim():
+			g.throw_with_pull(_planned)
+			_throws.append([snappedf(_planned.x, 0.01), snappedf(_planned.y, 0.01), _planned_at])
+			_planned_at = -1
+			shots += 1
+		return false
 	if g.can_aim():
 		wait += delta
 		if wait > 0.35:
@@ -108,6 +137,10 @@ func _process(delta: float) -> bool:
 			var p = solve(g) if _use_analytic(g) else solve_sim(g)
 			if error > 0:
 				p = p.rotated(rng.randf_range(-error, error) * 0.12) * (1.0 + rng.randf_range(-error, error) * 0.1)
+			if _wait_frames > 0:
+				_planned = p
+				_planned_at = g.frame + _wait_frames
+				return false
 			g.throw_with_pull(p)
 			_throws.append([snappedf(p.x, 0.01), snappedf(p.y, 0.01)])
 			shots += 1
@@ -126,6 +159,11 @@ func _begin_level(g: Game):
 	_candidates = 0
 	_good = 0
 	_throws = []
+	_wait_frames = 0
+	_planned_at = -1
+	_windows = []
+	_jitter_fail = 0
+	_phys_ms = []
 	g.cargo_resolved.connect(func(_kind, _ok, reason):
 		if reason == "broken":
 			_broken += 1)
@@ -149,6 +187,22 @@ func _record(g: Game):
 	if _candidates > 0:
 		# share of candidate throws (over the whole level) that would have landed in a truck
 		extra = "  sim: %d cands, %.1f%% good" % [_candidates, 100.0 * _good / _candidates]
+	if not _windows.is_empty():
+		r["min_window"] = _windows.min()
+		r["jitter_fail"] = _jitter_fail
+		extra += "  timing: window >= %df, jitter fails %d/%d" % [_windows.min(), _jitter_fail, _windows.size()]
+		if _windows.min() < 24:
+			print("  WARNING: level %d has a release window under 24 frames (0.4 s)" % r.level)
+		if _jitter_fail > 0:
+			print("  WARNING: level %d has throws that fail with +-3 frames of timing jitter" % r.level)
+	if perf and not _phys_ms.is_empty():
+		var avg = 0.0
+		for v in _phys_ms:
+			avg += v
+		avg /= _phys_ms.size()
+		r["phys_ms_avg"] = snappedf(avg, 0.01)
+		r["phys_ms_max"] = snappedf(_phys_ms.max(), 0.01)
+		extra += "  physics: avg %.2f ms, max %.2f ms per frame" % [avg, _phys_ms.max()]
 	print("LEVEL %d: loaded %d/%d  stars=%d  broken=%d  time=%ds%s" % [r.level, r.delivered, total, stars, _broken, int(level_time), extra])
 	if _candidates > 0 and stars == 3 and float(_good) / _candidates < 0.02:
 		print("  WARNING: level %d needs very precise throws (<2%% of candidates land)" % r.level)
@@ -276,6 +330,9 @@ func solve(g: Game) -> Vector2:
 ## walls; later mechanics plug in via BotSim) and scores where it ends up.
 func solve_sim(g: Game) -> Vector2:
 	var sim = BotSim.new(g)
+	_wait_frames = 0
+	if g.motion_period() > 0:
+		return _solve_timed(g, sim, g.motion_period())
 	var best = Vector2(100, -100)
 	var best_score = INF
 	for ang in range(-40, 84, 2):
@@ -288,4 +345,55 @@ func solve_sim(g: Game) -> Vector2:
 			if s < best_score:
 				best_score = s
 				best = pull
+	return best
+
+
+## Moving obstacles: also search when to throw (Plan 2 §5.1). Coarse grid over one cycle,
+## then refine around the best. Records the timing window and the ±3 frame jitter check.
+func _solve_timed(g: Game, sim: BotSim, period: int) -> Vector2:
+	var best = Vector2(100, -100)
+	var best_w = 0
+	var best_score = INF
+	for w in range(0, period, 5):
+		for ang in range(-40, 84, 4):
+			for ln in range(40, int(Game.MAX_PULL) + 1, 6):
+				var pull = Vector2(cos(deg_to_rad(ang)), -sin(deg_to_rad(ang))) * ln
+				var s = sim.score(pull, w)
+				_candidates += 1
+				if sim.last_dist < BotSim.GOOD:
+					_good += 1
+				if s < best_score:
+					best_score = s
+					best = pull
+					best_w = w
+	var a0 = rad_to_deg(-best.angle())
+	var l0 = best.length()
+	for w in range(max(0, best_w - 4), best_w + 5):
+		for da in range(-4, 5, 1):
+			for dl in range(-6, 7, 2):
+				var ln = clamp(l0 + dl, 40.0, Game.MAX_PULL)
+				var pull = Vector2(cos(deg_to_rad(a0 + da)), -sin(deg_to_rad(a0 + da))) * ln
+				var s = sim.score(pull, w)
+				if s < best_score:
+					best_score = s
+					best = pull
+					best_w = w
+	# fairness: how many frames around the chosen release still work, and ±3 frame jitter
+	var ok = func(w): return sim.score(best, posmod(w, period)) < INF
+	var lo = best_w
+	while lo > best_w - period and ok.call(lo - 1):
+		lo -= 1
+	var hi = best_w
+	while hi < best_w + period and ok.call(hi + 1):
+		hi += 1
+	_windows.append(hi - lo + 1 if best_score < INF else 0)
+	# release in the middle of the window, not on its edge (what a fair player aims for)
+	var mid = max((lo + hi) / 2, 0)
+	if best_score < INF and ok.call(mid):
+		best_w = mid
+	for d in [-3, -2, -1, 1, 2, 3]:
+		if best_score < INF and not ok.call(best_w + d):
+			_jitter_fail += 1
+			break
+	_wait_frames = best_w
 	return best

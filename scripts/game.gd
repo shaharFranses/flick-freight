@@ -43,6 +43,7 @@ var truck: CargoVehicle:
 	get:
 		return trucks[0] if not trucks.is_empty() else null
 var dock_body: StaticBody2D
+var movers: Array = []  # Plan 2 moving obstacles (scripts/mover.gd)
 var pads: Array = []  # M8: [{node, n, power, squash}]
 var truck_count := 0
 var delivered := 0
@@ -92,6 +93,11 @@ func setup(index: int):
 		_build_pads()
 	if level.has("height_limit"):
 		_build_low_bridge()
+	for m in level.get("movers", []):
+		var mv: Mover = Movers.make(m.type)
+		add_child(mv)
+		mv.setup(self, m)
+		movers.append(mv)
 	if wind != 0.0:
 		_build_flag()
 		_build_wind_fx()
@@ -105,6 +111,27 @@ func setup(index: int):
 	aim.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	aim.draw.connect(_draw_aim)
 	add_child(aim)
+
+
+## Frames until every moving obstacle is back where it started (0 = nothing moves).
+## The bot searches release timings over one such cycle.
+func motion_period() -> int:
+	var p := 0
+	for m in movers:
+		var q: int = m.period_frames()
+		if q > 0:
+			p = q if p == 0 else _lcm(p, q)
+	return min(p, 1200)
+
+
+static func _lcm(a: int, b: int) -> int:
+	var x = a
+	var y = b
+	while y != 0:
+		var t = y
+		y = x % y
+		x = t
+	return a / x * b
 
 
 ## Seconds on the level clock.
@@ -634,6 +661,12 @@ func launch_velocity(p: Vector2) -> Vector2:
 
 
 func _unhandled_input(event: InputEvent):
+	# designer time-scrub (debug builds only): [ and ] move the level clock by half a second
+	if OS.is_debug_build() and event is InputEventKey and event.pressed and not movers.is_empty():
+		if event.keycode == KEY_BRACKETRIGHT:
+			frame += 30
+		elif event.keycode == KEY_BRACKETLEFT:
+			frame = max(0, frame - 30)
 	if ended:
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:

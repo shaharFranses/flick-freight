@@ -21,6 +21,10 @@ var bouncy := false  # M12
 var pop_speed := 0.0  # M15: canister pops above this landing speed
 var raw_blocks: Array = []
 var pads: Array = []
+var movers: Array = []
+var r_spin := 0.0  # corner radius of the cargo (it spins in flight)
+var t0 := 0.0  # seconds until release (release-time search)
+var f0 := 0  # level clock frame at release
 var last_dist := INF  # landing distance from the target spot of the last scored throw
 
 
@@ -30,6 +34,7 @@ func _init(game):
 	h = g.current.info.size * 0.5
 	mult = g.current.power_mult()
 	pads = g.pads
+	movers = g.movers
 	var info: Dictionary = g.current.info
 	spin = info.get("spin", 0.0)
 	slides = g.current.kind == "ice"
@@ -37,6 +42,7 @@ func _init(game):
 	pop_speed = info.get("pop_speed", 0.0)
 	# cargo spins in flight, so keep its corner radius clear of obstacles
 	var r = h.length()
+	r_spin = r
 	for b in g.level.get("blocks", []):
 		blocks.append(Rect2(b[0], b[1], b[2], b[3]).grow(r))
 		raw_blocks.append(Rect2(b[0], b[1], b[2], b[3]))
@@ -107,8 +113,10 @@ func surface_at(info: Dictionary, local_x: float) -> float:
 	return hgt
 
 
-func score(pull: Vector2) -> float:
+func score(pull: Vector2, wait := 0) -> float:
 	last_dist = INF
+	t0 = wait * DT
+	f0 = g.frame + wait
 	var v = pull * Game.POWER * mult
 	var p = p0
 	var t = 0.0
@@ -138,6 +146,8 @@ func score(pull: Vector2) -> float:
 			for r in blocks:
 				if r.has_point(p):
 					return INF
+		if not movers.is_empty() and _hits_mover(p, f0 + int(round(t / DT))):
+			return INF
 		for info in trucks:
 			var r = _vs_truck(info, p, v, t)
 			if r >= 0.0:
@@ -151,7 +161,7 @@ func score(pull: Vector2) -> float:
 func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 	var tr: CargoVehicle = info.truck
 	var pr: Dictionary = info.profile
-	var pose = tr.predict_pose(t)
+	var pose = tr.predict_pose(t + t0)
 	var l = (p - pose[0]).rotated(-pose[1])
 	var half = pr.floor_w * 0.5
 	# rear wall (left), front block e.g. bulkhead + cab (right); spinning cargo reaches out to its corners
@@ -168,7 +178,7 @@ func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 			if tr.height_limit > 0 and -floor_y + ext.y * 2.0 > tr.height_limit:
 				return INF
 			last_dist = abs(l.x - info.target_x)
-			var rel_vx = abs(v.x - tr.predict_vx(t))
+			var rel_vx = abs(v.x - tr.predict_vx(t + t0))
 			# prefer soft, steep landings: forward speed makes cargo slide into the bulkhead
 			var sc = last_dist + rel_vx * 0.05 + v.length() * 0.01
 			if info.slippery:
@@ -185,3 +195,24 @@ func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 				sc += rad_to_deg(min(a, PI - a)) * 0.5
 			return sc
 	return -1.0
+
+
+## Does the cargo (centre p, spinning corner radius) touch a moving obstacle at frame f?
+func _hits_mover(p: Vector2, f: int) -> bool:
+	for m in movers:
+		for sh in m.sim_shapes(f + m.phase):
+			if sh is Rect2:
+				if sh.grow(r_spin).has_point(p):
+					return true
+			elif Geometry2D.is_point_in_polygon(p, sh) or _near_polygon(p, sh, r_spin):
+				return true
+	return false
+
+
+static func _near_polygon(p: Vector2, poly: PackedVector2Array, r: float) -> bool:
+	for i in poly.size():
+		var a = poly[i]
+		var b = poly[(i + 1) % poly.size()]
+		if p.distance_to(Geometry2D.get_closest_point_to_segment(p, a, b)) < r:
+			return true
+	return false

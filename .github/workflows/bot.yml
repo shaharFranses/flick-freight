@@ -34,11 +34,19 @@ jobs:
         run: |
           set -o pipefail
           godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=all --error=0.5 2>&1 | tee bot5.txt
+      - name: Release-time search (dev timed gate)
+        run: tools/timing_test.sh
+      - name: Deterministic replay, new levels (3 runs each)
+        run: tools/replay_check.sh 41 200
+      - name: Performance smoke test (heaviest levels, native headless physics time)
+        shell: bash
+        run: |
+          for L in 25 35 38 40; do godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=$L --error=0 --perf 2>&1 | grep "^LEVEL"; done | tee perf.txt
       - name: Annotate results
         if: always()
         shell: bash
         run: |
-          for f in parity bot0 bot5; do
+          for f in parity bot0 bot5 perf; do
             [ -f $f.txt ] && echo "::notice title=$f::$(grep -E 'LEVEL|BOT DONE|REGRESS|PARITY|SCRIPT ERROR|WARNING: level' $f.txt | tr '\n' '|' | head -c 3500)"
           done
           true

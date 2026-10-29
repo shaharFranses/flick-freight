@@ -36,6 +36,10 @@ scripts/
   cargo.gd       cargo physics + resolve (delivered / missed / broken)
   levels.gd      ALL level data (add a level = add a dictionary; keys documented at the top)
   backdrops.gd   code-drawn backgrounds for Harbor and later worlds
+  cargo_vehicle.gd  the interface every vehicle implements (the truck is V0)
+  vehicles.gd    vehicle factory ("vehicle" key in a truck config)
+  mover.gd, movers.gd  moving obstacles: pose = f(level clock), AnimatableBody2D
+  bridges.gd     the low bridges (height limit), one style per world
   hud.gd         top bar, banners, pop-ups, tutorial
   screens.gd     pause, results (stars), level select
   ui_theme.gd    shared theme (Fredoka font, buttons, cards)
@@ -43,7 +47,11 @@ scripts/
   sfx.gd, fx.gd  audio + particles
 tools/
   bot.gd         QA bot: plays levels (analytic solver for 1-15, search solver after)
-  bot_sim.gd     throw model for the search solver
+  bot_sim.gd     throw model for the search solver (vehicles, movers, release timing)
+  parity.sh      levels 1-40, one process each, must match the pre-Plan-2 snapshot
+  replay_check.sh  new levels must replay identically 3 times
+  timing_test.sh release-time search test with a dev gate (tools/test/)
+  save_test.gd, layout_check.gd, cab_test.gd  other CI checks
   frozen_check.gd  hash check that levels 1-15 never change
   baseline_1_40*.json  regression snapshot of levels 1-40 (results + throws)
   cover.gd       renders the CrazyGames cover images
@@ -92,4 +100,8 @@ godot --rendering-driver opengl3 -s res://tools/cover.gd -- --out=marketing/cove
 
 Screenshots (needs a display): `xvfb-run -a godot --rendering-driver opengl3 -s res://tools/bot.gd -- --levels=16 --snap=shot.png --snap_at=5`
 
-`?level=N` in the URL (or `-- --level=N` on the command line) jumps to a level for testing.
+Levels have permanent IDs (their index in `Levels.DATA`, the save key); the number players
+see follows play order (`Levels.order()`: each world's Act I, then its Act II). Moving
+obstacles read the level clock `Game.frame`; in debug builds `[` / `]` scrub it by half a second.
+
+`?level=N` in the URL (the number players see) (or `-- --level=N` on the command line) jumps to a level for testing.
