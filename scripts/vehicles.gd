@@ -7,6 +7,10 @@ const SCRIPTS = {
 	"truck": "res://scripts/truck.gd",
 	"moto": "res://scripts/vehicle_moto.gd",  # V1
 	"garbage": "res://scripts/vehicle_garbage.gd",  # V3
+	"pickup": "res://scripts/vehicle_pickup.gd",  # V2
+	"dump": "res://scripts/vehicle_dump.gd",  # V5
+	"flatbed": "res://scripts/vehicle_flatbed.gd",  # V6
+	"flatcar": "res://scripts/vehicle_flatcar.gd",  # V7
 }
 
 

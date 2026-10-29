@@ -2,8 +2,8 @@ class_name Mover
 extends Node2D
 ## A moving obstacle (Plan 2 §3.2). Its pose is a pure function of the level clock
 ## (Game.frame + phase): nothing integrates its own state, so every restart plays out
-## identically and the bot can look ahead. Parts cargo can touch are AnimatableBody2D
-## (sync_to_physics), so cargo resting on or pushed by them behaves.
+## identically and the bot can look ahead. Parts cargo can touch are AnimatableBody2D,
+## so cargo resting on or pushed by them behaves.
 ##
 ## Level data: "movers": [{"type": "<id>", "phase": frames, ...type params}]
 
@@ -37,9 +37,11 @@ func sim_shapes(_f: int) -> Array:
 	return []
 
 
-## For the bot: velocity a cargo resting on / pushed by this mover gets at frame f, at p.
-func sim_carry(_f: int, _p: Vector2) -> Vector2:
-	return Vector2.ZERO
+## For the bot: a mover that carries cargo (belt, ski lift) can catch a falling cargo of half
+## height hh at p (velocity v) at frame f. Returns {p, v, frames} = where and how fast it leaves
+## the carrier and how many frames later, so the flight continues from there; {} = no catch.
+func sim_catch(_p: Vector2, _v: Vector2, _hh: float, _f: int) -> Dictionary:
+	return {}
 
 
 func _build():
@@ -56,7 +58,9 @@ func _physics_process(_delta: float):
 ## A solid body that moves by script (cargo collides with it as with a moving wall).
 func make_body(group: String, shapes: Array, bounce := 0.1, friction := 0.8) -> AnimatableBody2D:
 	var b = AnimatableBody2D.new()
-	b.sync_to_physics = true
+	# sync_to_physics on left some bodies stuck at their first pose (tools/mover_sync_check.gd);
+	# the server still works out their velocity from the move, so cargo is pushed and carried
+	b.sync_to_physics = false
 	b.add_to_group(group)
 	var pm = PhysicsMaterial.new()
 	pm.bounce = bounce

@@ -29,6 +29,9 @@ var f0 := 0  # level clock frame at release
 var last_dist := INF  # landing distance from the target spot of the last scored throw
 
 
+var last_caught := false  # the last scored throw rode a belt / chair
+
+
 func _init(game):
 	g = game
 	p0 = g.current.global_position
@@ -118,6 +121,7 @@ func surface_at(info: Dictionary, local_x: float) -> float:
 
 func score(pull: Vector2, wait := 0) -> float:
 	last_dist = INF
+	last_caught = false
 	t0 = wait * DT
 	f0 = g.frame + wait
 	var v = pull * Game.POWER * mult
@@ -149,8 +153,21 @@ func score(pull: Vector2, wait := 0) -> float:
 			for r in blocks:
 				if r.has_point(p):
 					return INF
-		if not movers.is_empty() and _hits_mover(p, f0 + int(round(t / DT))):
-			return INF
+		if not movers.is_empty():
+			var fr = f0 + int(round(t / DT))
+			var caught = false
+			for m in movers:
+				var c = m.sim_catch(p, v, h.y, fr + m.phase)
+				if not c.is_empty():
+					# rides the belt / chair and leaves it later, somewhere else
+					p = c.p
+					v = c.v
+					t += c.frames * DT
+					caught = true
+					last_caught = true
+					break
+			if not caught and _hits_mover(p, fr):
+				return INF
 		for info in trucks:
 			var r = _vs_truck(info, p, v, t)
 			if r >= 0.0:
@@ -182,6 +199,11 @@ func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 			# M14: the stack must stay under the bridge line
 			if tr.height_limit > 0 and -floor_y + ext.y * 2.0 > tr.height_limit:
 				return INF
+			if pr.has("exit_x"):
+				# a passing flatcar must still be on screen once the cargo has settled
+				var later: float = tr.predict_pose(t + t0 + 1.5)[0].x
+				if (later - pr.exit_x) * signf(tr.predict_vx(0.0)) > 0.0:
+					return INF
 			last_dist = abs(l.x - info.target_x)
 			var rel_vx = abs(v.x - tr.predict_vx(t + t0))
 			# prefer soft, steep landings: forward speed makes cargo slide into the bulkhead
