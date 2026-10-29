@@ -20,6 +20,12 @@ const POWER := 6.6
 const GRAVITY := 1200.0
 const TILE := 63.0  # Kenney 70px tiles at 0.9
 const NEXT_DELAY := 0.65
+## Cargo mode. true (default) = delivered cargo is glued to the truck. false = it stays
+## physical: stacks can shift or topple, and cargo that falls out stops counting.
+## Set from the pause menu or ?glue=0 / ?glue=1 (saved), see Main.
+static var glue_loads := true
+const FALL_OUT_TIME := 0.25  # s outside the bed before a delivered cargo counts as fallen out
+const END_SETTLE := 1.2  # s to let stacks settle before the level is scored
 
 const C_GOOD = Color("#3DDC97")
 const C_GOLD = Color("#FFD34E")
@@ -515,6 +521,7 @@ func _new_truck(slot: int):
 	var t = Truck.new()
 	t.setup(cfg, level_index + truck_count, cfg.get("wall", 52))
 	t.height_limit = level.get("height_limit", 0.0)
+	t.glue = glue_loads
 	t.position = Vector2(1560, ROAD_Y - Truck.FLOOR_T - 18 - Truck.WHEEL_R)
 	if slot > 0:
 		t.z_index = -slot  # far trucks behind near ones while driving in
@@ -794,10 +801,53 @@ func _check_end():
 		ended = true
 		aiming = false
 		aim.queue_redraw()
-		var stars = Levels.stars_for(level_index, delivered)
-		SaveData.set_stars(level_index, stars)
-		get_tree().create_timer(0.9, false).timeout.connect(func():
-			finished.emit(stars, delivered, level.cargo.length()))
+		if not glue_loads:
+			# let the stacks settle (things can still fall out), then strap it all down and score
+			get_tree().create_timer(END_SETTLE, false).timeout.connect(func():
+				for t in live_trucks():
+					for l in t.loads:
+						if is_instance_valid(l.cargo):
+							t._glue(l.cargo)
+				_score())
+			return
+		_score()
+
+
+func _score():
+	var stars = Levels.stars_for(level_index, delivered)
+	SaveData.set_stars(level_index, stars)
+	get_tree().create_timer(0.9, false).timeout.connect(func():
+		finished.emit(stars, delivered, level.cargo.length()))
+
+
+## Unglued loads: anything that has left the bed for a moment (or hit the road) has fallen out.
+func _physics_process(delta: float):
+	if glue_loads:
+		return
+	for t in live_trucks():
+		if t.state != "parked":
+			continue
+		for l in t.loads.duplicate():
+			var c: Cargo = l.cargo
+			if not is_instance_valid(c) or c.freeze:
+				continue
+			var on_road = false
+			for b in c.get_colliding_bodies():
+				if b.is_in_group("ground"):
+					on_road = true
+			if t.contains_point(c.global_position) and not on_road:
+				l.out_t = 0.0
+				continue
+			l.out_t = l.get("out_t", 0.0) + delta
+			if l.out_t > FALL_OUT_TIME or on_road:
+				if verbose:
+					print("  cargo %s fell out of the truck at %s" % [c.kind, c.global_position.round()])
+				if t.remove_load(c):
+					delivered -= 1
+					popup.emit("FELL OUT!", Vector2(clamp(c.global_position.x, 80, 1200), clamp(c.global_position.y - 40, 160, ROAD_Y - 40)), C_BAD, 38)
+					Sfx.play("thud", -4.0)
+					progress_changed.emit(delivered, work_left())
+				c.fade_out()
 
 
 # ======================================================================= per-frame
