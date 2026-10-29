@@ -1,10 +1,10 @@
 extends SceneTree
-## Frozen-data gate: levels 1-15 must never change (docs/EXPANSION_PLAN.md §1).
+## Frozen-data gate: levels 1-40 must never change (docs/EXPANSION_PLAN_2.md §1).
 ## Hashes their dictionaries from levels.gd and compares with tools/frozen_levels.sha256.
 ##   godot --headless -s res://tools/frozen_check.gd            (check, exit 1 on change)
 ##   godot --headless -s res://tools/frozen_check.gd -- --write (record a new hash)
 
-const FROZEN := 15
+const FROZEN := 40
 const HASH_FILE := "res://tools/frozen_levels.sha256"
 
 

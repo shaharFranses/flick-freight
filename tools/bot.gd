@@ -38,6 +38,7 @@ var snap_at := 0.0
 var _game_id := 0
 var _broken := 0
 var _candidates := 0
+var _throws: Array = []  # every throw this level, as pull vectors (parity check)
 var _good := 0
 
 
@@ -105,6 +106,7 @@ func _process(delta: float) -> bool:
 			if error > 0:
 				p = p.rotated(rng.randf_range(-error, error) * 0.12) * (1.0 + rng.randf_range(-error, error) * 0.1)
 			g.throw_with_pull(p)
+			_throws.append([snappedf(p.x, 0.01), snappedf(p.y, 0.01)])
 			shots += 1
 	return false
 
@@ -120,6 +122,7 @@ func _begin_level(g: Game):
 	_broken = 0
 	_candidates = 0
 	_good = 0
+	_throws = []
 	g.cargo_resolved.connect(func(_kind, _ok, reason):
 		if reason == "broken":
 			_broken += 1)
@@ -137,7 +140,7 @@ func _record(g: Game):
 	var total: int = Levels.cargo_list(g.level_index).size()
 	var stars = Levels.stars_for(g.level_index, g.delivered)
 	var r = {"level": g.level_index + 1, "pass": stars > 0, "stars": stars, "delivered": g.delivered,
-		"missed": total - g.delivered - _broken, "broken": _broken, "total": total}
+		"missed": total - g.delivered - _broken, "broken": _broken, "total": total, "throws": _throws.duplicate()}
 	results.append(r)
 	var extra = ""
 	if _candidates > 0:
@@ -179,6 +182,17 @@ func _compare() -> int:
 		for k in ["pass", "stars", "delivered", "missed", "broken", "total"]:
 			if str(mine[lv][k]) != str(b[k] if typeof(b[k]) != TYPE_FLOAT else int(b[k])):
 				print("REGRESSION: level %d %s = %s, baseline %s" % [lv, k, mine[lv][k], b[k]])
+				diffs += 1
+		# the solver must also make the same throws (within 0.5 px of pull)
+		if b.has("throws"):
+			var a: Array = mine[lv].throws
+			var want: Array = b.throws
+			var same = a.size() == want.size()
+			for i in min(a.size(), want.size()):
+				if Vector2(a[i][0], a[i][1]).distance_to(Vector2(want[i][0], want[i][1])) > 0.5:
+					same = false
+			if not same:
+				print("REGRESSION: level %d throws differ (%d vs baseline %d)" % [lv, a.size(), want.size()])
 				diffs += 1
 	print("REGRESSION GATE: %s (%d differences vs %s)" % ["PASS" if diffs == 0 else "FAIL", diffs, compare_path])
 	return diffs

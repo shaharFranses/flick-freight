@@ -67,17 +67,18 @@ godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=all --error=0
 godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=all --error=0.5
 ```
 
-### Guardrails (run by CI on every branch, see `docs/EXPANSION_PLAN.md`)
+### Guardrails (run by CI on every branch)
 
-Levels 1–15 and the mechanics they use are frozen. Three checks enforce it:
+Levels 1–40 are frozen (`docs/EXPANSION_PLAN_2.md` §1). The checks:
 
 ```bash
-# levels 1-15 data unchanged (hash in tools/frozen_levels.sha256)
-godot --headless -s res://tools/frozen_check.gd
-# regression gate: levels 1-15 must give exactly the baseline results
-# (always run the full 1-15 range: physics stacking makes single levels differ)
-godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-15 --error=0   --compare=res://tools/baseline_v2_e0.json
-godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-15 --error=0.5 --compare=res://tools/baseline_v2_e05.json
+godot --headless -s res://tools/frozen_check.gd       # levels 1-40 data unchanged
+godot --headless -s res://tools/layout_check.gd       # no vehicle drives through an obstacle
+godot --headless --fixed-fps 60 -s res://tools/cab_test.gd
+# regression gate: same results AND the same throws as the snapshot taken before Plan 2
+# (always run the full 1-40 range: physics stacking makes single levels differ)
+godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-40 --error=0   --compare=res://tools/baseline_1_40.json
+godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-40 --error=0.5 --compare=res://tools/baseline_1_40_e05.json
 ```
 
 The bot uses the original analytic solver for levels 1–15 and a search solver
