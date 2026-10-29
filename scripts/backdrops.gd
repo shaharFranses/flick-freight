@@ -18,6 +18,9 @@ static func draw(n: Node2D, kind: String):
 		"yard":
 			_sky(n, Color("#F2A65A"), Color("#FBE3C4"))
 			_yard(n)
+		"sky":
+			_sky(n, Color("#4F8FE0"), Color("#CFE7FB"))
+			_skyport(n)
 
 
 static func _sky(n: Node2D, top: Color, bottom: Color):
@@ -121,3 +124,31 @@ static func _yard(n: Node2D):
 	n.draw_rect(Rect2(1150, HORIZON - 376, 70, 22), Color("#4A5568"))
 	for k in 3:
 		n.draw_circle(Vector2(1164 + k * 21, HORIZON - 365), 7, Color("#FFF3C4"))
+
+
+## Sky Port: a cliff-top heliport above a sea of clouds, peaks poking through.
+static func _skyport(n: Node2D):
+	_sun(n, Vector2(1010, 120), Color("#FFF6D8"))
+	for m in [[380.0, 300.0, 300.0], [700.0, 250.0, 380.0], [1040.0, 320.0, 300.0]]:
+		var x = m[0]
+		var top = m[1]
+		var w = m[2]
+		n.draw_colored_polygon(PackedVector2Array([Vector2(x, HORIZON + 20), Vector2(x + w * 0.5, top), Vector2(x + w, HORIZON + 20)]), Color("#8FA9C9"))
+		n.draw_colored_polygon(PackedVector2Array([Vector2(x + w * 0.5 - 34, top + 44), Vector2(x + w * 0.5, top),
+			Vector2(x + w * 0.5 + 34, top + 44), Vector2(x + w * 0.5 + 8, top + 36)]), Color("#F4F8FF"))
+	# the cloud sea: rows of puffs, paler toward the front
+	for row in 3:
+		var y = HORIZON - 30 + row * 34.0
+		var col = Color("#E3EEFA").lerp(Color.WHITE, row * 0.4)
+		var x = -60.0 + row * 37.0
+		var k = 0
+		while x < 1360:
+			var r = 46.0 + ((k * 13 + row * 7) % 5) * 9.0
+			n.draw_circle(Vector2(x, y + 18), r, col)
+			x += r * 1.3
+			k += 1
+		n.draw_rect(Rect2(-50, y + 18, 1380, 400), col)
+	# small far helipad marker + windsock on the cliff edge
+	n.draw_rect(Rect2(300, HORIZON + 40, 3, 60), Color("#5B6B80"))
+	n.draw_colored_polygon(PackedVector2Array([Vector2(303, HORIZON + 42), Vector2(334, HORIZON + 47), Vector2(334, HORIZON + 55),
+		Vector2(303, HORIZON + 58)]), Color("#F26B4E"))

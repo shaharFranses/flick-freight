@@ -75,10 +75,13 @@ func _truck_info(t: CargoVehicle) -> Dictionary:
 		if not is_instance_valid(c):
 			continue
 		var half = c.info.size * 0.5
-		var top = -(l.offset.y - half.y)  # local y is negative upward
+		var at: Vector2 = l.offset
+		if pr.get("pack_front", false):
+			at = t.to_local(c.global_position)  # swinging net / basket: where it is now, in its frame
+		var top = -(at.y - half.y)  # local y is negative upward
 		for i in cols:
 			var x = -W * 0.5 + i * 10.0 + 5.0
-			if abs(x - l.offset.x) < half.x + 6:
+			if abs(x - at.x) < half.x + 6:
 				surface[i] = max(surface[i], top)
 	# aim for the lowest column that fits the cargo, closest to slightly front-of-centre
 	var best_x = 0.0
@@ -94,12 +97,18 @@ func _truck_info(t: CargoVehicle) -> Dictionary:
 			if abs(xj - x) < h.x:
 				hgt = max(hgt, surface[j])
 		var cost = hgt * 4.0 + abs(x - 40.0) * 0.2
+		if pr.get("pack_front", false):
+			cost = hgt * 4.0 + abs(x - (W * 0.5 - h.x - 6.0)) * 0.2  # small net/basket: fill from the far wall
 		if cost < best:
 			best = cost
 			best_x = x
 	if pr.get("aim_x") != null:
 		best_x = pr.aim_x  # the vehicle says where to aim (e.g. a hopper opening)
-	return {"truck": t, "target_x": best_x, "surface": surface, "profile": pr,
+	# lowest point any solid vehicle part can reach (cheap pre-check before asking the vehicle)
+	var obst_below = -INF
+	if t.has_method("sim_obstacles"):
+		obst_below = t.sim_obstacles_lowest()
+	return {"truck": t, "target_x": best_x, "surface": surface, "profile": pr, "obst_below": obst_below,
 		"slippery": slides or pr.slippery}
 
 
@@ -169,6 +178,8 @@ func score(pull: Vector2, wait := 0) -> float:
 			if not caught and _hits_mover(p, fr):
 				return INF
 		for info in trucks:
+			if info.obst_below > p.y - r_spin and _hits_vehicle_part(info, p, t):
+				return INF
 			var r = _vs_truck(info, p, v, t)
 			if r >= 0.0:
 				return r
@@ -222,6 +233,17 @@ func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 				sc += rad_to_deg(min(a, PI - a)) * 0.5
 			return sc
 	return -1.0
+
+
+## Solid parts of a vehicle that aren't its load space (helicopter body, balloon envelope).
+func _hits_vehicle_part(info: Dictionary, p: Vector2, t: float) -> bool:
+	for o in info.truck.sim_obstacles(t + t0):
+		if o is Rect2:
+			if o.grow(r_spin).has_point(p):
+				return true
+		elif Vector2(o.x, o.y).distance_to(p) < o.z + r_spin:
+			return true
+	return false
 
 
 ## Does the cargo (centre p, spinning corner radius) touch a moving obstacle at frame f?

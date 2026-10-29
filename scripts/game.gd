@@ -120,7 +120,7 @@ func setup(index: int):
 ## The bot searches release timings over one such cycle.
 func motion_period() -> int:
 	var p := 0
-	for m in movers:
+	for m in movers + live_trucks():
 		var q: int = m.period_frames()
 		if q > 0:
 			p = q if p == 0 else _lcm(p, q)
@@ -855,6 +855,18 @@ func _check_full(t: CargoVehicle):
 				t.leave())
 
 
+## Screen shake (the helicopter lifting off). Only the picture moves: the viewport's canvas
+## transform, never the nodes, so physics isn't touched.
+func shake(amount: float, time: float):
+	var vp = get_viewport()
+	var base = vp.canvas_transform
+	var tw = create_tween()
+	tw.tween_method(func(k: float):
+		var a = amount * (1.0 - k)
+		vp.canvas_transform = base.translated(Vector2(sin(k * 97.0), cos(k * 71.0)) * a), 0.0, 1.0, time)
+	tw.tween_callback(func(): vp.canvas_transform = base)
+
+
 func on_heavy_impact(pos: Vector2, impact: float):
 	Fx.dust(fx_root, pos + Vector2(0, 20), clamp(impact / 900.0, 0.3, 1.2))
 
@@ -879,10 +891,10 @@ func _check_end():
 func _score():
 	var stars = Levels.stars_for(level_index, delivered, thrown)
 	SaveData.set_stars(level_index, stars)
-	if stars > 0 and level.has("height_limit"):
-		# showcase: the loaded truck drives out under the low bridge
+	if stars > 0:
+		# showcase: the loaded truck drives out under the low bridge, the helicopter lifts off
 		for t in live_trucks():
-			if t.is_parked():
+			if t.is_parked() and (level.has("height_limit") or t.lift_off_on_win):
 				t.leave()
 	get_tree().create_timer(0.9, false).timeout.connect(func():
 		finished.emit(stars, delivered, level.cargo.length()))

@@ -13,6 +13,7 @@ signal departed
 var state := "away"  # away / arriving / parked / leaving
 var loads: Array = []  # [{"cargo": Cargo, "offset", "rot", "local", "lrot", "counted"}]
 var height_limit := 0.0  # M14: low bridge clearance above the load floor (0 = none)
+var lift_off_on_win := false  # helicopter, balloon: leave() as the showcase when the level is won
 
 
 func setup(_cfg: Dictionary, _palette_index: int, _wall_height: float):
@@ -75,6 +76,11 @@ func top_center() -> Vector2:
 ## Pose `dt` seconds from now: [position, rotation].
 func predict_pose(_dt: float) -> Array:
 	return [global_position, rotation]
+
+
+## Frames for one cycle of a vehicle that moves on the level clock (0 = it doesn't).
+func period_frames() -> int:
+	return 0
 
 
 ## Horizontal speed `dt` seconds from now.

@@ -53,6 +53,7 @@ var _planned_at := -1
 var _windows: Array = []  # per throw: frames of release timing that work around the chosen one
 var _jitter_fail := 0
 var _no_solution := 0  # timed throws where nothing could land at all
+var _phases: Array = []  # helicopter: phases of the swing with a good throw, per throw
 var _good := 0
 
 
@@ -165,6 +166,7 @@ func _begin_level(g: Game):
 	_windows = []
 	_jitter_fail = 0
 	_no_solution = 0
+	_phases = []
 	_phys_ms = []
 	g.cargo_resolved.connect(func(_kind, _ok, reason):
 		if reason == "broken":
@@ -195,6 +197,11 @@ func _record(g: Game):
 		extra += "  timing: window >= %df, jitter fails %d/%d" % [_windows.min(), _jitter_fail, _windows.size()]
 		if _no_solution > 0:
 			extra += ", %d throw(s) with no landing" % _no_solution
+	if not _phases.is_empty():
+		r["swing_phases"] = _phases[0]
+		extra += "  swing quarters with a good first throw: %d/4" % _phases[0]
+		if _phases[0] < 2:
+			print("  WARNING: level %d: the first throw only works in %d quarter(s) of the swing" % [r.level, _phases[0]])
 		if _windows.min() < 24:
 			print("  WARNING: level %d has a release window under 24 frames (0.4 s)" % r.level)
 		if _jitter_fail > 0:
@@ -367,6 +374,13 @@ func _solve_timed(g: Game, sim: BotSim, period: int) -> Vector2:
 		top.sort_custom(func(a, b): return a[0] < b[0])
 		if top.size() > 40:
 			top.pop_back()
+	# helicopter (Plan 2 §5): a good throw must exist in at least 2 phases of the net's swing
+	# (phase = which quarter of the swing the throw is released in)
+	var swing = 0
+	for t in g.live_trucks():
+		if "swing_period" in t:
+			swing = t.swing_period
+	var good_at := {}
 	for w in range(0, period, 6):
 		for ang in range(-40, 84, 5):
 			for ln in range(40, int(Game.MAX_PULL) + 1, 8):
@@ -375,7 +389,11 @@ func _solve_timed(g: Game, sim: BotSim, period: int) -> Vector2:
 				_candidates += 1
 				if sim.last_dist < BotSim.GOOD:
 					_good += 1
+					if swing > 0:
+						good_at[(w % swing) * 4 / swing] = true
 				keep.call(s, pull, w)
+	if swing > 0:
+		_phases.append(good_at.size())
 	if top.is_empty():
 		_no_solution += 1  # nothing lands at any time (e.g. the vehicle is full): not a timing issue
 		return Vector2(100, -100)

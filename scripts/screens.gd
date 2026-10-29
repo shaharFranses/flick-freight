@@ -224,6 +224,8 @@ func _fill_world_page(w: int):
 		Sfx.play("click")
 		_fill_world_page(Levels.WORLD_ORDER[wk - 1]))
 	nav.add_child(prev)
+	if Levels.WORLDS[w].has("icon"):
+		nav.add_child(WorldIcons.make(Levels.WORLDS[w].icon))  # the world's special vehicle
 	var name_box = VBoxContainer.new()
 	name_box.custom_minimum_size = Vector2(420, 0)
 	name_box.add_theme_constant_override("separation", -6)
