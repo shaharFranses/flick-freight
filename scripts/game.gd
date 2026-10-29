@@ -851,7 +851,7 @@ func _check_full(t: CargoVehicle):
 	if t.load_count() >= cap and work_left() > 0:
 		get_tree().create_timer(0.45, false).timeout.connect(func():
 			if is_instance_valid(t) and t.state == "parked":
-				popup.emit("TRUCK FULL!", t.top_center() + Vector2(0, -40), C_GOLD, 40)
+				popup.emit(t.full_text, t.top_center() + Vector2(0, -40), C_GOLD, 40)
 				t.leave())
 
 

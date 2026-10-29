@@ -19,7 +19,8 @@ func _build():
 	per = int(cfg.get("period", 240))
 	open = int(cfg.get("open", 110))
 	make_body("block", [Rect2(x - W * 0.5, -400, W, top + 400)])  # wall above the doorway
-	door = make_body("block", [Rect2(x - 12, 0, 24, Game.ROAD_Y - top)])
+	# the door: from the doorway top to the road when shut; it slides up as one piece
+	door = make_body("block", [Rect2(x - 12, top, 24, Game.ROAD_Y - top)])
 
 
 func period_frames() -> int:
@@ -70,24 +71,47 @@ func _draw():
 		draw_line(Vector2(x + (8 if row % 2 else -8), y), Vector2(x + (8 if row % 2 else -8), y + 14), Color("#8E4B36"), 2.0)
 		y -= 14
 		row += 1
-	# door: slatted, slides up behind the wall
+	# door: red and white stripes so it reads at a glance; it rolls up into the housing
 	var dy = _door_y(f)
-	var door_r = Rect2(x - 13, max(dy, top - 10), 26, Game.ROAD_Y - max(dy, top - 10))
-	if dy < Game.ROAD_Y - 8:
-		draw_rect(door_r.grow(2), navy)
-		draw_rect(door_r, Color("#AAB4BF"))
-		var sy = door_r.position.y + 6
+	var bottom = dy + Game.ROAD_Y - top  # the door's lower edge
+	var door_r = Rect2(x - 16, top - 10, 32, bottom - (top - 10))
+	if bottom > top + 8:
+		draw_rect(door_r.grow(3), navy)
+		draw_rect(door_r, Color("#F4F4F0"))
+		var sy = door_r.position.y + 2
+		var k = 0
 		while sy < door_r.end.y:
-			draw_line(Vector2(door_r.position.x, sy), Vector2(door_r.end.x, sy), Color("#7D8894"), 2.0)
-			sy += 10
-	# roller housing over the doorway (the door rolls up into it) + warning light
+			if k % 2 == 0:
+				draw_rect(Rect2(door_r.position.x, sy, door_r.size.x, min(16.0, door_r.end.y - sy)), Color("#E4572E"))
+			sy += 16
+			k += 1
+	# roller housing over the doorway
 	var housing = Rect2(x - 46, top - 44, 92, 44)
 	draw_rect(housing.grow(3), navy)
 	draw_rect(housing, Color("#7D8894"))
 	draw_rect(Rect2(housing.position.x, housing.end.y - 8, housing.size.x, 8), Color("#F2B134"))
-	for k in 3:
-		draw_line(Vector2(housing.position.x + 8, housing.position.y + 9 + k * 9),
-			Vector2(housing.end.x - 8, housing.position.y + 9 + k * 9), Color("#5B6574"), 2.0)
-	var on = _warning(f) and (f / 6) % 2 == 0
-	draw_circle(Vector2(x, top - 58), 12, navy)
-	draw_circle(Vector2(x, top - 58), 9, Color("#FFB000") if on else Color("#6B5A2E"))
+	for j in 3:
+		draw_line(Vector2(housing.position.x + 8, housing.position.y + 9 + j * 9),
+			Vector2(housing.end.x - 8, housing.position.y + 9 + j * 9), Color("#5B6574"), 2.0)
+	# traffic light: green = open (throw now), amber = moving / about to close, red = shut
+	var o = _openness(f)
+	var state = 0  # 0 red, 1 amber, 2 green
+	if o >= 1.0 and not _warning(f):
+		state = 2
+	elif o > 0.0 or _warning(f):
+		state = 1
+	var box = Rect2(x + 52, top - 98, 30, 84)
+	draw_rect(box.grow(3), navy)
+	draw_rect(box, Color("#2E3440"))
+	var lamps = [Color("#FF4B3A"), Color("#FFB000"), Color("#3DDC97")]
+	for i in 3:
+		var c = Vector2(box.get_center().x, box.position.y + 15 + i * 27)
+		var on = i == state  # lamp 0 red, 1 amber, 2 green
+		if i == 1 and on:
+			on = (f / 6) % 2 == 0  # amber blinks
+		draw_circle(c, 11, lamps[i] if on else lamps[i].darkened(0.7))
+	if state == 2:
+		# a big arrow through the doorway while it's open
+		var ay = (top + Game.ROAD_Y) * 0.5
+		draw_colored_polygon(PackedVector2Array([Vector2(x - 34, ay - 7), Vector2(x + 14, ay - 7), Vector2(x + 14, ay - 18),
+			Vector2(x + 38, ay), Vector2(x + 14, ay + 18), Vector2(x + 14, ay + 7), Vector2(x - 34, ay + 7)]), Color(0.24, 0.86, 0.59, 0.8))

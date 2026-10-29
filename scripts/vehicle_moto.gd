@@ -4,6 +4,15 @@ extends VehicleBase
 ## so every throw has to be extremely accurate. The rider counts as the "cab".
 
 const RACK_W := 96.0
+## A different courier each time: bike colour, jacket, helmet.
+const LOOKS = [[Color("#E4572E"), Color("#3D8BDB"), Color("#FFD34E")],
+	[Color("#3DDC97"), Color("#7A4EC2"), Color("#F2F2EE")],
+	[Color("#F2B134"), Color("#E4572E"), Color("#3D8BDB")],
+	[Color("#7A4EC2"), Color("#3DDC97"), Color("#E4572E")]]
+
+
+func _init():
+	full_text = "DELIVERY! NEXT BIKE"
 
 
 func _define(_cfg: Dictionary) -> Dictionary:
@@ -34,7 +43,8 @@ func _draw_back(n: Node2D):
 
 func _draw_front(n: Node2D):
 	var half = RACK_W * 0.5
-	var red = Color("#E4572E")
+	var look: Array = LOOKS[posmod(palette, LOOKS.size())]
+	var red: Color = look[0]
 	# rack: steel tray with a low rear rail
 	n.draw_rect(Rect2(-half - 6, 0, RACK_W + 12, 10), NAVY)
 	n.draw_rect(Rect2(-half - 4, 2, RACK_W + 8, 6), Color("#AEB6C2"))
@@ -53,9 +63,9 @@ func _draw_front(n: Node2D):
 	# rider: helmet, torso, arm to the bars
 	var torso = PackedVector2Array([Vector2(half + 8, -10), Vector2(half + 22, -66), Vector2(half + 46, -66), Vector2(half + 52, -10)])
 	n.draw_colored_polygon(torso, NAVY)
-	n.draw_colored_polygon(Geometry2D.offset_polygon(torso, -3)[0], Color("#3D8BDB"))
+	n.draw_colored_polygon(Geometry2D.offset_polygon(torso, -3)[0], look[1])
 	n.draw_line(Vector2(half + 40, -56), Vector2(half + 86, -40), NAVY, 9.0)
-	n.draw_line(Vector2(half + 40, -56), Vector2(half + 86, -40), Color("#3D8BDB"), 5.0)
+	n.draw_line(Vector2(half + 40, -56), Vector2(half + 86, -40), look[1], 5.0)
 	n.draw_circle(Vector2(half + 36, -80), 17, NAVY)
-	n.draw_circle(Vector2(half + 36, -80), 14, Color("#FFD34E"))
+	n.draw_circle(Vector2(half + 36, -80), 14, look[2])
 	n.draw_rect(Rect2(half + 38, -84, 14, 8), Color("#BFE7F7"))  # visor

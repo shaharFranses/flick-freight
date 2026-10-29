@@ -37,7 +37,11 @@ var wheel_nodes: Array[Node2D] = []
 const NAVY = Color("#1B2A41")
 
 
-func setup(cfg: Dictionary, _palette_index: int, _wall_height: float):
+var palette := 0  # which colour scheme (e.g. each courier bike looks different)
+
+
+func setup(cfg: Dictionary, palette_index: int, _wall_height: float):
+	palette = palette_index
 	base_x = cfg.x
 	amp = cfg.get("amp", 0.0)
 	period = max(0.5, cfg.get("period", 4.0))
