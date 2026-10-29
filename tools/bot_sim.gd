@@ -52,9 +52,11 @@ func _game_trucks() -> Array:
 	return out
 
 
-## Bed floor x-profile: height of the stack (px above the floor) in 10 px columns.
-func _truck_info(t: Truck) -> Dictionary:
-	var cols = int(Truck.BED_W / 10.0)
+## Load floor x-profile: height of the stack (px above the floor) in 10 px columns.
+func _truck_info(t: CargoVehicle) -> Dictionary:
+	var pr: Dictionary = t.sim_profile()
+	var W: float = pr.floor_w
+	var cols = int(W / 10.0)
 	var surface: Array = []
 	surface.resize(cols)
 	surface.fill(0.0)
@@ -65,7 +67,7 @@ func _truck_info(t: Truck) -> Dictionary:
 		var half = c.info.size * 0.5
 		var top = -(l.offset.y - half.y)  # local y is negative upward
 		for i in cols:
-			var x = -Truck.BED_W * 0.5 + i * 10.0 + 5.0
+			var x = -W * 0.5 + i * 10.0 + 5.0
 			if abs(x - l.offset.x) < half.x + 6:
 				surface[i] = max(surface[i], top)
 	# aim for the lowest column that fits the cargo, closest to slightly front-of-centre
@@ -73,39 +75,20 @@ func _truck_info(t: Truck) -> Dictionary:
 	var best = INF
 	var margin = h.x + 10.0
 	for i in cols:
-		var x = -Truck.BED_W * 0.5 + i * 10.0 + 5.0
-		if x < -Truck.BED_W * 0.5 + margin or x > Truck.BED_W * 0.5 - margin:
+		var x = -W * 0.5 + i * 10.0 + 5.0
+		if x < -W * 0.5 + margin or x > W * 0.5 - margin:
 			continue
 		var hgt = 0.0
 		for j in cols:
-			var xj = -Truck.BED_W * 0.5 + j * 10.0 + 5.0
+			var xj = -W * 0.5 + j * 10.0 + 5.0
 			if abs(xj - x) < h.x:
 				hgt = max(hgt, surface[j])
 		var cost = hgt * 4.0 + abs(x - 40.0) * 0.2
 		if cost < best:
 			best = cost
 			best_x = x
-	return {"truck": t, "target_x": best_x, "surface": surface,
-		"slippery": slides or t.icy}
-
-
-func truck_pos(t: Truck, dt: float) -> Vector2:
-	var p = t.global_position
-	if t.amp > 0:
-		p.x = t.base_x + t.amp * sin(TAU * (t._t + dt) / t.period)
-	if not t.ferry.is_empty():
-		p.y = t.ferry_pose(dt)[0]
-	return p
-
-
-func truck_rot(t: Truck, dt: float) -> float:
-	return 0.0 if t.ferry.is_empty() else t.ferry_pose(dt)[1]
-
-
-func _truck_vx(t: Truck, dt: float) -> float:
-	if t.amp <= 0:
-		return 0.0
-	return t.amp * TAU / t.period * cos(TAU * (t._t + dt) / t.period)
+	return {"truck": t, "target_x": best_x, "surface": surface, "profile": pr,
+		"slippery": slides or pr.slippery}
 
 
 ## Axis-aligned half extents of the cargo rotated by `rot`.
@@ -116,8 +99,9 @@ func _extent(rot: float) -> Vector2:
 func surface_at(info: Dictionary, local_x: float) -> float:
 	var s: Array = info.surface
 	var hgt = 0.0
+	var W: float = info.profile.floor_w
 	for i in s.size():
-		var x = -Truck.BED_W * 0.5 + i * 10.0 + 5.0
+		var x = -W * 0.5 + i * 10.0 + 5.0
 		if abs(x - local_x) < h.x:
 			hgt = max(hgt, s[i])
 	return hgt
@@ -165,15 +149,16 @@ func score(pull: Vector2) -> float:
 
 ## -1 = still flying, -2 = hit a wall / the cab, >= 0 = landed in the bed (score).
 func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
-	var tr: Truck = info.truck
-	var o = truck_pos(tr, t)
-	var l = (p - o).rotated(-truck_rot(tr, t))
-	var half = Truck.BED_W * 0.5
-	# tailgate (left), bulkhead + cab (right); spinning cargo reaches out to its corners
+	var tr: CargoVehicle = info.truck
+	var pr: Dictionary = info.profile
+	var pose = tr.predict_pose(t)
+	var l = (p - pose[0]).rotated(-pose[1])
+	var half = pr.floor_w * 0.5
+	# rear wall (left), front block e.g. bulkhead + cab (right); spinning cargo reaches out to its corners
 	var rr = h.length() if spin == 0.0 else max(_extent(spin * t).x, _extent(spin * t).y)
-	if l.x + rr > -half - Truck.WALL_T and l.x - rr < -half and l.y + rr > -tr.wall_h:
+	if l.x + rr > -half - pr.rear_t and l.x - rr < -half and l.y + rr > -pr.rear_h:
 		return -2.0
-	if l.x + rr > half and l.x - rr < half + Truck.WALL_T + Truck.CAB_W and l.y + rr > -Truck.FRONT_H:
+	if l.x + rr > pr.front_x0 and l.x - rr < pr.front_x0 + pr.front_w and l.y + rr > -pr.front_h:
 		return -2.0
 	var ext = h if spin == 0.0 else _extent(spin * t)
 	if v.y > 0 and abs(l.x) < half - h.x * 0.5:
@@ -183,7 +168,7 @@ func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 			if tr.height_limit > 0 and -floor_y + ext.y * 2.0 > tr.height_limit:
 				return INF
 			last_dist = abs(l.x - info.target_x)
-			var rel_vx = abs(v.x - _truck_vx(tr, t))
+			var rel_vx = abs(v.x - tr.predict_vx(t))
 			# prefer soft, steep landings: forward speed makes cargo slide into the bulkhead
 			var sc = last_dist + rel_vx * 0.05 + v.length() * 0.01
 			if info.slippery:

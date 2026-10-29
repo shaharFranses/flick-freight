@@ -39,7 +39,7 @@ var current_ready := false
 var slots: Array = []  # truck configs: [level.truck], or level.trucks (several at once)
 var trucks: Array = []  # current truck per slot (null while the next one is on its way)
 ## The first slot's truck: the only one on single-truck levels.
-var truck: Truck:
+var truck: CargoVehicle:
 	get:
 		return trucks[0] if not trucks.is_empty() else null
 var dock_body: StaticBody2D
@@ -67,6 +67,9 @@ var flag: Node2D
 var wind_fx: Node2D
 var streaks: Array = []
 var _time := 0.0
+## LevelClock (Plan 2 §3.1): physics frames since this level started. A restart builds a new
+## Game, so it starts again at 0. Every moving obstacle derives its pose from this alone.
+var frame := 0
 
 
 func setup(index: int):
@@ -100,6 +103,11 @@ func setup(index: int):
 	aim.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	aim.draw.connect(_draw_aim)
 	add_child(aim)
+
+
+## Seconds on the level clock.
+func clock_time() -> float:
+	return frame / float(Engine.physics_ticks_per_second)
 
 
 func start():
@@ -516,10 +524,10 @@ func _draw_wind_fx():
 # ======================================================================= trucks
 func _new_truck(slot: int):
 	var cfg: Dictionary = slots[slot]
-	var t = Truck.new()
+	var t: CargoVehicle = Vehicles.make(cfg.get("vehicle", "truck"))
 	t.setup(cfg, level_index + truck_count, cfg.get("wall", 52))
 	t.height_limit = level.get("height_limit", 0.0)
-	t.position = Vector2(1560, ROAD_Y - Truck.FLOOR_T - 18 - Truck.WHEEL_R)
+	t.position = Vector2(1560, t.floor_y(ROAD_Y))
 	if slot > 0:
 		t.z_index = -slot  # far trucks behind near ones while driving in
 	add_child(t)
@@ -543,7 +551,7 @@ func live_trucks() -> Array:
 	return out
 
 
-func truck_of(c: Cargo) -> Truck:
+func truck_of(c: Cargo) -> CargoVehicle:
 	for t in live_trucks():
 		if t.contains_point(c.global_position):
 			return t
@@ -683,7 +691,7 @@ func _on_resolved(c: Cargo, ok: bool, reason: String):
 	cargo_resolved.emit(c.kind, ok, reason)
 	if verbose:
 		print("  cargo %s -> %s (%s) at %s" % [c.kind, "IN" if ok else "out", reason, c.global_position.round()])
-	var t: Truck = truck_of(c) if ok else null
+	var t: CargoVehicle = truck_of(c) if ok else null
 	if t and too_high(c, t):
 		# M14: sticks up past the bridge line, so it gets knocked off on the way out
 		var p = c.global_position + Vector2(0, -50)
@@ -767,13 +775,13 @@ func _pop(at: Vector2, force: float):
 
 
 ## M14: level.height_limit = px above the bed floor that cargo may reach.
-func too_high(c: Cargo, t: Truck) -> bool:
+func too_high(c: Cargo, t: CargoVehicle) -> bool:
 	if not level.has("height_limit"):
 		return false
 	return t.global_position.y - c.top_y() > level.height_limit + 4.0
 
 
-func _check_full(t: Truck):
+func _check_full(t: CargoVehicle):
 	if t.load_count() >= cap and work_left() > 0:
 		get_tree().create_timer(0.45, false).timeout.connect(func():
 			if is_instance_valid(t) and t.state == "parked":
@@ -810,6 +818,7 @@ func _score():
 
 ## Delivered loads: anything that has left the bed for a moment (or hit the road) has fallen out.
 func _physics_process(delta: float):
+	frame += 1
 	for t in live_trucks():
 		if t.state != "parked":
 			continue

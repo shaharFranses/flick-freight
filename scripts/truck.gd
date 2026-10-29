@@ -1,10 +1,7 @@
 class_name Truck
-extends Node2D
-## Side-view stake-bed truck. Origin = centre of the bed floor's top surface.
+extends CargoVehicle
+## V0: side-view stake-bed truck. Origin = centre of the bed floor's top surface.
 ## Rear (open) end faces the dock on the left; cab on the right.
-
-signal arrived
-signal departed
 
 const BED_W := 270.0
 const WALL_T := 14.0
@@ -32,11 +29,8 @@ var base_x := 800.0
 var amp := 0.0
 var period := 4.0
 var palette: Array
-var state := "away"  # away / arriving / parked / leaving
-var loads: Array = []  # [{"cargo": Cargo, "offset": Vector2, "rot": float}]
 var ferry: Dictionary = {}  # M10: {amp_y, amp_rot (deg), period}; empty = on the road
 var icy := false  # M11: icy bed, everything slides
-var height_limit := 0.0  # M14: bridge line above the bed (0 = none)
 
 var _t := 0.0
 var _anim_t := 0.0
@@ -414,6 +408,31 @@ func remove_load(c: Cargo) -> bool:
 
 func load_count() -> int:
 	return loads.size()
+
+
+func floor_y(road_y: float) -> float:
+	return road_y - FLOOR_T - 18 - WHEEL_R
+
+
+# ---------------------------------------------------------------- QA bot interface
+func predict_pose(dt: float) -> Array:
+	var p = global_position
+	if amp > 0:
+		p.x = base_x + amp * sin(TAU * (_t + dt) / period)
+	if not ferry.is_empty():
+		p.y = ferry_pose(dt)[0]
+	return [p, 0.0 if ferry.is_empty() else ferry_pose(dt)[1]]
+
+
+func predict_vx(dt: float) -> float:
+	if amp <= 0:
+		return 0.0
+	return amp * TAU / period * cos(TAU * (_t + dt) / period)
+
+
+func sim_profile() -> Dictionary:
+	return {"floor_w": BED_W, "rear_t": WALL_T, "rear_h": wall_h, "front_x0": BED_W * 0.5,
+		"front_w": WALL_T + CAB_W, "front_h": FRONT_H, "slippery": icy}
 
 
 func top_center() -> Vector2:
