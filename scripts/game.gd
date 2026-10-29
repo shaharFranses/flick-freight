@@ -720,10 +720,6 @@ func _on_resolved(c: Cargo, ok: bool, reason: String):
 			# deferred: we're inside a physics callback and the pop un-freezes bodies
 			_pop.call_deferred(c.global_position, c.info.pop_force)
 			c.queue_free()
-		elif reason == "tilted":
-			popup.emit("NOT FLAT!", p, C_BAD, 38)
-			Sfx.play("thud", -4.0)
-			c.fade_out()
 		elif reason == "broken":
 			popup.emit("BROKEN!", p, C_BAD, 42)
 			Fx.shatter(fx_root, c.global_position, Color("#F2C23B"))

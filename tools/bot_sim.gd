@@ -16,7 +16,6 @@ var mult := 1.0
 var blocks: Array = []
 var trucks: Array = []  # [{truck, target_x, surface: Array}]
 var spin := 0.0  # M13: fixed spin (rad/s); 0 = ordinary cargo
-var flat := 0.0  # M13: max landing tilt (deg)
 var slides := false  # M11: ice cargo
 var bouncy := false  # M12
 var pop_speed := 0.0  # M15: canister pops above this landing speed
@@ -33,7 +32,6 @@ func _init(game):
 	pads = g.pads
 	var info: Dictionary = g.current.info
 	spin = info.get("spin", 0.0)
-	flat = info.get("flat", 0.0)
 	slides = g.current.kind == "ice"
 	bouncy = g.current.kind == "tire"
 	pop_speed = info.get("pop_speed", 0.0)
@@ -79,15 +77,11 @@ func _truck_info(t: Truck) -> Dictionary:
 		if x < -Truck.BED_W * 0.5 + margin or x > Truck.BED_W * 0.5 - margin:
 			continue
 		var hgt = 0.0
-		var low = INF
 		for j in cols:
 			var xj = -Truck.BED_W * 0.5 + j * 10.0 + 5.0
 			if abs(xj - x) < h.x:
 				hgt = max(hgt, surface[j])
-				low = min(low, surface[j])
 		var cost = hgt * 4.0 + abs(x - 40.0) * 0.2
-		if g.current.info.has("flat"):
-			cost += (hgt - low) * 12.0  # long cargo needs level ground or it tips
 		if cost < best:
 			best = cost
 			best_x = x
@@ -202,11 +196,7 @@ func _vs_truck(info: Dictionary, p: Vector2, v: Vector2, t: float) -> float:
 				sc += v.length() * 0.05
 			if spin != 0.0:
 				var a = fposmod(spin * t, PI)
-				var tilt = rad_to_deg(min(a, PI - a))
-				if tilt > flat * 0.8:
-					return INF
-				sc += tilt * 3.0
-				if tilt > 8.0:
-					last_dist = INF  # not a "good" throw for the precision metric
+				# any angle counts, but a flatter landing settles more calmly
+				sc += rad_to_deg(min(a, PI - a)) * 0.5
 			return sc
 	return -1.0

@@ -21,7 +21,7 @@ const TYPES = {
 		"bounce": 0.6, "friction": 0.9, "power": 1.0, "snd": "boing", "name": "TIRE", "round": true},
 	"plank": {"tex": "res://art/v2/cargo/plank.png", "size": Vector2(150, 24), "mass": 1.5,
 		"bounce": 0.04, "friction": 1.0, "power": 0.95, "snd": "hit_wood", "name": "PLANK",
-		"spin": 2.4, "flat": 20.0},
+		"spin": 2.4},
 	"canister": {"tex": "res://art/v2/cargo/canister.png", "size": Vector2(44, 58), "mass": 1.2,
 		"bounce": 0.05, "friction": 0.9, "power": 1.0, "snd": "hit_metal", "name": "GAS CAN",
 		"pop_speed": 950.0, "pop_force": 520.0},
@@ -207,7 +207,7 @@ func _on_body_entered(body: Node):
 		_finish(false, "popped")
 		return
 	if info.has("spin"):
-		angular_damp = 6.0  # M13: stop spinning soon after touching down, so a flat landing stays flat
+		angular_damp = 6.0  # M13: stop spinning soon after touching down
 	var group = _group_of(body)
 	if group == "truck_wall":
 		touched_wall = true
@@ -273,17 +273,7 @@ func relaunch():
 
 
 func _finish_in_truck(reason: String):
-	var inside = game.truck_contains(self)
-	if inside and info.has("flat") and tilt_deg() > info.flat:
-		_finish(false, "tilted")  # M13: long cargo only counts lying (mostly) flat
-		return
-	_finish(inside, reason)
-
-
-## Angle from lying flat, in degrees (0 = flat either way up).
-func tilt_deg() -> float:
-	var a = fposmod(rotation, PI)
-	return rad_to_deg(min(a, PI - a))
+	_finish(game.truck_contains(self), reason)
 
 
 ## Top edge of the (rotated) cargo in world space.
