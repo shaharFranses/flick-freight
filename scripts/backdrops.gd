@@ -21,6 +21,12 @@ static func draw(n: Node2D, kind: String):
 		"sky":
 			_sky(n, Color("#4F8FE0"), Color("#CFE7FB"))
 			_skyport(n)
+		"city":
+			_sky(n, Color("#3B3F7A"), Color("#F2A07B"))
+			_city(n)
+		"site":
+			_sky(n, Color("#8EC3E8"), Color("#F4E3C1"))
+			_site(n)
 
 
 static func _sky(n: Node2D, top: Color, bottom: Color):
@@ -152,3 +158,51 @@ static func _skyport(n: Node2D):
 	n.draw_rect(Rect2(300, HORIZON + 40, 3, 60), Color("#5B6B80"))
 	n.draw_colored_polygon(PackedVector2Array([Vector2(303, HORIZON + 42), Vector2(334, HORIZON + 47), Vector2(334, HORIZON + 55),
 		Vector2(303, HORIZON + 58)]), Color("#F26B4E"))
+
+
+## Downtown at dusk: two rows of towers with lit windows.
+static func _city(n: Node2D):
+	_sun(n, Vector2(1040, 330), Color("#FFC58A"))
+	for row in 2:
+		var col = Color("#5A4F7C") if row == 0 else Color("#3E3760")
+		var x = -40.0 + row * 50.0
+		var k = 0
+		while x < 1320:
+			var w = 70.0 + ((k * 37 + row * 11) % 4) * 22.0
+			var top = (180.0 if row == 0 else 260.0) + ((k * 53 + row * 29) % 5) * 34.0
+			n.draw_rect(Rect2(x, top, w, HORIZON + 40 - top), col)
+			if row == 1:
+				var wy = top + 16
+				while wy < HORIZON:
+					var wx = x + 10
+					while wx < x + w - 14:
+						if (int(wx * 7 + wy * 3) % 5) < 2:
+							n.draw_rect(Rect2(wx, wy, 10, 12), Color("#FFD98A"))
+						wx += 20.0
+					wy += 24.0
+			x += w + 8.0 + row * 18.0
+			k += 1
+	n.draw_rect(Rect2(-50, HORIZON + 20, 1380, 400), Color("#4A4468"))
+
+
+## Construction site: dirt mounds, a half-built frame and scaffolding.
+static func _site(n: Node2D):
+	_sun(n, Vector2(1050, 110), Color("#FFF1C4"))
+	var frame = Color("#B9A58C")
+	for i in 4:  # steel frame of a building going up
+		var x = 760.0 + i * 120.0
+		n.draw_rect(Rect2(x, 150, 14, HORIZON - 130), frame)
+	for j in 4:
+		var y = 150.0 + j * 80.0
+		n.draw_rect(Rect2(760, y, 374, 12), frame)
+	for i in 3:
+		n.draw_line(Vector2(774 + i * 120, 230), Vector2(880 + i * 120, 310), Color("#A8937A"), 6.0)
+	# scaffolding on the left
+	for i in 3:
+		n.draw_rect(Rect2(380 + i * 70, 260, 6, HORIZON - 240), Color("#9DA6B2"))
+	for j in 4:
+		n.draw_rect(Rect2(380, 260 + j * 60, 146, 6), Color("#9DA6B2"))
+	n.draw_rect(Rect2(-50, HORIZON - 10, 1380, 400), Color("#D9C3A0"))
+	for m in [[180.0, 120.0], [560.0, 90.0], [1000.0, 140.0]]:
+		n.draw_colored_polygon(PackedVector2Array([Vector2(m[0] - m[1], HORIZON + 20), Vector2(m[0], HORIZON - m[1] * 0.45),
+			Vector2(m[0] + m[1], HORIZON + 20)]), Color("#C2A47E"))

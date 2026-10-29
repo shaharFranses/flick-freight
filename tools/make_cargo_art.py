@@ -1,5 +1,5 @@
 """Draws the self-made cargo sprites (CC0) in the flat Kenney style of the other cargo:
-ice block, tire, plank, gas canister.   python3 tools/make_cargo_art.py
+ice block, tire, plank, gas canister, parcel.   python3 tools/make_cargo_art.py
 """
 from PIL import Image, ImageDraw
 
@@ -71,8 +71,22 @@ def canister():
     save(im, 96, 128, "art/v2/cargo/canister.png")
 
 
+def parcel():
+    im, d = canvas(96, 64)
+    d.rounded_rectangle(s(2, 2, 94, 62), radius=6 * SS, fill=(166, 120, 72, 255))
+    d.rounded_rectangle(s(6, 6, 90, 58), radius=4 * SS, fill=(214, 168, 112, 255))
+    d.rectangle(s(44, 6, 52, 58), fill=(240, 232, 214, 255))  # string
+    d.rectangle(s(6, 28, 90, 36), fill=(240, 232, 214, 255))
+    d.rectangle(s(58, 12, 84, 24), fill=(245, 245, 240, 255))  # label
+    d.line(s(61, 16, 80, 16), fill=(27, 42, 65, 255), width=2 * SS)
+    d.line(s(61, 20, 74, 20), fill=(27, 42, 65, 255), width=2 * SS)
+    d.rectangle(s(12, 42, 24, 52), fill=(228, 87, 46, 255))  # stamp
+    save(im, 96, 64, "art/v2/cargo/parcel.png")
+
+
 if __name__ == "__main__":
     ice()
     tire()
     plank()
     canister()
+    parcel()

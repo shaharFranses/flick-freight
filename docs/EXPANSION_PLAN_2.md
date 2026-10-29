@@ -4,6 +4,17 @@
 > Builds on `EXPANSION_PLAN.md` (levels 1–40, mechanics M1–M15), which is complete.
 > Goal: grow from **40 → 100 levels** by adding **moving obstacles**, **new vehicles** (including the **helicopter**), and making the **height limit physical** instead of a red line.
 
+> **Status: done.** All phases A–E are built: 100 levels in 9 worlds (Downtown, Construction and
+> Sky Port behind 90 / 120 / 150 stars). Notes from building it:
+> - M24 icicles were cut, as planned. Both stretch vehicles (V9 balloon, V10 food truck) are in.
+> - Helicopter and balloon levels score like the motorcycle: load N, stars for few throws. The net
+>   swings at its cable's natural period, so loaded cargo rides calmly.
+> - Mail van and food truck have roller floors: what gets through the slot / window slides to the
+>   far end, so the skill is the opening, not the packing.
+> - Hardest for the human-aim bot (0 stars at error 0.5, 2 at perfect aim): Downtown 8 and the
+>   Downtown boss (food truck window precision). Worth a look in play-testing.
+> - Star gates and difficulty are provisional; tune after play-testing.
+
 ---
 
 ## 0. Decisions already made (read first)
@@ -11,7 +22,7 @@
 | # | Decision | Status |
 |---|---|---|
 | D1 | New content is **added, not changed**. Existing levels 1–40 keep their gameplay exactly. | Locked (carried over from Plan 1) |
-| D2 | The red height-limit line is replaced by a **real low bridge / tunnel arch** the vehicle drives under on departure. Over-height cargo is visibly knocked off. This is the **only** permitted change to frozen levels, and it must not change any level's outcome. | Assumed — Shahar to confirm (alternatives: covered box truck, or cut the mechanic) |
+| D2 | The red height-limit line is replaced by a **real low bridge / tunnel arch** the vehicle drives under on departure. Over-height cargo is visibly knocked off. This is the **only** permitted change to frozen levels, and it must not change any level's outcome. | Confirmed (real bridge) |
 | D3 | The **helicopter** is in scope as a headline vehicle with its own world. | Locked |
 | D4 | Target: **100 levels** = 40 existing + 60 new. | Locked |
 | D5 | All motion (obstacles, moving vehicles) is **deterministic**: driven by a level clock, no randomness, identical on every restart. | Locked (needed for the bot and for fairness) |

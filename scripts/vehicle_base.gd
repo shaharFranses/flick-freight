@@ -15,6 +15,7 @@ extends CargoVehicle
 ##   reach      Rect2   whole vehicle, for on_vehicle()
 ##   ride       float   load floor height above the road
 ##   wheels     Array   [Vector2 centre, radius] for drawing
+##   floor_friction  optional, e.g. a roller floor that lets cargo slide to the far end
 ## cfg "tilt": degrees the whole vehicle leans (+ = rear/left end lower), e.g. parked on a slope.
 
 var base_x := 800.0
@@ -90,7 +91,7 @@ func _body(group: String, shapes: Array, friction := 1.0, bounce := 0.0) -> Anim
 
 
 func _build_bodies():
-	_body("truck_floor", [shape.floor])
+	_body("truck_floor", [shape.floor], shape.get("floor_friction", 1.0))
 	_body("truck_wall", [shape.rear] + shape.get("walls", []), 0.8, 0.05)
 	if not shape.front.is_empty():
 		_body("truck_cab", shape.front, 0.8, 0.05)

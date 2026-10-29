@@ -30,11 +30,13 @@ extends RefCounted
 ## world's Act II.
 ## vehicle : inside a truck config: "moto" (V1), "pickup" (V2), "garbage" (V3), "dump" (V5),
 ##           "flatbed" (V6), "flatcar" (V7, rolls across; "once": true = no new one after it),
-##           "heli" (V8, net on a swinging cable), "balloon" (V9, rising / sinking basket)
+##           "heli" (V8, net on a swinging cable), "balloon" (V9, rising / sinking basket),
+##           "mailvan" (V4, slot for parcels), "foodtruck" (V10, serving window)
 ##           (scripts/vehicles.gd)
 ## movers  : moving obstacles [{"type", "phase", ...}] (scripts/movers.gd):
 ##           crane (M16), garage_door (M17), bus (M18, also kind "train"), ski_lift (M19),
-##           swinging_log (M20), windmill (M21), forklift (M22), tumbleweed, conveyor (M23)
+##           swinging_log (M20), windmill (M21), forklift (M22), tumbleweed, conveyor (M23),
+##           tower_crane (M16 variant: a beam on a trolley that slides along the jib)
 ## need / throw_stars : finish once `need` are loaded; 3 stars within throw_stars[0] throws,
 ##           2 stars within throw_stars[1] (few-throws levels, e.g. the motorcycle)
 
@@ -51,11 +53,16 @@ const WORLDS = [
 	{"name": "HARBOR", "backdrop": "harbor", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_harbor.ogg", "icon": "ferry"},
 	{"name": "SNOW", "backdrop": "snow", "tint": Color(1, 1, 1), "bridge": "snow_rock", "music": "res://audio/v2/music_snow.ogg", "icon": "lift"},
 	{"name": "FREIGHT YARD", "backdrop": "yard", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_yard.ogg", "icon": "flatcar"},
-	{"name": "SKY PORT", "backdrop": "sky", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_sky.ogg", "icon": "heli"},
+	{"name": "SKY PORT", "backdrop": "sky", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_sky.ogg", "icon": "heli",
+		"unlock_stars": 150},
+	{"name": "DOWNTOWN", "backdrop": "city", "tint": Color(1, 1, 1), "bridge": "stone", "music": "res://audio/v2/music_city.ogg", "icon": "mailvan",
+		"unlock_stars": 90},
+	{"name": "CONSTRUCTION", "backdrop": "site", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_site.ogg", "icon": "crane",
+		"unlock_stars": 120},
 ]
 
 ## Display / play order of the worlds (indices into WORLDS).
-const WORLD_ORDER = [0, 1, 2, 3, 4, 5, 6]
+const WORLD_ORDER = [0, 1, 2, 3, 4, 5, 7, 8, 6]  # Sky Port is the finale
 
 const DATA = [
 	# ---------------- TOWN ----------------
@@ -378,10 +385,83 @@ const DATA = [
 		"truck": {"x": 900, "vehicle": "heli", "y": 165, "cable": 300, "swing": 14,
 			"drift": 100, "drift_period": 720, "bob": 20, "bob_period": 360}, "guide": 0.4, "wind": -70,
 		"intro": {"title": "SKY BOSS", "text": "Drifting, swinging, bobbing, in a crosswind. Every throw counts."}},
+	# ---------------- DOWNTOWN (IDs 81-90) ----------------
+	{"world": 7, "cargo": "mmmmm", "goal": 3, "s2": 4,
+		"truck": {"x": 820, "amp": 0, "period": 4.0, "vehicle": "mailvan"}, "guide": 0.8,
+		"intro": {"title": "MAIL VAN", "text": "Parcels go through the slot in the back door. Throw flat!", "icon": "parcel"}},
+	{"world": 7, "cargo": "bbbbbb", "goal": 3, "s2": 5,
+		"truck": {"x": 940, "amp": 0, "period": 4.0, "vehicle": "garbage"}, "guide": 0.7,
+		"movers": [{"type": "bus", "period": 400, "speed": 9.0}]},
+	{"world": 7, "cargo": "bbb", "goal": 2, "s2": 3,
+		"truck": {"x": 860, "amp": 0, "period": 4.0, "vehicle": "foodtruck"}, "guide": 0.7,
+		"intro": {"title": "FOOD TRUCK", "text": "In through the serving window: under the awning, over the counter."}},
+	{"world": 7, "cargo": "mmmmmm", "goal": 3, "s2": 5,
+		"truck": {"x": 880, "amp": 0, "period": 4.0, "vehicle": "mailvan"}, "guide": 0.6,
+		"movers": [{"type": "garage_door", "x": 540, "top": 330, "period": 240, "open": 130}]},
+	{"world": 7, "cargo": "bbbb", "goal": 2, "s2": 3,
+		"truck": {"x": 860, "amp": 0, "period": 4.0, "vehicle": "foodtruck"}, "guide": 0.5,
+		"movers": [{"type": "bus", "period": 420, "speed": 9.0}]},
+	{"world": 7, "cargo": "mmmmmm", "goal": 3, "s2": 5,
+		"truck": {"x": 860, "amp": 90, "period": 5.0, "vehicle": "mailvan"}, "guide": 0.5,
+		"intro": {"title": "ON THE ROUND", "text": "The mail van won't stop for you. Lead your throw."}},
+	{"world": 7, "cargo": "bbbbbbb", "goal": 4, "s2": 6,
+		"truck": {"x": 900, "amp": 80, "period": 5.0, "vehicle": "garbage"}, "guide": 0.5, "wind": -60},
+	{"world": 7, "cargo": "bbbbb", "goal": 2, "s2": 3,
+		"truck": {"x": 860, "amp": 0, "period": 4.0, "vehicle": "foodtruck"}, "guide": 0.4, "wind": -50},
+	{"world": 7, "cargo": "mmmmmmm", "goal": 4, "s2": 6,
+		"truck": {"x": 860, "amp": 0, "period": 4.0, "vehicle": "mailvan"}, "guide": 0.4, "wind": 50,
+		"movers": [{"type": "bus", "period": 420, "speed": 9.0}]},
+	{"world": 7, "cargo": "mbmbmbm", "goal": 3, "s2": 4,
+		"trucks": [{"x": 540, "amp": 0, "period": 4.0, "vehicle": "mailvan"},
+			{"x": 960, "amp": 0, "period": 4.0, "vehicle": "foodtruck"}],
+		"guide": 0.4,
+		"intro": {"title": "DOWNTOWN BOSS", "text": "Parcels through the slot, boxes through the window. Pick the right one!"}},
+	# ---------------- CONSTRUCTION (IDs 91-100) ----------------
+	{"world": 8, "cargo": "bbbbbb", "goal": 3, "s2": 5,
+		"truck": {"x": 980, "amp": 0, "period": 4.0, "wall": 52}, "guide": 0.8,
+		"movers": [{"type": "tower_crane", "x": 660, "y": 125, "length": 135, "swing": 14, "period": 240, "slide": 90, "slide_period": 480}],
+		"intro": {"title": "TOWER CRANE", "text": "The beam swings and slides along the jib. Wait for your gap."}},
+	{"world": 8, "cargo": "cbcbbc", "goal": 3, "s2": 5,
+		"truck": {"x": 940, "amp": 0, "period": 4.0, "vehicle": "dump", "tilt": 8}, "guide": 0.7,
+		"movers": [{"type": "tower_crane", "x": 640, "y": 125, "length": 115, "swing": 12, "period": 240, "slide": 80, "slide_period": 480}]},
+	{"world": 8, "cargo": "bbbbbbb", "goal": 4, "s2": 6,
+		"truck": {"x": 980, "amp": 0, "period": 4.0, "vehicle": "flatbed"}, "guide": 0.6,
+		"blocks": [[360, 320, 400, 36]],
+		"pads": [[560, 579, 4, 1.1]],
+		"movers": [{"type": "forklift", "x0": 330, "x1": 480, "period": 340, "forks": 80}]},
+	{"world": 8, "cargo": "bcbcbb", "goal": 3, "s2": 5,
+		"truck": {"x": 1000, "amp": 0, "period": 4.0, "vehicle": "dump", "tilt": 8}, "guide": 0.6,
+		"movers": [{"type": "conveyor", "x0": 420, "x1": 760, "y": 440, "speed": 150}]},
+	{"world": 8, "cargo": "bbbbbbb", "goal": 4, "s2": 6,
+		"truck": {"x": 960, "amp": 0, "period": 4.0, "vehicle": "flatbed"}, "guide": 0.5,
+		"movers": [{"type": "tower_crane", "x": 680, "y": 125, "length": 125, "swing": 16, "period": 220, "slide": 110, "slide_period": 440}]},
+	{"world": 8, "cargo": "bbcbbcb", "goal": 4, "s2": 6,
+		"truck": {"x": 1000, "amp": 0, "period": 4.0, "wall": 56}, "guide": 0.5,
+		"blocks": [[380, 320, 420, 36]],
+		"pads": [[560, 579, 4, 1.1]],
+		"movers": [{"type": "forklift", "x0": 340, "x1": 470, "period": 280, "forks": 80},
+			{"type": "conveyor", "x0": 640, "x1": 820, "y": 430, "speed": 140}]},
+	{"world": 8, "cargo": "ccbcbbc", "goal": 4, "s2": 6,
+		"truck": {"x": 960, "amp": 0, "period": 4.0, "vehicle": "dump", "tilt": 10}, "guide": 0.5, "wind": -70,
+		"movers": [{"type": "tower_crane", "x": 640, "y": 125, "length": 115, "swing": 14, "period": 240, "slide": 90, "slide_period": 480}]},
+	{"world": 8, "cargo": "bbbbbbbb", "goal": 3, "s2": 4,
+		"truck": {"x": 970, "amp": 0, "period": 4.0, "vehicle": "flatbed"}, "guide": 0.4, "wind": 60,
+		"movers": [{"type": "tower_crane", "x": 660, "y": 125, "length": 125, "swing": 14, "period": 240, "slide": 100, "slide_period": 480}]},
+	{"world": 8, "cargo": "bbcbbbcb", "goal": 5, "s2": 7,
+		"truck": {"x": 1000, "amp": 0, "period": 4.0, "vehicle": "flatbed"}, "guide": 0.4,
+		"movers": [{"type": "conveyor", "x0": 420, "x1": 700, "y": 440, "speed": 150},
+			{"type": "tower_crane", "x": 760, "y": 125, "length": 115, "swing": 12, "period": 240, "slide": 80, "slide_period": 480}]},
+	{"world": 8, "cargo": "bbcbbcbbb", "goal": 5, "s2": 7,
+		"truck": {"x": 990, "amp": 0, "period": 4.0, "vehicle": "flatbed"}, "guide": 0.4,
+		"blocks": [[360, 320, 400, 36]],
+		"pads": [[560, 579, 4, 1.1]],
+		"movers": [{"type": "forklift", "x0": 330, "x1": 480, "period": 480, "forks": 80},
+			{"type": "tower_crane", "x": 720, "y": 125, "length": 105, "swing": 8, "period": 240, "slide": 80, "slide_period": 480, "phase": 60}],
+		"intro": {"title": "SITE BOSS", "text": "Stack the flatbed while the forklift patrols and the beam swings."}},
 ]
 
 const LETTER = {"b": "box", "c": "crate", "r": "barrel", "f": "fragile",
-	"i": "ice", "t": "tire", "p": "plank", "g": "canister"}
+	"i": "ice", "t": "tire", "p": "plank", "g": "canister", "m": "parcel"}
 
 
 static func count() -> int:
