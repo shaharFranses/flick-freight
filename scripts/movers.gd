@@ -7,6 +7,11 @@ const SCRIPTS = {
 	"garage_door": "res://scripts/movers/garage_door.gd",  # M17
 	"bus": "res://scripts/movers/bus.gd",  # M18 (also "kind": "train")
 	"forklift": "res://scripts/movers/forklift.gd",  # M22
+	"ski_lift": "res://scripts/movers/ski_lift.gd",  # M19
+	"swinging_log": "res://scripts/movers/swinging_log.gd",  # M20
+	"windmill": "res://scripts/movers/windmill.gd",  # M21
+	"tumbleweed": "res://scripts/movers/tumbleweed.gd",  # Desert pusher (M22 reskin)
+	"conveyor": "res://scripts/movers/conveyor.gd",  # M23
 }
 
 

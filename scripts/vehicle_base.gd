@@ -15,6 +15,7 @@ extends CargoVehicle
 ##   reach      Rect2   whole vehicle, for on_vehicle()
 ##   ride       float   load floor height above the road
 ##   wheels     Array   [Vector2 centre, radius] for drawing
+## cfg "tilt": degrees the whole vehicle leans (+ = rear/left end lower), e.g. parked on a slope.
 
 var base_x := 800.0
 var amp := 0.0
@@ -39,6 +40,7 @@ func setup(cfg: Dictionary, _palette_index: int, _wall_height: float):
 	base_x = cfg.x
 	amp = cfg.get("amp", 0.0)
 	period = max(0.5, cfg.get("period", 4.0))
+	rotation = -deg_to_rad(cfg.get("tilt", 0.0))
 	shape = _define(cfg)
 	_build_bodies()
 	_build_visuals()
@@ -184,11 +186,11 @@ func _physics_process(delta: float):
 
 # ---------------------------------------------------------------- loads
 func contains_point(p: Vector2) -> bool:
-	return shape.zone.has_point(p - global_position)
+	return shape.zone.has_point(to_local(p))
 
 
 func on_vehicle(p: Vector2) -> bool:
-	return shape.reach.has_point(p - global_position)
+	return shape.reach.has_point(to_local(p))
 
 
 func point_velocity(_p: Vector2) -> Vector2:
@@ -231,7 +233,7 @@ func predict_pose(dt: float) -> Array:
 	var p = global_position
 	if amp > 0:
 		p.x = base_x + amp * sin(TAU * (_t + dt) / period)
-	return [p, 0.0]
+	return [p, rotation]
 
 
 func predict_vx(dt: float) -> float:

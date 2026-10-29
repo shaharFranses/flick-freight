@@ -587,6 +587,16 @@ func _new_truck(slot: int):
 
 func _on_truck_departed(slot: int):
 	trucks[slot] = null
+	if slots[slot].get("once", false):
+		# e.g. a train flatcar: it doesn't come back. When nothing is left to throw at, the
+		# level is over (cargo not thrown yet counts as missed)
+		if live_trucks().is_empty() and not ended:
+			queue.clear()
+			if current:
+				current.queue_free()
+				current = null
+			_check_end()
+		return
 	if not ended and work_left() > 0:
 		_new_truck(slot)
 

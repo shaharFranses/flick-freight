@@ -52,6 +52,7 @@ var _planned := Vector2.ZERO
 var _planned_at := -1
 var _windows: Array = []  # per throw: frames of release timing that work around the chosen one
 var _jitter_fail := 0
+var _no_solution := 0  # timed throws where nothing could land at all
 var _good := 0
 
 
@@ -163,6 +164,7 @@ func _begin_level(g: Game):
 	_planned_at = -1
 	_windows = []
 	_jitter_fail = 0
+	_no_solution = 0
 	_phys_ms = []
 	g.cargo_resolved.connect(func(_kind, _ok, reason):
 		if reason == "broken":
@@ -191,6 +193,8 @@ func _record(g: Game):
 		r["min_window"] = _windows.min()
 		r["jitter_fail"] = _jitter_fail
 		extra += "  timing: window >= %df, jitter fails %d/%d" % [_windows.min(), _jitter_fail, _windows.size()]
+		if _no_solution > 0:
+			extra += ", %d throw(s) with no landing" % _no_solution
 		if _windows.min() < 24:
 			print("  WARNING: level %d has a release window under 24 frames (0.4 s)" % r.level)
 		if _jitter_fail > 0:
@@ -373,7 +377,7 @@ func _solve_timed(g: Game, sim: BotSim, period: int) -> Vector2:
 					_good += 1
 				keep.call(s, pull, w)
 	if top.is_empty():
-		_windows.append(0)
+		_no_solution += 1  # nothing lands at any time (e.g. the vehicle is full): not a timing issue
 		return Vector2(100, -100)
 	var b0 = top[0]
 	var a0 = rad_to_deg(-b0[1].angle())
@@ -422,4 +426,7 @@ func _solve_timed(g: Game, sim: BotSim, period: int) -> Vector2:
 			_jitter_fail += 1
 			break
 	_wait_frames = best_w
+	if Game.verbose:
+		sim.score(best, posmod(best_w, period))
+		print("  plan: pull %s wait %df window %df%s" % [best, best_w, best_win, " (rides)" if sim.last_caught else ""])
 	return best
