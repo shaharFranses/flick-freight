@@ -66,7 +66,7 @@ const DATA = [
 		"blocks": [[400, 190, 300, 40]],
 		"intro": {"title": "LOW BEAM", "text": "Keep your throws under the beam."}},
 	{"world": 1, "cargo": "bcrbfcbrb", "goal": 4, "s2": 7,
-		"truck": {"x": 880, "amp": 150, "period": 3.6, "wall": 60}, "guide": 0.4,
+		"truck": {"x": 880, "amp": 115, "period": 3.6, "wall": 60}, "guide": 0.4,
 		"blocks": [[540, 360, 56, 265]]},
 	# ---------------- DESERT ----------------
 	{"world": 2, "cargo": "bbcbbcbb", "goal": 4, "s2": 6,
@@ -82,7 +82,7 @@ const DATA = [
 		"truck": {"x": 880, "amp": 140, "period": 3.8, "wall": 60}, "guide": 0.35, "wind": -180,
 		"blocks": [[420, 200, 280, 40]]},
 	{"world": 2, "cargo": "bcrfbcrfbc", "goal": 5, "s2": 8,
-		"truck": {"x": 900, "amp": 170, "period": 3.4, "wall": 64}, "guide": 0.3, "wind": 180,
+		"truck": {"x": 900, "amp": 115, "period": 3.4, "wall": 64}, "guide": 0.3, "wind": 180,
 		"blocks": [[560, 380, 56, 245]],
 		"intro": {"title": "FINAL RUN", "text": "Everything at once. Good luck, driver!"}},
 	# ---------------- HARBOR ----------------

@@ -128,10 +128,10 @@
       "total": 9
     },
     {
-      "broken": 0,
-      "delivered": 7,
+      "broken": 2,
+      "delivered": 6,
       "level": 15,
-      "missed": 3,
+      "missed": 2,
       "pass": true,
       "stars": 1,
       "total": 10

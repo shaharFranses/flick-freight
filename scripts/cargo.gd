@@ -116,9 +116,9 @@ func power_mult() -> float:
 
 func launch(vel: Vector2, wind_accel: float):
 	wind = wind_accel
-	if vel.y > 0 and game and game.dock_body:
-		# thrown downward (e.g. at a bounce pad): don't scrape along the deck it sits on;
-		# the dock is ignored until the cargo has cleared its edge
+	if game and game.dock_body:
+		# a throw never scrapes the deck it was resting on (low throws at a pad keep their
+		# power); the dock is ignored until the cargo has cleared its edge
 		add_collision_exception_with(game.dock_body)
 		_through_dock = true
 	freeze = false

@@ -12,7 +12,7 @@ signal cargo_resolved(kind: String, delivered: bool, reason: String)  # for the 
 
 const ROAD_Y := 625.0
 const DOCK_TOP := 430.0
-const DOCK_RIGHT := 315.0
+const DOCK_RIGHT := 266.0  # flush with the cargo's front edge: low throws don't scrape a lip
 const BELT_RIGHT := 189.0
 const FLICK_X := 235.0
 const MAX_PULL := 170.0
@@ -211,8 +211,8 @@ func _build_dock():
 	var belts = ["ind_049", "ind_050", "ind_051"]
 	for i in 3:
 		_tile(dock, "res://art/v2/tiles/%s.png" % belts[i], Vector2(i * TILE, DOCK_TOP))
-	# beacon that pulses when cargo is ready to throw
-	beacon = _tile(dock, "res://art/v2/tiles/ind_040.png", Vector2(DOCK_RIGHT - 46, DOCK_TOP - TILE + 2))
+	# beacon that pulses when cargo is ready to throw (on the warehouse roof)
+	beacon = _tile(dock, "res://art/v2/tiles/ind_040.png", Vector2(WAREHOUSE_RIGHT - 70, WAREHOUSE_TOP - TILE + 2))
 	var body = StaticBody2D.new()
 	dock_body = body
 	body.add_to_group("dock")
@@ -805,9 +805,7 @@ func _check_end():
 			# let the stacks settle (things can still fall out), then strap it all down and score
 			get_tree().create_timer(END_SETTLE, false).timeout.connect(func():
 				for t in live_trucks():
-					for l in t.loads:
-						if is_instance_valid(l.cargo):
-							t._glue(l.cargo)
+					t.glue_all()
 				_score())
 			return
 		_score()
