@@ -19,16 +19,11 @@ jobs:
         run: godot --headless --fixed-fps 60 -s res://tools/cab_test.gd
       - name: Frozen data (levels 1-40 unchanged)
         run: godot --headless -s res://tools/frozen_check.gd
-      - name: Regression gate, perfect aim (levels 1-40 vs baseline_1_40)
+      - name: Parity, levels 1-40 (one level per process, results and throws vs the pre-Plan-2 snapshot)
         shell: bash
-        run: |
-          set -o pipefail
-          godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-40 --error=0 --compare=res://tools/baseline_1_40.json 2>&1 | tee gate0.txt
-      - name: Regression gate, human aim (levels 1-40 vs baseline)
-        shell: bash
-        run: |
-          set -o pipefail
-          godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-40 --error=0.5 --compare=res://tools/baseline_1_40_e05.json 2>&1 | tee gate5.txt
+        run: tools/parity.sh check 2>&1 | tee parity.txt
+      - name: Save compatibility
+        run: godot --headless -s res://tools/save_test.gd
       - name: All levels, perfect aim (every level must be passable)
         shell: bash
         run: |
@@ -43,8 +38,8 @@ jobs:
         if: always()
         shell: bash
         run: |
-          for f in gate0 gate5 bot0 bot5; do
-            [ -f $f.txt ] && echo "::notice title=$f::$(grep -E 'LEVEL|BOT DONE|REGRESS|SCRIPT ERROR|WARNING: level' $f.txt | tr '\n' '|' | head -c 3500)"
+          for f in parity bot0 bot5; do
+            [ -f $f.txt ] && echo "::notice title=$f::$(grep -E 'LEVEL|BOT DONE|REGRESS|PARITY|SCRIPT ERROR|WARNING: level' $f.txt | tr '\n' '|' | head -c 3500)"
           done
           true
       - name: Web export builds

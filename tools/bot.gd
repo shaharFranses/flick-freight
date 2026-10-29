@@ -12,6 +12,7 @@ extends SceneTree
 ##                         auto = analytic for the frozen levels 1-15, sim for everything after
 ##   --json=res://...      write per-level results as JSON
 ##   --compare=res://...   fail (exit 1) if any level in that JSON gives a different result
+##   --append              merge into the --json file instead of overwriting it
 ##   --snap=path.png --snap_at=S   save a screenshot after S seconds (needs a display, e.g. xvfb-run)
 ##   --seconds=S, --stay, --verbose, --fresh=0
 
@@ -25,6 +26,7 @@ var base_seed := 3
 var solver := "auto"
 var json_out := ""
 var compare_path := ""
+var append := false
 var rng := RandomNumberGenerator.new()
 var results: Array = []
 var wait := 0.0
@@ -59,6 +61,7 @@ func _init():
 	solver = args.get("solver", "auto")
 	json_out = args.get("json", "")
 	compare_path = args.get("compare", "")
+	append = args.has("append")
 	seed(base_seed)
 	if args.get("fresh", "1") == "1":
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveData.PATH))
@@ -158,8 +161,21 @@ func _report():
 			fails += 1
 	print("BOT DONE: %d levels, %d failed" % [results.size(), fails])
 	if json_out != "":
+		var all_levels = results
+		if append and FileAccess.file_exists(json_out):
+			# merge into an existing file (one level per process, see tools/parity.sh)
+			var old = JSON.parse_string(FileAccess.get_file_as_string(json_out))
+			var mine = {}
+			for r in results:
+				mine[int(r.level)] = true
+			all_levels = []
+			for r in old.levels:
+				if not mine.has(int(r.level)):
+					all_levels.append(r)
+			all_levels.append_array(results)
+			all_levels.sort_custom(func(a, b): return a.level < b.level)
 		var f = FileAccess.open(json_out, FileAccess.WRITE)
-		f.store_string(JSON.stringify({"error": error, "seed": base_seed, "levels": results}, "  ") + "\n")
+		f.store_string(JSON.stringify({"error": error, "seed": base_seed, "levels": all_levels}, "  ") + "\n")
 		f.close()
 		print("wrote %s" % json_out)
 	var regress = _compare() if compare_path != "" else 0

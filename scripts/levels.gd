@@ -33,12 +33,12 @@ extends RefCounted
 ## (in WORLD_ORDER) has its Act I done.
 
 const WORLDS = [
-	{"name": "TOWN", "bg": "res://art/v2/bg/bg_town.png", "tint": Color(1, 1, 1)},
-	{"name": "WOODS", "bg": "res://art/v2/bg/bg_woods.png", "tint": Color(1, 1, 1)},
-	{"name": "DESERT", "bg": "res://art/v2/bg/bg_desert.png", "tint": Color(1, 1, 1)},
-	{"name": "HARBOR", "backdrop": "harbor", "tint": Color(1, 1, 1), "music": "res://audio/v2/music_harbor.ogg"},
-	{"name": "SNOW", "backdrop": "snow", "tint": Color(1, 1, 1), "music": "res://audio/v2/music_snow.ogg"},
-	{"name": "FREIGHT YARD", "backdrop": "yard", "tint": Color(1, 1, 1), "music": "res://audio/v2/music_yard.ogg"},
+	{"name": "TOWN", "bg": "res://art/v2/bg/bg_town.png", "tint": Color(1, 1, 1), "bridge": "stone"},
+	{"name": "WOODS", "bg": "res://art/v2/bg/bg_woods.png", "tint": Color(1, 1, 1), "bridge": "wood"},
+	{"name": "DESERT", "bg": "res://art/v2/bg/bg_desert.png", "tint": Color(1, 1, 1), "bridge": "rock"},
+	{"name": "HARBOR", "backdrop": "harbor", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_harbor.ogg"},
+	{"name": "SNOW", "backdrop": "snow", "tint": Color(1, 1, 1), "bridge": "snow_rock", "music": "res://audio/v2/music_snow.ogg"},
+	{"name": "FREIGHT YARD", "backdrop": "yard", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_yard.ogg"},
 ]
 
 ## Display / play order of the worlds (indices into WORLDS).

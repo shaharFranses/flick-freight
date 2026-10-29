@@ -75,10 +75,10 @@ Levels 1–40 are frozen (`docs/EXPANSION_PLAN_2.md` §1). The checks:
 godot --headless -s res://tools/frozen_check.gd       # levels 1-40 data unchanged
 godot --headless -s res://tools/layout_check.gd       # no vehicle drives through an obstacle
 godot --headless --fixed-fps 60 -s res://tools/cab_test.gd
-# regression gate: same results AND the same throws as the snapshot taken before Plan 2
-# (always run the full 1-40 range: physics stacking makes single levels differ)
-godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-40 --error=0   --compare=res://tools/baseline_1_40.json
-godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=1-40 --error=0.5 --compare=res://tools/baseline_1_40_e05.json
+godot --headless -s res://tools/save_test.gd          # old saves unlock levels 1-40 as before
+# parity: each of levels 1-40 in its own process must give the same results AND the same
+# throws as the snapshot taken before Plan 2 (one process per level: no level can affect another)
+tools/parity.sh check
 ```
 
 The bot uses the original analytic solver for levels 1–15 and a search solver

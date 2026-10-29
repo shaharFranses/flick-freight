@@ -90,6 +90,8 @@ func setup(index: int):
 	_build_blocks()
 	if level.has("pads"):
 		_build_pads()
+	if level.has("height_limit"):
+		_build_low_bridge()
 	if wind != 0.0:
 		_build_flag()
 		_build_wind_fx()
@@ -387,6 +389,22 @@ func _draw_pad(pd: Dictionary):
 		n.draw_colored_polygon(PackedVector2Array([Vector2(x, plate.end.y - 3), Vector2(x + 7, plate.position.y + 5),
 			Vector2(x + 14, plate.end.y - 3)]), Color("#FFD34E"))
 		x += 22.0
+
+
+# ======================================================================= M14 low bridge
+## The height limit as a real low bridge on the way out (Plan 2, D2). It hangs over the parked
+## truck's cab; its underside is at exactly the limit above the load floor. The rule is
+## unchanged (cargo settling above the limit is knocked off); after a won level the truck
+## drives out underneath it.
+func _build_low_bridge():
+	var cfg: Dictionary = slots[0]
+	var floor_y = ROAD_Y - Truck.FLOOR_T - 18 - Truck.WHEEL_R
+	var under = floor_y - level.height_limit
+	var x0 = cfg.x + Truck.BED_W * 0.5 + Truck.WALL_T + 12  # just past the bulkhead
+	var n = _static_node()
+	n.z_index = 4  # in front of the cab: the cab is "under" the bridge
+	var style = Levels.world_of(level_index).get("bridge", "stone")
+	n.draw.connect(func(): Bridges.draw(n, style, Rect2(x0, under - 64, 1400 - x0, 64), ROAD_Y))
 
 
 # ======================================================================= M10 harbor water
@@ -812,6 +830,11 @@ func _check_end():
 func _score():
 	var stars = Levels.stars_for(level_index, delivered)
 	SaveData.set_stars(level_index, stars)
+	if stars > 0 and level.has("height_limit"):
+		# showcase: the loaded truck drives out under the low bridge
+		for t in live_trucks():
+			if t.is_parked():
+				t.leave()
 	get_tree().create_timer(0.9, false).timeout.connect(func():
 		finished.emit(stars, delivered, level.cargo.length()))
 

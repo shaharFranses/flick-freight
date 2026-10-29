@@ -203,20 +203,14 @@ func _draw_front():
 		_draw_height_line(L)
 
 
-## M14: dashed "low bridge" line: cargo sticking up past it gets knocked off.
+## M14: faint dashed hint at the low bridge's clearance (the bridge itself is drawn by the
+## level, over the cab). Cargo settling above it gets knocked off.
 func _draw_height_line(L: float):
 	var y = -height_limit
 	var x = L - WALL_T
 	while x < -L:
-		front_layer.draw_line(Vector2(x, y), Vector2(min(x + 18, -L), y), NAVY, 7.0)
-		front_layer.draw_line(Vector2(x, y), Vector2(min(x + 18, -L), y), Color("#FF6B57"), 4.0)
-		x += 28.0
-	# little bridge icon at the back end of the line
-	var b = Vector2(L - WALL_T - 30, y)
-	front_layer.draw_rect(Rect2(b.x - 22, b.y - 14, 44, 10), NAVY)
-	front_layer.draw_rect(Rect2(b.x - 20, b.y - 12, 40, 6), Color("#FF6B57"))
-	front_layer.draw_rect(Rect2(b.x - 20, b.y - 6, 6, 18), NAVY)
-	front_layer.draw_rect(Rect2(b.x + 14, b.y - 6, 6, 18), NAVY)
+		front_layer.draw_line(Vector2(x, y), Vector2(min(x + 14, -L), y), Color(1, 1, 1, 0.45), 3.0)
+		x += 26.0
 
 
 ## Ferry hull the truck rides on; it sails in and out with the truck.
