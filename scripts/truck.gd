@@ -37,7 +37,7 @@ var loads: Array = []  # [{"cargo": Cargo, "offset": Vector2, "rot": float}]
 var ferry: Dictionary = {}  # M10: {amp_y, amp_rot (deg), period}; empty = on the road
 var icy := false  # M11: icy bed, everything slides
 var height_limit := 0.0  # M14: bridge line above the bed (0 = none)
-var glue := true  # false: delivered cargo stays physical (see Game.GLUE_LOADS)
+var glue := true  # false: delivered cargo stays physical (see Game.glue_loads)
 
 var _t := 0.0
 var _anim_t := 0.0

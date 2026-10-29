@@ -20,9 +20,10 @@ const POWER := 6.6
 const GRAVITY := 1200.0
 const TILE := 63.0  # Kenney 70px tiles at 0.9
 const NEXT_DELAY := 0.65
-## Experimental: false = delivered cargo is not glued to the truck. Stacks can shift or
-## topple, and cargo that falls out of the truck stops counting.
-const GLUE_LOADS := false
+## Cargo mode. true (default) = delivered cargo is glued to the truck. false = it stays
+## physical: stacks can shift or topple, and cargo that falls out stops counting.
+## Set from the pause menu or ?glue=0 / ?glue=1 (saved), see Main.
+static var glue_loads := true
 const FALL_OUT_TIME := 0.25  # s outside the bed before a delivered cargo counts as fallen out
 const END_SETTLE := 1.2  # s to let stacks settle before the level is scored
 
@@ -520,7 +521,7 @@ func _new_truck(slot: int):
 	var t = Truck.new()
 	t.setup(cfg, level_index + truck_count, cfg.get("wall", 52))
 	t.height_limit = level.get("height_limit", 0.0)
-	t.glue = GLUE_LOADS
+	t.glue = glue_loads
 	t.position = Vector2(1560, ROAD_Y - Truck.FLOOR_T - 18 - Truck.WHEEL_R)
 	if slot > 0:
 		t.z_index = -slot  # far trucks behind near ones while driving in
@@ -800,7 +801,7 @@ func _check_end():
 		ended = true
 		aiming = false
 		aim.queue_redraw()
-		if not GLUE_LOADS:
+		if not glue_loads:
 			# let the stacks settle (things can still fall out), then strap it all down and score
 			get_tree().create_timer(END_SETTLE, false).timeout.connect(func():
 				for t in live_trucks():
@@ -821,7 +822,7 @@ func _score():
 
 ## Unglued loads: anything that has left the bed for a moment (or hit the road) has fallen out.
 func _physics_process(delta: float):
-	if GLUE_LOADS:
+	if glue_loads:
 		return
 	for t in live_trucks():
 		if t.state != "parked":

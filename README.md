@@ -11,6 +11,8 @@ from the loading dock into the truck. 40 levels across 6 worlds, 1–3 stars eac
   `P` pauses, `R` restarts. Touch works the same way.
 - **Goal:** load enough cargo to pass (1★); load more for 2★; load everything for 3★.
 - **One truck per level:** stack it full (only the low-bridge levels swap in a fresh truck).
+- **Cargo mode** (pause menu, or `?glue=0` / `?glue=1` in the URL; remembered): glued (default),
+  delivered cargo stays put; unglued, stacks can shift or topple and cargo that falls out stops counting.
 - **Mechanics** (introduced one at a time): moving trucks, heavy crates (need more power),
   barrels (tip over), fragile cargo (each bump cracks it, the 3rd breaks it), pillars and low beams, wind, tall tailgates.
 - **Harbor (world 4):** bounce pads (bank shots, also with downward throws; a pad never cracks

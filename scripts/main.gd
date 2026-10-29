@@ -26,10 +26,22 @@ func _ready():
 		else:
 			_show_pause())
 	var q = _query()
+	Game.glue_loads = SaveData.get_flag("glue_loads", true)
+	if q.has("glue"):
+		set_glue(q.glue != "0")
+	screens.toggle_glue.connect(func():
+		set_glue(not Game.glue_loads)
+		start_level(level_index))
 	var start = SaveData.first_unbeaten()
 	if q.has("level"):
 		start = clampi(int(q.level) - 1, 0, Levels.count() - 1)
 	start_level(start)
+
+
+## Glued (default) or unglued cargo; remembered between sessions.
+func set_glue(on: bool):
+	Game.glue_loads = on
+	SaveData.set_flag("glue_loads", on)
 
 
 func _query() -> Dictionary:
