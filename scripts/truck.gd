@@ -19,14 +19,6 @@ const PALETTES = [
 	[Color("#F2B134"), Color("#C98E1D")],
 	[Color("#8E5BD6"), Color("#6A3FAE")],
 ]
-## Colour-coded trucks (M9): colour + a shape so it never relies on colour alone.
-const CARGO_COLORS = [Color("#E4572E"), Color("#3D8BDB"), Color("#F2B134")]
-const COLOR_NAMES = ["RED", "BLUE", "YELLOW"]
-const COLOR_PALETTES = [
-	[Color("#E4572E"), Color("#B83F1F")],
-	[Color("#3D8BDB"), Color("#2A6BB0")],
-	[Color("#F2B134"), Color("#C98E1D")],
-]
 const NAVY = Color("#1B2A41")
 const WOOD = Color("#A87444")
 const WOOD_DARK = Color("#7A4E2A")
@@ -42,7 +34,6 @@ var period := 4.0
 var palette: Array
 var state := "away"  # away / arriving / parked / leaving
 var loads: Array = []  # [{"cargo": Cargo, "offset": Vector2, "rot": float}]
-var color := -1  # M9: index into CARGO_COLORS, -1 = takes any cargo
 var ferry: Dictionary = {}  # M10: {amp_y, amp_rot (deg), period}; empty = on the road
 var icy := false  # M11: icy bed, everything slides
 var height_limit := 0.0  # M14: bridge line above the bed (0 = none)
@@ -76,9 +67,6 @@ func setup(cfg: Dictionary, palette_index: int, wall_height: float):
 	period = max(0.5, cfg.get("period", 4.0))
 	wall_h = wall_height
 	palette = PALETTES[palette_index % PALETTES.size()]
-	color = cfg.get("color", -1)
-	if color >= 0:
-		palette = COLOR_PALETTES[color]
 	ferry = cfg.get("ferry", {})
 	icy = cfg.get("icy", false)
 	_build_bodies()
@@ -219,12 +207,6 @@ func _draw_front():
 			front_layer.draw_line(Vector2(gx, 0), Vector2(gx + 22, 0), Color.WHITE, 3.0)
 	if height_limit > 0:
 		_draw_height_line(L)
-	if color >= 0:
-		# sign on a post above the bulkhead: readable even with a full bed
-		var post = Vector2(-L + WALL_T * 0.5, -FRONT_H)
-		front_layer.draw_rect(Rect2(post.x - 4, post.y - 40, 8, 40), Color("#5B6574"))
-		draw_color_badge(front_layer, post + Vector2(0, -66), 34.0, color)
-		draw_color_badge(front_layer, Vector2(cab_x0 + 40, -2), 18.0, color)
 
 
 ## M14: dashed "low bridge" line: cargo sticking up past it gets knocked off.
@@ -256,22 +238,6 @@ func _draw_ferry_hull():
 	for px in [x0 + 10, x1 - 10]:
 		back_layer.draw_rect(Rect2(px - 5, deck - 34, 10, 34), Color("#C9CED6"))
 		back_layer.draw_circle(Vector2(px, deck - 34), 7, Color("#FF6B57"))
-
-
-## Colour badge: filled disc in the colour, white ring, white shape (circle/triangle/square).
-static func draw_color_badge(ci: CanvasItem, c: Vector2, r: float, idx: int):
-	ci.draw_circle(c, r + 3, NAVY)
-	ci.draw_circle(c, r, CARGO_COLORS[idx])
-	ci.draw_arc(c, r - 2, 0, TAU, 32, Color.WHITE, max(2.0, r * 0.12))
-	var k = r * 0.5
-	match idx:
-		0:
-			ci.draw_circle(c, k, Color.WHITE)
-		1:
-			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -k * 1.15), c + Vector2(k * 1.05, k * 0.75),
-				c + Vector2(-k * 1.05, k * 0.75)]), Color.WHITE)
-		_:
-			ci.draw_rect(Rect2(c - Vector2(k, k) * 0.85, Vector2(k, k) * 1.7), Color.WHITE)
 
 
 func _draw_wheel(w: Node2D):

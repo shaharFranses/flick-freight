@@ -199,7 +199,6 @@ func _on_progress(d: int, _left: int):
 func _on_queue(types: Array):
 	for c in queue_box.get_children():
 		c.queue_free()
-	var colors: Array = game.remaining_colors() if game else []
 	var n = 0
 	for t in types:
 		var tr = TextureRect.new()
@@ -209,14 +208,6 @@ func _on_queue(types: Array):
 		tr.custom_minimum_size = Vector2(26, 26) if n > 0 else Vector2(32, 32)
 		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		queue_box.add_child(tr)
-		if n < colors.size() and colors[n] >= 0:
-			# M9: colour + shape of the truck this one belongs in
-			var col: int = colors[n]
-			var badge = Control.new()
-			badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			badge.set_anchors_preset(Control.PRESET_FULL_RECT)
-			badge.draw.connect(func(): Truck.draw_color_badge(badge, badge.size * 0.5, badge.size.x * 0.36, col))
-			tr.add_child(badge)
 		n += 1
 		if n >= 7:
 			if types.size() > 7:

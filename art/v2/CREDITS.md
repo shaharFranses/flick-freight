@@ -18,7 +18,7 @@ https://github.com/ETdoFresh/kenney.nl (each pack's original License.txt states 
 Self-made (CC0): `audio/v2/music_loop.ogg` (synthesized by `tools/make_music.py`),
 `audio/v2/boing.wav`, `splash.wav`, `pop.wav` (synthesized by `tools/make_sfx.py`),
 `cargo/ice.png`, `tire.png`, `plank.png`, `canister.png` (drawn by `tools/make_cargo_art.py`), the Harbor/Snow/Yard
-backgrounds, bounce pads, ferry and colour badges (drawn in code, `scripts/backdrops.gd` etc.),
+backgrounds, bounce pads and ferry (drawn in code, `scripts/backdrops.gd` etc.),
 `audio/honk.wav`, `whoosh.wav`, `snap.wav` (see `audio/LICENSE.txt`). The truck is drawn in code.
 
 Font: `font/fredoka.ttf` — Fredoka by The Fredoka Project Authors, SIL Open Font License 1.1 (`font/OFL.txt`),

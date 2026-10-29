@@ -1,7 +1,7 @@
 class_name Backdrops
 extends RefCounted
 ## Code-drawn backgrounds for the worlds after Desert (no external art needed).
-## Kept light and muted so cargo, trucks and colour badges stay readable at 907x510.
+## Kept light and muted so cargo, trucks and obstacles stay readable at 907x510.
 
 const TOP := -300.0
 const HORIZON := 470.0

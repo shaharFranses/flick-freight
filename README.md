@@ -10,12 +10,11 @@ from the loading dock into the truck. 40 levels across 6 worlds, 1–3 stars eac
 - **Controls:** press anywhere, drag back, release. The dotted arc previews the throw.
   `P` pauses, `R` restarts. Touch works the same way.
 - **Goal:** load enough cargo to pass (1★); load more for 2★; load everything for 3★.
-- **Trucks** leave when full and a new one drives in.
+- **One truck per level:** stack it full (only the low-bridge levels swap in a fresh truck).
 - **Mechanics** (introduced one at a time): moving trucks, heavy crates (need more power),
-  barrels (tip over), fragile cargo (breaks on walls/road), pillars and low beams, wind, tall tailgates.
-- **Harbor (world 4):** bounce pads (bank shots; a pad never breaks fragile cargo), colour-coded
-  trucks (colour + shape; cargo in the wrong truck is a miss and stays as dead weight), and trucks
-  bobbing on ferries. Each world is a page in level select; a world opens once the previous one is done.
+  barrels (tip over), fragile cargo (each bump cracks it, the 3rd breaks it), pillars and low beams, wind, tall tailgates.
+- **Harbor (world 4):** bounce pads (bank shots, also with downward throws; a pad never cracks
+  fragile cargo) and trucks bobbing on ferries. Each world is a page in level select; a world opens once the previous one is done.
 - **Snow (world 5):** ice blocks and icy truck beds (everything slides), bouncy tires, planks that spin
   at a fixed rate and only count if they land flat, and a low-bridge height limit (cargo above the red
   line is knocked off).

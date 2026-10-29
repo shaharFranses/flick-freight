@@ -47,9 +47,9 @@ func _build(shot):
 	g.setup(24)  # harbor finale: water, bounce pad, wind
 	g.set_process(false)
 	world.add_child(g)
-	# a colour-coded truck on its ferry, loaded with old and new cargo
+	# a truck on its ferry, loaded with old and new cargo
 	var t = Truck.new()
-	t.setup({"x": 1010, "amp": 0, "color": 1, "ferry": {"amp_y": 0, "amp_rot": 0}}, 0, 56)
+	t.setup({"x": 1010, "amp": 0, "ferry": {"amp_y": 0, "amp_rot": 0}}, 1, 56)
 	t.position = Vector2(1010, Game.ROAD_Y - Truck.FLOOR_T - 18 - Truck.WHEEL_R)
 	world.add_child(t)
 	t.set_physics_process(false)  # after entering the tree, or _ready turns it back on
@@ -74,11 +74,6 @@ func _build(shot):
 			arc.draw_circle(pts[k], 8.5, Color(0.106, 0.165, 0.255, 0.75))
 			arc.draw_circle(pts[k], 6.0, Color(1, 1, 1, 0.95)))
 	_sprite(world, "fragile", pts[67], -0.5, 1.15)
-	var badge = Node2D.new()
-	badge.position = pts[67]
-	badge.z_index = 31
-	badge.draw.connect(func(): Truck.draw_color_badge(badge, Vector2.ZERO, 19.0, 1))
-	world.add_child(badge)
 	_sprite(world, "box", Vector2(Game.FLICK_X, Game.DOCK_TOP - 30), 0.0)
 	# speed streaks behind the flying cargo
 	var fx = Node2D.new()

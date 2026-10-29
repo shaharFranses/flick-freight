@@ -42,7 +42,6 @@ var flying := false
 var done := false
 var touched_wall := false
 var touched_pad := false
-var color := -1  # M9: which coloured truck this belongs in (-1 = any)
 var wind := 0.0
 var _settle := 0.0
 var _air := 0.0
@@ -58,10 +57,9 @@ var sprite: Sprite2D
 var game  # Game (untyped to avoid a cyclic class reference)
 
 
-func setup(k: String, g, col := -1):
+func setup(k: String, g):
 	kind = k
 	game = g
-	color = col
 	info = TYPES[k]
 	if k == "plank" and g and g.level.has("plank"):
 		# M13: per-level plank length / spin
@@ -100,10 +98,6 @@ func setup(k: String, g, col := -1):
 	sprite.texture = tex
 	sprite.scale = info.size / tex.get_size()
 	add_child(sprite)
-	if color >= 0:
-		var badge = Node2D.new()
-		badge.draw.connect(func(): Truck.draw_color_badge(badge, Vector2.ZERO, 17.0, color))
-		add_child(badge)
 	freeze_mode = RigidBody2D.FREEZE_MODE_KINEMATIC
 	freeze = true
 	contact_monitor = true
