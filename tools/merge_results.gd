@@ -8,6 +8,9 @@ func _init():
 		var p = a.trim_prefix("--").split("=")
 		if p[0] == "into": into = p[1]
 		if p[0] == "from": from = p[1]
+	if not FileAccess.file_exists(from):
+		quit()  # nothing to merge (e.g. a retired level wrote no results)
+		return
 	var add = JSON.parse_string(FileAccess.get_file_as_string(from))
 	var base = {"error": add.error, "seed": add.seed, "levels": []}
 	if FileAccess.file_exists(into):
