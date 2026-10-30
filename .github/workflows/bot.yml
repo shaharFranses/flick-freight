@@ -45,7 +45,9 @@ jobs:
       - name: Performance smoke test (heaviest levels, native headless physics time)
         shell: bash
         run: |
-          for L in 25 35 38 40; do godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=$L --error=0 --perf 2>&1 | grep "^LEVEL"; done | tee perf.txt
+          # bot level IDs: 25, 38, 40 (Plan 1 heaviest) and 49 (heaviest Act II: most cargo +
+          # crane + forklift lift, the biggest search). Retired IDs warn; max > 12 ms fails.
+          tools/perf_check.sh 25 38 40 49 2>&1 | tee perf.txt
       - name: Annotate results
         if: always()
         shell: bash

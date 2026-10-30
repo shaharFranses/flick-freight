@@ -27,9 +27,21 @@ func _ready():
 			_show_pause())
 	var q = _query()
 	var start = SaveData.first_unbeaten()
-	if q.has("level"):
+	if q.has("level") and _dev_jump_allowed():
 		start = Levels.id_of_number(int(q.level))  # the number players see
 	start_level(start)
+
+
+## Level-jump (?level=N / --level=N) is a dev tool: allowed in debug builds,
+## on localhost and on the GitHub Pages play-test site, never on portals.
+func _dev_jump_allowed() -> bool:
+	if OS.is_debug_build():
+		return true
+	if OS.has_feature("web"):
+		var host = JavaScriptBridge.eval("location.hostname || ''")
+		if host is String:
+			return host == "localhost" or host == "127.0.0.1" or host.ends_with(".github.io")
+	return false
 
 
 func _query() -> Dictionary:

@@ -58,12 +58,17 @@ var _good := 0
 
 
 func _init():
+	var bad_ids := false
 	var args = {}
 	for a in OS.get_cmdline_user_args():
 		var p = a.trim_prefix("--").split("=")
 		args[p[0]] = p[1] if p.size() > 1 else "1"
 	var r = args.get("levels", "1-15").replace("all", "1-%d" % Levels.count()).split("-")
 	for i in range(int(r[0]), int(r[r.size() - 1]) + 1):
+		if i < 1 or i > Levels.count():
+			printerr("no such level: %d" % i)
+			bad_ids = true
+			continue
 		if not i - 1 in Levels.RETIRED:
 			levels.append(i - 1)
 	error = float(args.get("error", "0"))
@@ -79,6 +84,10 @@ func _init():
 	test_mover = args.get("test_mover", "")
 	perf = args.has("perf")
 	seed(base_seed)
+	if levels.is_empty() and bad_ids:
+		print("no levels to play (no such level)")
+		quit(1)
+		return
 	if levels.is_empty():
 		print("no levels to play (retired)")
 		if compare_path != "":
