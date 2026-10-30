@@ -1,7 +1,7 @@
 # Flick Freight
 
 A physics loading game for the web (Godot 4.3). Drag back and release to throw cargo
-from the loading dock into the truck. 50 levels across 6 worlds, 1–3 stars each.
+from the loading dock into the truck. 97 levels across 9 worlds, 1–3 stars each.
 
 ![cover](marketing/covers/cover_landscape_1920x1080.png)
 
@@ -10,7 +10,8 @@ from the loading dock into the truck. 50 levels across 6 worlds, 1–3 stars eac
 - **Controls:** press anywhere, drag back, release. The dotted arc previews the throw.
   `P` pauses, `R` restarts. Touch works the same way.
 - **Goal:** load enough cargo to pass (1★); load more for 2★; load everything for 3★.
-- **One truck per level:** stack it full (only the low-bridge levels swap in a fresh truck).
+- **One truck per level:** stack it full (a few later levels have several vehicles at once,
+  like a train of flatcars or two helicopters).
 - **Loose cargo:** delivered cargo isn't glued down. Stacks can shift or topple, and anything that
   falls out of the truck stops counting. Stacks get a moment to settle before a level is scored.
 - **Mechanics** (introduced one at a time): moving trucks, heavy crates (need more power),
@@ -18,15 +19,14 @@ from the loading dock into the truck. 50 levels across 6 worlds, 1–3 stars eac
 - **Harbor (world 4):** bounce pads (bank shots, also with downward throws; a pad never cracks
   fragile cargo) and trucks bobbing on ferries. Each world is a page in level select; a world opens once the previous one is done.
 - **Snow (world 5):** ice blocks and icy truck beds (everything slides), bouncy tires, planks that spin
-  at a fixed rate and only count if they land flat, and a low-bridge height limit (cargo above the red
-  line is knocked off).
+  at a fixed rate and only count if they land flat.
 - **Freight Yard (world 6):** gas canisters: land them softly, or they pop in a puff of smoke and knock
   nearby cargo out of the truck (knocked-out cargo stops counting until it lands again; fragile
   neighbours break). Level 40 has one of everything.
 - **Act II (Plan 2, `docs/EXPANSION_PLAN_2.md`):** each world gets 5 more levels after its Act I,
   unlocked once Act I is done. Town: a garage door that opens and closes, a bus passing in front
-  (it only stops cargo in the air), courier motorcycles (one parcel per bike, stars for few
-  throws) and a garbage truck with a small hopper. Harbor: a swinging gantry-crane container and
+  (it only stops cargo in the air), a courier motorcycle (3 boxes on a tiny rack: 1 is easy, 3 is
+  very hard) and a garbage truck with a small hopper. Harbor: a swinging gantry-crane container and
   a forklift patrolling the quay. Moving obstacles run on the level clock, so they're identical
   on every restart; warning lights and sounds tell you what's coming.
 - Each new world has its own music loop (`tools/make_music.py <out.ogg> harbor|snow|yard`).
@@ -47,7 +47,7 @@ scripts/
   movers/        crane, garage_door, bus (also a train), forklift
   vehicles.gd    vehicle factory ("vehicle" key in a truck config)
   mover.gd, movers.gd  moving obstacles: pose = f(level clock), AnimatableBody2D
-  bridges.gd     the low bridges (height limit), one style per world
+  bridges.gd     the low bridges (height limit; no level in play uses it any more)
   hud.gd         top bar, banners, pop-ups, tutorial
   screens.gd     pause, results (stars), level select
   ui_theme.gd    shared theme (Fredoka font, buttons, cards)

@@ -27,6 +27,49 @@ jobs:
           godot --headless --verbose --import || true
           godot --headless --verbose --export-release "Web" build/index.html
           touch build/.nojekyll
+      - name: CrazyGames size and file-count check
+        shell: bash
+        run: |
+          cd build
+          files=$(find . -type f ! -name .nojekyll | sort)
+          count=$(echo "$files" | wc -l)
+          bytes=$(echo "$files" | xargs stat -c %s | awk '{ s += $1 } END { print s }')
+          mb=$(awk -v b="$bytes" 'BEGIN { printf "%.2f", b / 1048576 }')
+          {
+            echo "## CrazyGames build"
+            echo ""
+            echo "**Total:** $mb MB in $count files (excluding .nojekyll)"
+            echo ""
+            echo "| File | Size |"
+            echo "|---|---|"
+            for f in $files; do
+              echo "| ${f#./} | $(awk -v b="$(stat -c %s "$f")" 'BEGIN { printf "%.2f MB", b / 1048576 }') |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Total $mb MB, $count files"
+          fail=0
+          if awk -v m="$mb" 'BEGIN { exit !(m > 50) }'; then
+            echo "::error title=CrazyGames::build is $mb MB, over the 50 MB initial-download limit"
+            printf "\n**Over the 50 MB limit.**\n" >> "$GITHUB_STEP_SUMMARY"
+            fail=1
+          elif awk -v m="$mb" 'BEGIN { exit !(m > 20) }'; then
+            echo "::warning title=CrazyGames::build is $mb MB, over 20 MB (not eligible for the mobile homepage)"
+            printf "\n**Warning:** over 20 MB, not eligible for the CrazyGames mobile homepage.\n" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "$count" -gt 1500 ]; then
+            echo "::error title=CrazyGames::$count files, over the 1500 file limit"
+            fail=1
+          fi
+          exit $fail
+      - name: Upload CrazyGames build (zip of build/ contents)
+        uses: actions/upload-artifact@v4
+        with:
+          name: flick-freight-crazygames-${{ github.sha }}
+          path: |
+            build/
+            !build/.nojekyll
+          if-no-files-found: error
+          retention-days: 30
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build
