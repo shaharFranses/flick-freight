@@ -13,7 +13,8 @@ const DROP := 64.0  # hanger length, cable to seat
 const SEAT := Vector2(78, 10)
 const BACK_H := 36.0
 const TIP := 70.0  # px of travel over which the chair tips at B
-const RETURN_UP := 70.0  # the return cable runs this much higher
+const RETURN_UP := 150.0  # the return cable runs this much higher: returning chairs clear
+                           # cargo riding the lower chairs (hanger 64 + the tallest cargo, tilted)
 
 
 func _build():

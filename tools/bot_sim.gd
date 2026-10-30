@@ -93,6 +93,9 @@ func _truck_info(t: CargoVehicle) -> Dictionary:
 		var x = -W * 0.5 + i * 10.0 + 5.0
 		if x < -W * 0.5 + margin or x > W * 0.5 - margin:
 			continue
+		var aim = pr.get("aim_x")
+		if aim is Array and (x < aim[0] + margin or x > aim[1] - margin):
+			continue  # only columns under the vehicle's opening (e.g. a hopper)
 		var hgt = 0.0
 		for j in cols:
 			var xj = -W * 0.5 + j * 10.0 + 5.0
@@ -104,8 +107,8 @@ func _truck_info(t: CargoVehicle) -> Dictionary:
 		if cost < best:
 			best = cost
 			best_x = x
-	if pr.get("aim_x") != null:
-		best_x = pr.aim_x  # the vehicle says where to aim (e.g. a hopper opening)
+	if pr.get("aim_x") is float:
+		best_x = pr.aim_x  # the vehicle says where to aim
 	# lowest point any solid vehicle part can reach (cheap pre-check before asking the vehicle)
 	var obst_below = -INF
 	if t.has_method("sim_obstacles"):

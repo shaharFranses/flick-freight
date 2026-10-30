@@ -17,6 +17,8 @@ jobs:
         run: godot --headless -s res://tools/layout_check.gd
       - name: Cab test (cargo that stays on the cab is a quick miss)
         run: godot --headless --fixed-fps 60 -s res://tools/cab_test.gd
+      - name: Cab back test (cargo leaning on the cab from the bed counts)
+        run: godot --headless --fixed-fps 60 -s res://tools/cab_back_test.gd
       - name: Moving obstacles really move (bodies, not just drawings)
         run: godot --headless --fixed-fps 60 -s res://tools/mover_sync_check.gd
       - name: Frozen data (levels 1-40 unchanged)

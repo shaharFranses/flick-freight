@@ -2,9 +2,9 @@ extends VehicleBase
 ## V3: garbage truck. A deep container with a small hopper opening on top at the rear; the
 ## rest of the top is roofed. Cargo has to drop in on a steep arc, like a basketball shot.
 
-const IN_W := 200.0  # inside width
-const DEPTH := 120.0
-const OPEN_W := 140.0  # hopper opening, from the rear wall
+const IN_W := 260.0  # inside width: 4 boxes side by side, 2 high
+const DEPTH := 184.0  # 3 boxes high
+const OPEN_W := 180.0  # hopper opening, from the rear wall
 
 
 func _define(_cfg: Dictionary) -> Dictionary:
@@ -13,7 +13,7 @@ func _define(_cfg: Dictionary) -> Dictionary:
 	return {
 		"zone": Rect2(-half + 2, -DEPTH, IN_W - 4, DEPTH),
 		"floor_w": IN_W,
-		"aim_x": -half + OPEN_W * 0.5,  # the bot aims into the opening, not under the roof
+		"aim_x": [-half, roof_x],  # the bot aims into the opening, not under the roof
 		"floor": Rect2(-half - 12, 0, IN_W + 24, 16),
 		"rear": Rect2(-half - 12, -DEPTH - 8, 12, DEPTH + 8),
 		"walls": [Rect2(roof_x, -DEPTH - 8, half - roof_x + 12, 14), Rect2(half, -DEPTH - 8, 12, DEPTH + 8)],

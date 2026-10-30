@@ -29,7 +29,7 @@ static func set_stars(level: int, value: int):
 
 static func total_stars() -> int:
 	var t = 0
-	for i in Levels.count():
+	for i in Levels.order():
 		t += stars(i)
 	return t
 
