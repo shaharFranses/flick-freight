@@ -296,7 +296,7 @@ const DATA = [
 		"intro": {"title": "DUMP TRUCK", "text": "The bed tips back. Land heavy crates first as stoppers."}},
 	{"world": 2, "act": 2, "cargo": "bbbbbbb", "goal": 4, "s2": 6,
 		"truck": {"x": 920, "amp": 90, "period": 5.0, "wall": 56}, "guide": 0.6,
-		"movers": [{"type": "tumbleweed", "x0": 330, "x1": 760, "period": 300, "hop": 120, "radius": 36}],
+		"movers": [{"type": "tumbleweed", "x0": 300, "x1": 680, "period": 420, "hop": 240, "hops": 2, "radius": 38}],
 		"intro": {"title": "TUMBLEWEED", "text": "It bounces across the sand. Don't let it bat your box away."}},
 	{"world": 2, "act": 2, "cargo": "cbcbbcb", "goal": 4, "s2": 6,
 		"truck": {"x": 940, "amp": 0, "period": 4.0, "vehicle": "dump", "tilt": 8}, "guide": 0.5,
@@ -304,7 +304,7 @@ const DATA = [
 	{"world": 2, "act": 2, "cargo": "ccbcbbcb", "goal": 4, "s2": 6,
 		"truck": {"x": 900, "amp": 0, "period": 4.0, "vehicle": "dump", "tilt": 8}, "guide": 0.4,
 		"movers": [{"type": "windmill", "x": 600, "y": 300, "blade": 130, "period": 360, "blades": 3},
-			{"type": "tumbleweed", "x0": 300, "x1": 480, "period": 240, "hop": 80, "radius": 32}],
+			{"type": "tumbleweed", "x0": 300, "x1": 740, "period": 720, "hop": 200, "hops": 3, "radius": 34}],
 		"intro": {"title": "DESERT BOSS", "text": "Dump truck behind a windmill. Crates first, then the rest."}},
 	# ---------------- SNOW, Act II (IDs 61-65) ----------------
 	{"world": 4, "act": 2, "cargo": "bbbbbb", "goal": 3, "s2": 5,

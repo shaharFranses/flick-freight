@@ -1,7 +1,8 @@
 extends Mover
-## Desert pusher (a reskinned M22): a tumbleweed rolls and hops across the road on a loop,
-## knocking low throws off course.
-## cfg: x0, x1 (roll range), period (frames per crossing), hop (hop height), radius, phase
+## Desert pusher (a reskinned M22): a tumbleweed blows back and forth between the dock and the
+## truck in big bounces that reach up into the throw paths, knocking cargo out of the air.
+## cfg: x0, x1 (roll range), period (frames there and back), hop (bounce height), hops (per
+##      crossing), radius, phase
 
 var ball: AnimatableBody2D
 var x0 := 300.0
@@ -9,6 +10,7 @@ var x1 := 900.0
 var per := 240
 var hop := 60.0
 var r := 34.0
+var hops := 3
 
 
 func _build():
@@ -17,6 +19,7 @@ func _build():
 	per = int(cfg.get("period", 240))
 	hop = cfg.get("hop", 60.0)
 	r = cfg.get("radius", 34.0)
+	hops = int(cfg.get("hops", 3))
 	ball = AnimatableBody2D.new()
 	ball.sync_to_physics = false
 	ball.add_to_group("block")
@@ -32,11 +35,12 @@ func period_frames() -> int:
 	return per
 
 
-## Rolls from x0 to x1, then wraps back to x0 (blown by the wind), hopping three times.
+## Bounces from x0 to x1 and back (the wind gusts and turns), `hops` bounces each way.
 func _pos(f: int) -> Vector2:
 	var k = posmod(f, per) / float(per)
-	var x = lerp(x0, x1, k)
-	var y = Game.ROAD_Y - r - hop * abs(sin(k * PI * 3.0))
+	var u = k * 2.0 if k < 0.5 else 2.0 - k * 2.0  # 0 -> 1 -> 0
+	var x = lerp(x0, x1, u)
+	var y = Game.ROAD_Y - r - hop * abs(sin(u * PI * hops))
 	return Vector2(x, y)
 
 
