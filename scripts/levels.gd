@@ -259,7 +259,9 @@ const DATA = [
 	{"world": 3, "act": 2, "cargo": "bbcbbbcb", "goal": 4, "s2": 7,
 		"truck": {"x": 1000, "amp": 0, "period": 4.4, "wall": 56}, "guide": 0.45,
 		"movers": [{"type": "crane", "x": 650, "y": 100, "length": 150, "swing": 22, "period": 240},
-			{"type": "forklift", "x0": 340, "x1": 470, "period": 260, "forks": 80, "phase": 60}]},
+			{"type": "forklift", "x0": 340, "x1": 470, "period": 260, "forks": 80, "phase": 60,
+				"lift": 220, "lift_period": 520}],
+		"intro": {"title": "PALLET LIFT", "text": "The forklift raises its pallet into your path. Throw while it is down!"}},
 	{"world": 3, "act": 2, "cargo": "bbcbfbcbb", "goal": 5, "s2": 7,
 		"truck": {"x": 1010, "amp": 0, "period": 4.0, "wall": 56,
 			"ferry": {"amp_y": 14, "amp_rot": 3.0, "period": 3.0}}, "guide": 0.4,
@@ -436,11 +438,10 @@ const DATA = [
 		"truck": {"x": 960, "amp": 0, "period": 4.0, "vehicle": "flatbed"}, "guide": 0.5,
 		"movers": [{"type": "tower_crane", "x": 680, "y": 125, "length": 125, "swing": 16, "period": 220, "slide": 110, "slide_period": 440}]},
 	{"world": 8, "cargo": "bbcbbcb", "goal": 4, "s2": 6,
-		"truck": {"x": 1000, "amp": 0, "period": 4.0, "wall": 56}, "guide": 0.5,
-		"blocks": [[380, 320, 420, 36]],
-		"pads": [[560, 579, 4, 1.1]],
-		"movers": [{"type": "forklift", "x0": 340, "x1": 470, "period": 280, "forks": 80},
-			{"type": "conveyor", "x0": 640, "x1": 820, "y": 430, "speed": 140}]},
+		"truck": {"x": 1060, "amp": 0, "period": 4.0, "wall": 56}, "guide": 0.5,
+		"pads": [[520, 579, 4, 1.1]],
+		"movers": [{"type": "conveyor", "x0": 600, "x1": 910, "y": 430, "speed": 150}],
+		"intro": {"title": "BOUNCE AND RIDE", "text": "Bounce off the spring onto the belt: it carries the load to the truck."}},
 	{"world": 8, "cargo": "ccbcbbc", "goal": 4, "s2": 6,
 		"truck": {"x": 960, "amp": 0, "period": 4.0, "vehicle": "dump", "tilt": 10}, "guide": 0.5, "wind": -70,
 		"movers": [{"type": "tower_crane", "x": 640, "y": 125, "length": 115, "swing": 14, "period": 240, "slide": 90, "slide_period": 480}]},
@@ -512,6 +513,11 @@ static func levels_in_world(w: int) -> Array:
 # ------------------------------------------------------------------ play order + unlocks
 static var _order: Array = []
 
+## Levels taken out of play (order, level select, star totals). They keep their IDs and
+## data, since saves are keyed by ID and levels 1-40 are frozen.
+## 32-34: Snow height-limit + truck-swap levels (LOW BRIDGE, WHITEOUT), not fun.
+const RETIRED := [32, 33, 34]
+
 
 ## Level IDs in play order.
 static func order() -> Array:
@@ -519,7 +525,7 @@ static func order() -> Array:
 		for w in WORLD_ORDER:
 			for act in [1, 2]:
 				for i in DATA.size():
-					if DATA[i].world == w and DATA[i].get("act", 1) == act:
+					if DATA[i].world == w and DATA[i].get("act", 1) == act and not i in RETIRED:
 						_order.append(i)
 	return _order
 

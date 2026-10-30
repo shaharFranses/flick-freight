@@ -185,7 +185,7 @@ func show_levels(can_close: bool):
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(t)
 	var total = Label.new()
-	total.text = "%d / %d" % [SaveData.total_stars(), Levels.count() * 3]
+	total.text = "%d / %d" % [SaveData.total_stars(), Levels.order().size() * 3]
 	total.add_theme_font_size_override("font_size", 34)
 	total.add_theme_color_override("font_color", GOLD)
 	head.add_child(total)

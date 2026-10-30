@@ -235,6 +235,10 @@ func _on_body_entered(body: Node):
 
 
 func _touching_cab() -> bool:
+	# leaning on the back of the cab from inside the bed is fine; only cargo outside the
+	# load zone (on the roof or hood) is "on the cab"
+	if game.truck_contains(self):
+		return false
 	for b in get_colliding_bodies():
 		if b.is_in_group("truck_cab"):
 			return true

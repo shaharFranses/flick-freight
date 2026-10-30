@@ -35,9 +35,11 @@ func _init():
 				fails += 1
 	# IDs 1-40 still play in their original order
 	var order = Levels.order()
-	for i in OLD:
-		if order.find(i) > order.find(i + 1) and i + 1 < OLD:
+	var kept = range(OLD).filter(func(i): return not i in Levels.RETIRED)
+	for k in kept.size() - 1:
+		var i = kept[k]
+		if order.find(i) > order.find(kept[k + 1]):
 			fails += 1
-			print("SAVE: level %d is played after level %d" % [i + 1, i + 2])
+			print("SAVE: level %d is played after level %d" % [i + 1, kept[k + 1] + 1])
 	print("SAVE TEST: %d case(s), %d failure(s)" % [cases, fails])
 	quit(1 if fails else 0)

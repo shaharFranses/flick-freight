@@ -64,7 +64,8 @@ func _init():
 		args[p[0]] = p[1] if p.size() > 1 else "1"
 	var r = args.get("levels", "1-15").replace("all", "1-%d" % Levels.count()).split("-")
 	for i in range(int(r[0]), int(r[r.size() - 1]) + 1):
-		levels.append(i - 1)
+		if not i - 1 in Levels.RETIRED:
+			levels.append(i - 1)
 	error = float(args.get("error", "0"))
 	stop_after = float(args.get("seconds", "-1"))
 	stay = args.has("stay")
@@ -78,6 +79,12 @@ func _init():
 	test_mover = args.get("test_mover", "")
 	perf = args.has("perf")
 	seed(base_seed)
+	if levels.is_empty():
+		print("no levels to play (retired)")
+		if compare_path != "":
+			print("REGRESSION GATE: PASS (retired level)")
+		quit(0)
+		return
 	if args.get("fresh", "1") == "1":
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveData.PATH))
 	Game.verbose = args.has("verbose")
@@ -86,6 +93,8 @@ func _init():
 
 
 func _process(delta: float) -> bool:
+	if main == null:
+		return true
 	t_total += delta
 	if snap != "" and t_total >= snap_at:
 		root.get_texture().get_image().save_png(snap)
