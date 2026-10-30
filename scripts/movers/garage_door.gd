@@ -110,8 +110,3 @@ func _draw():
 		if i == 1 and on:
 			on = (f / 6) % 2 == 0  # amber blinks
 		draw_circle(c, 11, lamps[i] if on else lamps[i].darkened(0.7))
-	if state == 2:
-		# a big arrow through the doorway while it's open
-		var ay = (top + Game.ROAD_Y) * 0.5
-		draw_colored_polygon(PackedVector2Array([Vector2(x - 34, ay - 7), Vector2(x + 14, ay - 7), Vector2(x + 14, ay - 18),
-			Vector2(x + 38, ay), Vector2(x + 14, ay + 18), Vector2(x + 14, ay + 7), Vector2(x - 34, ay + 7)]), Color(0.24, 0.86, 0.59, 0.8))
