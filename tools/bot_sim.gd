@@ -187,7 +187,7 @@ func score(pull: Vector2, wait := 0) -> float:
 				return INF
 			var r = _vs_truck(info, p, v, t)
 			if r >= 0.0:
-				return r
+				return r if info.truck.takes(g.current.kind) else INF
 			if r == -2.0:
 				return INF
 	return INF

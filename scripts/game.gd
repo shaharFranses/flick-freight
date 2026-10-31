@@ -575,6 +575,8 @@ func _new_truck(slot: int):
 	var t: CargoVehicle = Vehicles.make(cfg.get("vehicle", "truck"))
 	t.setup(cfg, level_index + truck_count, cfg.get("wall", 52))
 	t.height_limit = level.get("height_limit", 0.0)
+	for ch in cfg.get("accepts", ""):
+		t.accepts.append(Levels.LETTER[ch])
 	t.position = Vector2(1560, t.floor_y(ROAD_Y))
 	if slot > 0:
 		t.z_index = -slot  # far trucks behind near ones while driving in
@@ -611,9 +613,17 @@ func live_trucks() -> Array:
 
 func truck_of(c: Cargo) -> CargoVehicle:
 	for t in live_trucks():
-		if t.contains_point(c.global_position):
+		if t.contains_point(c.global_position) and t.takes(c.kind):
 			return t
 	return null
+
+
+## Landed in a vehicle that doesn't take this kind of cargo.
+func wrong_truck(c: Cargo) -> bool:
+	for t in live_trucks():
+		if t.contains_point(c.global_position) and not t.takes(c.kind):
+			return true
+	return false
 
 
 func truck_contains(c: Cargo) -> bool:
@@ -796,6 +806,10 @@ func _on_resolved(c: Cargo, ok: bool, reason: String):
 			Fx.shatter(fx_root, c.global_position, Color("#F2C23B"))
 			Sfx.play("break", -2.0)
 			c.queue_free()
+		elif wrong_truck(c):
+			popup.emit("WRONG TRUCK!", p, C_BAD, 38)
+			Sfx.play("thud", -4.0)
+			c.fade_out()
 		else:
 			popup.emit("MISS", p, C_BAD, 38)
 			Sfx.play("thud", -4.0)

@@ -15,7 +15,8 @@ extends RefCounted
 ## Expansion keys (all optional; a missing key = mechanic off, see docs/EXPANSION_PLAN.md):
 ## pads   : M8 bounce pads [x, y, angle_deg, power]. (x, y) = middle of the spring face,
 ##          angle 0 = facing up, 90 = facing right; power = restitution (1 = elastic, >1 = boost)
-## trucks : several trucks at once, instead of "truck": [{x, amp, period, wall, ferry}]
+## trucks : several trucks at once, instead of "truck": [{x, amp, period, wall, ferry, accepts}]
+##          accepts: cargo letters that count in that truck (e.g. "m"); leave out for any
 ## ferry  : M10 inside a truck: {amp_y (px), amp_rot (deg), period (s)}; the truck bobs on a ferry
 ## water  : M10 [x0, x1] stretch of open water where the road would be (cargo there splashes)
 ## icy    : M11 inside a truck: true = icy bed, everything slides. Cargo letter i = ice block
@@ -412,10 +413,10 @@ const DATA = [
 		"truck": {"x": 860, "amp": 0, "period": 4.0, "vehicle": "mailvan"}, "guide": 0.4, "wind": 50,
 		"movers": [{"type": "bus", "period": 420, "speed": 9.0}]},
 	{"world": 7, "cargo": "mbmbmbm", "goal": 3, "s2": 4,
-		"trucks": [{"x": 540, "amp": 0, "period": 4.0, "vehicle": "mailvan"},
-			{"x": 960, "amp": 0, "period": 4.0, "vehicle": "foodtruck"}],
+		"trucks": [{"x": 645, "amp": 40, "period": 5.0, "vehicle": "mailvan", "accepts": "m"},
+			{"x": 1080, "amp": 30, "period": 7.0, "vehicle": "foodtruck", "accepts": "b"}],
 		"guide": 0.4,
-		"intro": {"title": "DOWNTOWN BOSS", "text": "Parcels through the slot, boxes through the window. Pick the right one!"}},
+		"intro": {"title": "DOWNTOWN BOSS", "text": "Parcels only count in the van, boxes only in the food truck. And neither will stop for you!"}},
 	# ---------------- CONSTRUCTION (IDs 91-100) ----------------
 	{"world": 8, "cargo": "bbbbbb", "goal": 3, "s2": 5,
 		"truck": {"x": 980, "amp": 0, "period": 4.0, "wall": 52}, "guide": 0.8,
@@ -514,7 +515,8 @@ static var _order: Array = []
 ## Levels taken out of play (order, level select, star totals). They keep their IDs and
 ## data, since saves are keyed by ID and levels 1-40 are frozen.
 ## 32-34: Snow height-limit + truck-swap levels (LOW BRIDGE, WHITEOUT), not fun.
-const RETIRED := [32, 33, 34]
+## 95: BOUNCE AND RIDE, the truck can't be far enough on one screen to need the spring + belt.
+const RETIRED := [32, 33, 34, 95]
 
 
 ## Level IDs in play order.

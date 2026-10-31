@@ -1,7 +1,7 @@
 # Flick Freight
 
 A physics loading game for the web (Godot 4.3). Drag back and release to throw cargo
-from the loading dock into the truck. 97 levels across 9 worlds, 1–3 stars each.
+from the loading dock into the truck. 96 levels across 9 worlds, 1–3 stars each.
 
 ![cover](marketing/covers/cover_landscape_1920x1080.png)
 
