@@ -44,8 +44,8 @@ extends RefCounted
 ## Level IDs: a level's ID is its index in DATA and never changes (saves are keyed by it).
 ## New levels are only ever appended to DATA. The order players meet them in is separate:
 ## world by world in WORLD_ORDER, each world's Act I then its Act II ("act": 2).
-## A world with "unlock_stars" opens at that star total; otherwise once the world before it
-## (in WORLD_ORDER) has its Act I done.
+## A world opens once every level of the world before it (in WORLD_ORDER), Act I and Act II,
+## has been won at least once.
 
 const WORLDS = [
 	{"name": "TOWN", "bg": "res://art/v2/bg/bg_town.png", "tint": Color(1, 1, 1), "bridge": "stone", "icon": "moto"},
@@ -54,12 +54,9 @@ const WORLDS = [
 	{"name": "HARBOR", "backdrop": "harbor", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_harbor.ogg", "icon": "ferry"},
 	{"name": "SNOW", "backdrop": "snow", "tint": Color(1, 1, 1), "bridge": "snow_rock", "music": "res://audio/v2/music_snow.ogg", "icon": "lift"},
 	{"name": "FREIGHT YARD", "backdrop": "yard", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_yard.ogg", "icon": "flatcar"},
-	{"name": "SKY PORT", "backdrop": "sky", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_sky.ogg", "icon": "heli",
-		"unlock_stars": 150},
-	{"name": "DOWNTOWN", "backdrop": "city", "tint": Color(1, 1, 1), "bridge": "stone", "music": "res://audio/v2/music_city.ogg", "icon": "mailvan",
-		"unlock_stars": 90},
-	{"name": "CONSTRUCTION", "backdrop": "site", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_site.ogg", "icon": "crane",
-		"unlock_stars": 120},
+	{"name": "SKY PORT", "backdrop": "sky", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_sky.ogg", "icon": "heli"},
+	{"name": "DOWNTOWN", "backdrop": "city", "tint": Color(1, 1, 1), "bridge": "stone", "music": "res://audio/v2/music_city.ogg", "icon": "mailvan"},
+	{"name": "CONSTRUCTION", "backdrop": "site", "tint": Color(1, 1, 1), "bridge": "steel", "music": "res://audio/v2/music_site.ogg", "icon": "crane"},
 ]
 
 ## Display / play order of the worlds (indices into WORLDS).
@@ -558,6 +555,8 @@ static func levels_in_world_ordered(w: int) -> Array:
 
 
 static func unlocked(i: int) -> bool:
+	if SaveData.stars(i) > 0:
+		return true  # a level you've won never locks again
 	var w: int = DATA[i].world
 	var act = act_of(i)
 	var same: Array = []
@@ -577,12 +576,16 @@ static func unlocked(i: int) -> bool:
 	var wk = WORLD_ORDER.find(w)
 	if wk <= 0:
 		return true
-	if WORLDS[w].has("unlock_stars"):
-		return SaveData.total_stars() >= WORLDS[w].unlock_stars
-	if DATA[i].world <= 5 and i > 0 and DATA[i - 1].get("act", 1) == 1:
-		return SaveData.stars(i - 1) > 0  # the original 40 levels: one chain, as before
-	for j in levels_in_world_ordered(WORLD_ORDER[wk - 1]):
-		if act_of(j) == 1 and SaveData.stars(j) == 0:
+	for j in levels_in_world_ordered(w):
+		if SaveData.stars(j) > 0:
+			return true  # already playing this world (older saves opened it under the old rules)
+	return world_complete(WORLD_ORDER[wk - 1])
+
+
+## Every level of world w won at least once.
+static func world_complete(w: int) -> bool:
+	for j in levels_in_world_ordered(w):
+		if SaveData.stars(j) == 0:
 			return false
 	return true
 
