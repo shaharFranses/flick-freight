@@ -13,6 +13,7 @@ signal departed
 var state := "away"  # away / arriving / parked / leaving
 var loads: Array = []  # [{"cargo": Cargo, "offset", "rot", "local", "lrot", "counted"}]
 var height_limit := 0.0  # M14: low bridge clearance above the load floor (0 = none)
+var accepts: Array = []  # cargo kinds that count in this vehicle (empty = any), from cfg "accepts"
 var lift_off_on_win := false
 var full_text := "TRUCK FULL!"  # popup when it's loaded up and drives off  # helicopter, balloon: leave() as the showcase when the level is won
 
@@ -50,6 +51,11 @@ func on_vehicle(_p: Vector2) -> bool:
 
 func point_velocity(_p: Vector2) -> Vector2:
 	return Vector2.ZERO
+
+
+## Does this kind of cargo count here? (multi-vehicle levels: parcels in the van, boxes in the food truck)
+func takes(kind: String) -> bool:
+	return accepts.is_empty() or kind in accepts
 
 
 func add_load(_c: Cargo, _counted := true):
