@@ -17,6 +17,7 @@ extends SceneTree
 ##   --test_mover=res://   add a dev moving obstacle (tools/timing_test.sh)
 ##   --snap=path.png --snap_at=S   save a screenshot after S seconds (needs a display, e.g. xvfb-run)
 ##   --seconds=S, --stay, --verbose, --fresh=0
+##   --show_aim=S          (videos) drag the cargo back on screen for S seconds before each throw, with a finger
 
 const FROZEN_LEVELS := 15
 
@@ -55,6 +56,11 @@ var _jitter_fail := 0
 var _no_solution := 0  # timed throws where nothing could land at all
 var _phases: Array = []  # helicopter: phases of the swing with a good throw, per throw
 var _good := 0
+# --show_aim: on-screen drag before the throw (preview videos)
+var show_aim := 0.0
+var _aim_t := -1.0
+var _aim_p := Vector2.ZERO
+var _finger: Node2D
 
 
 func _init():
@@ -74,6 +80,7 @@ func _init():
 	error = float(args.get("error", "0"))
 	stop_after = float(args.get("seconds", "-1"))
 	stay = args.has("stay")
+	show_aim = float(args.get("show_aim", "0"))
 	snap = args.get("snap", "")
 	snap_at = float(args.get("snap_at", "3"))
 	base_seed = int(args.get("seed", "3"))
@@ -96,6 +103,8 @@ func _init():
 		return
 	if args.get("fresh", "1") == "1":
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveData.PATH))
+	if show_aim > 0:
+		SaveData.set_flag("tutorial_done", true)  # the bot's own finger stands in for it
 	Game.verbose = args.has("verbose")
 	main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(main)
@@ -144,12 +153,18 @@ func _process(delta: float) -> bool:
 		return false
 	if _planned_at >= 0:
 		# moving obstacles: release on the planned frame of the level clock
+		if show_aim > 0 and g.can_aim():
+			_show_pull(g, 1.0 - float(_planned_at - g.frame) / (show_aim * 60.0), _planned)
 		if g.frame >= _planned_at and g.can_aim():
+			if show_aim > 0:
+				_end_pull(g)
 			g.throw_with_pull(_planned)
 			_throws.append([snappedf(_planned.x, 0.01), snappedf(_planned.y, 0.01), _planned_at])
 			_planned_at = -1
 			shots += 1
 		return false
+	if show_aim > 0 and _aim_t >= 0 and g.can_aim():
+		return _animate_aim(g, delta)
 	if g.can_aim():
 		wait += delta
 		if wait > 0.35:
@@ -161,10 +176,60 @@ func _process(delta: float) -> bool:
 				_planned = p
 				_planned_at = g.frame + _wait_frames
 				return false
+			if show_aim > 0:
+				_aim_t = 0.0
+				_aim_p = p
+				return false
 			g.throw_with_pull(p)
 			_throws.append([snappedf(p.x, 0.01), snappedf(p.y, 0.01)])
 			shots += 1
 	return false
+
+
+## --show_aim: pull the cargo back over show_aim seconds like a player would (finger + aim
+## arc), then throw. Re-solves at release so moving trucks are still hit.
+func _animate_aim(g: Game, delta: float) -> bool:
+	_aim_t += delta
+	_show_pull(g, _aim_t / show_aim, _aim_p)
+	if _aim_t < show_aim + 0.15:
+		return false
+	_end_pull(g)
+	var p = solve(g) if _use_analytic(g) else solve_sim(g)
+	_aim_t = -1.0
+	g.throw_with_pull(p)
+	_throws.append([snappedf(p.x, 0.01), snappedf(p.y, 0.01)])
+	shots += 1
+	return false
+
+
+## Draw the cargo pulled back by fraction k (0..1) of pull p, with the finger on it.
+func _show_pull(g: Game, k: float, p: Vector2):
+	if k <= 0.0:
+		return
+	k = clampf(k, 0.0, 1.0)
+	k = k * k * (3 - 2 * k)
+	if _finger == null or not is_instance_valid(_finger) or _finger.get_parent() != g:
+		_finger = Node2D.new()
+		_finger.z_index = 100
+		_finger.draw.connect(func():
+			_finger.draw_circle(Vector2.ZERO, 30, Color(1, 1, 1, 0.25))
+			_finger.draw_arc(Vector2.ZERO, 30, 0, TAU, 32, Color(1, 1, 1, 0.95), 5.0)
+			_finger.draw_circle(Vector2.ZERO, 12, Color(1, 1, 1, 0.95)))
+		g.add_child(_finger)
+	g.aiming = true
+	g.press_pos = g.rest_pos
+	g._update_pull(g.rest_pos - p * k)
+	_finger.visible = true
+	_finger.position = g.rest_pos - p * k
+
+
+## Back to the throw position, so the shot is exactly the one the solver planned.
+func _end_pull(g: Game):
+	g.aiming = false
+	if g.current:
+		g.current.global_position = g.rest_pos
+	if _finger and is_instance_valid(_finger):
+		_finger.visible = false
 
 
 ## Every level gets its own RNG so results don't depend on which levels ran before
