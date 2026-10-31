@@ -255,9 +255,9 @@ func _fill_world_page(w: int):
 	for i in ids:
 		grid.add_child(_level_tile(i, compact))
 	if not ids.is_empty() and not SaveData.unlocked(ids[0]) and wk > 0:
-		var msg = "Finish %s to unlock" % Levels.WORLDS[Levels.WORLD_ORDER[wk - 1]].name
-		if Levels.WORLDS[w].has("unlock_stars"):
-			msg = "Collect %d stars to unlock (you have %d)" % [Levels.WORLDS[w].unlock_stars, SaveData.total_stars()]
+		var before = Levels.WORLD_ORDER[wk - 1]
+		var left = Levels.levels_in_world_ordered(before).filter(func(j): return SaveData.stars(j) == 0).size()
+		var msg = "Win every %s level to unlock (%d to go)" % [Levels.WORLDS[before].name, left]
 		_levels_page.add_child(_title(msg, 26, Color(1, 1, 1, 0.75)))
 
 

@@ -24,7 +24,8 @@ from the loading dock into the truck. 96 levels across 9 worlds, 1–3 stars eac
   nearby cargo out of the truck (knocked-out cargo stops counting until it lands again; fragile
   neighbours break). Level 40 has one of everything.
 - **Act II (Plan 2, `docs/EXPANSION_PLAN_2.md`):** each world gets 5 more levels after its Act I,
-  unlocked once Act I is done. Town: a garage door that opens and closes, a bus passing in front
+  unlocked once Act I is done. The next world opens once every level of this one (Act I and
+  Act II) has been won at least once. Town: a garage door that opens and closes, a bus passing in front
   (it only stops cargo in the air), a courier motorcycle (3 boxes on a tiny rack: 1 is easy, 3 is
   very hard) and a garbage truck with a small hopper. Harbor: a swinging gantry-crane container and
   a forklift patrolling the quay. Moving obstacles run on the level clock, so they're identical
@@ -91,7 +92,7 @@ Levels 1–40 are frozen (`docs/EXPANSION_PLAN_2.md` §1). The checks:
 godot --headless -s res://tools/frozen_check.gd       # levels 1-40 data unchanged
 godot --headless -s res://tools/layout_check.gd       # no vehicle drives through an obstacle
 godot --headless --fixed-fps 60 -s res://tools/cab_test.gd
-godot --headless -s res://tools/save_test.gd          # old saves unlock levels 1-40 as before
+godot --headless -s res://tools/save_test.gd          # old saves keep their levels; world unlock rule
 # parity: each of levels 1-40 in its own process must give the same results AND the same
 # throws as the snapshot taken before Plan 2 (one process per level: no level can affect another)
 tools/parity.sh check
