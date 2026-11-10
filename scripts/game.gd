@@ -679,9 +679,9 @@ func can_aim() -> bool:
 	if ended or current == null or not current_ready:
 		return false
 	for t in live_trucks():
-		# one-parcel vehicles (cap 1, e.g. couriers): wait for the parcel in the air to land;
-		# a loaded one is about to ride off, so it's not a target
-		if t.is_parked() and not (cap == 1 and (t.load_count() >= 1 or in_flight > 0)):
+		# a vehicle that's full, or will be once the cargo in the air lands, is about to ride
+		# off, so it's not a target (cap 1 couriers: wait for the parcel in the air to land)
+		if t.is_parked() and t.load_count() + in_flight < cap:
 			return true
 	return false
 
