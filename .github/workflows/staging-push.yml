@@ -1,0 +1,13 @@
+name: Staging push
+# Exists only to trigger "Deploy web build to GitHub Pages" (pages.yml) via
+# workflow_run when staging changes. That workflow builds main at the site
+# root and staging under /staging/.
+on:
+  push:
+    branches: [staging]
+permissions: {}
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "staging ${{ github.sha }} pushed; Pages will rebuild main + /staging/"
