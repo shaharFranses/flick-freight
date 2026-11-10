@@ -286,7 +286,7 @@ func _show_tutorial():
 	tutorial_label.add_theme_constant_override("outline_size", 10)
 	root.add_child(tutorial_label)
 	tutorial_label.reset_size()
-	tutorial_label.position = Vector2(60, 250)
+	tutorial_label.position = Vector2(300, 228)  # clear of the dock and under the level banner
 
 
 func _hide_tutorial():
@@ -305,13 +305,33 @@ func _process(delta: float):
 		tutorial.queue_redraw()
 
 
+## The demo drag: back along a fixed down-left direction, just far enough that the
+## throw lands in the middle of the first vehicle's load floor.
+func _tutorial_drag(start: Vector2) -> Vector2:
+	var dir = Vector2(-120, 70).normalized()  # finger motion; the throw goes the other way
+	var trucks = game.live_trucks()
+	if trucks.is_empty():
+		return dir * 140.0
+	var target: Vector2 = trucks[0].global_position + Vector2(0, -30)
+	var d = -dir
+	var dx = target.x - start.x
+	var dy = target.y - start.y
+	# y(x) = start.y + d.y/d.x * dx + g * dx^2 / (2 * (d.x * S)^2), with S the launch speed
+	var den = 2.0 * d.x * d.x * (dy - d.y / d.x * dx)
+	if dx <= 0 or den <= 0:
+		return dir * 140.0
+	var speed = sqrt(Game.GRAVITY * dx * dx / den)
+	var pull_len = speed / game.launch_velocity(d).length()
+	return dir * clamp(pull_len, 30.0, Game.MAX_PULL)
+
+
 func _draw_tutorial():
 	if game == null or game.current == null or not game.current_ready:
 		return
 	# a finger presses the cargo, drags down-left, lets go; dotted arc shows the result
 	var start = game.rest_pos
 	var cyc = fmod(_tut_t, 2.2) / 2.2
-	var drag = Vector2(-120, 70)
+	var drag = _tutorial_drag(start)
 	var k = clamp((cyc - 0.15) / 0.5, 0.0, 1.0)
 	k = k * k * (3 - 2 * k)
 	var finger = start + drag * k
@@ -321,7 +341,7 @@ func _draw_tutorial():
 	var a = 1.0 if cyc < 0.9 else (1.0 - (cyc - 0.9) * 10)
 	# arc preview
 	if pressed and k > 0.05:
-		var v = -drag * k * Game.POWER
+		var v = game.launch_velocity(-drag * k)
 		var p = start
 		for i in 24:
 			v += Vector2(0, Game.GRAVITY) / 60.0 * 3

@@ -164,6 +164,7 @@ func show_results(level_index: int, stars: int, delivered: int, total: int):
 			s.modulate = Color.WHITE
 			s.scale = Vector2(1.6, 1.6)
 			Sfx.play("deliver", -2.0, 1.0 + 0.15 * i)
+			Fx.delivered(s, s.size * 0.5)
 			var t2 = s.create_tween()
 			t2.tween_property(s, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
 		tw.tween_interval(0.3)

@@ -43,6 +43,40 @@ static func delivered(parent: Node, pos: Vector2):
 	burst(parent, pos, TEX_SPARK, Color(1, 1, 1), 8, 260.0, 0.4, 0.3, 0.0)
 
 
+## Level won: confetti rains from the top edge (more for more stars).
+static func confetti(parent: Node, stars := 1):
+	var p = CPUParticles2D.new()
+	p.one_shot = true
+	p.explosiveness = 0.8
+	p.amount = 40 + 30 * stars
+	p.lifetime = 2.6
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = Vector2(640, 10)
+	p.position = Vector2(640, -20)
+	p.direction = Vector2.DOWN
+	p.spread = 50
+	p.initial_velocity_min = 60
+	p.initial_velocity_max = 260
+	p.gravity = Vector2(0, 380)
+	p.damping_min = 20
+	p.damping_max = 60
+	p.angular_velocity_min = -540
+	p.angular_velocity_max = 540
+	p.scale_amount_min = 7
+	p.scale_amount_max = 12
+	var g = Gradient.new()
+	g.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CONSTANT
+	g.offsets = PackedFloat32Array([0.0, 0.2, 0.4, 0.6, 0.8])
+	g.colors = PackedColorArray([Color("#FFD34E"), Color("#3DDC97"), Color("#FF6B6B"), Color("#4EA8FF"), Color("#FFFFFF")])
+	p.color_initial_ramp = g
+	p.z_index = 30
+	p.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	parent.add_child(p)
+	p.emitting = true
+	p.finished.connect(p.queue_free)
+	return p
+
+
 static func dust(parent: Node, pos: Vector2, strength := 1.0):
 	burst(parent, pos, TEX_SMOKE, Color(0.85, 0.82, 0.76, 0.8), int(6 * strength) + 2, 120.0 * strength,
 		0.6, 0.35, -40.0, 70.0, Vector2.UP)
