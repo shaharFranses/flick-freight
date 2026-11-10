@@ -91,7 +91,7 @@ godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=all --error=0.
 ### Guardrails (run by CI on every branch)
 
 Levels 6–40 are frozen (`docs/EXPANSION_PLAN_2.md` §1). Levels 1–5 were unfrozen on purpose
-to make the opening livelier (short levels where a full truck drives off and the next one rolls in). The checks:
+to make the opening livelier (shorter levels, the moving truck at level 2). The checks:
 
 ```bash
 godot --headless -s res://tools/frozen_check.gd       # levels 6-40 data unchanged

@@ -64,19 +64,19 @@ const WORLD_ORDER = [0, 1, 2, 3, 4, 5, 7, 8, 6]  # Sky Port is the finale
 
 const DATA = [
 	# ---------------- TOWN ----------------
-	# levels 1-4 open fast: short, and a full truck drives off and the next one rolls in (cap)
+	# levels 1-4 open fast: short, with a new idea each (moving truck at 2, crates at 3, both at 4)
 	{"world": 0, "cargo": "bbbb", "goal": 2, "s2": 3,
-		"truck": {"x": 720, "amp": 0, "period": 4.0, "wall": 46}, "cap": 2, "guide": 1.0,
+		"truck": {"x": 720, "amp": 0, "period": 4.0, "wall": 46}, "guide": 1.0,
 		"tutorial": true},
 	{"world": 0, "cargo": "bbbbbb", "goal": 3, "s2": 5,
-		"truck": {"x": 820, "amp": 90, "period": 5.5, "wall": 52}, "cap": 3, "guide": 0.75,
+		"truck": {"x": 820, "amp": 90, "period": 5.5, "wall": 52}, "guide": 0.75,
 		"intro": {"title": "ON THE MOVE", "text": "Trucks drive back and forth. Lead your throw!"}},
 	{"world": 0, "cargo": "bcbcbc", "goal": 3, "s2": 5,
-		"truck": {"x": 880, "amp": 0, "period": 4.0, "wall": 52}, "cap": 3, "guide": 0.6,
+		"truck": {"x": 880, "amp": 0, "period": 4.0, "wall": 52}, "guide": 0.6,
 		"intro": {"title": "HEAVY CRATE", "text": "Metal crates are heavy. Pull back harder!", "icon": "crate"}},
 	{"world": 0, "cargo": "bcbbcb", "goal": 3, "s2": 5,
-		"truck": {"x": 860, "amp": 130, "period": 4.5, "wall": 52}, "cap": 3, "guide": 0.5,
-		"intro": {"title": "RUSH", "text": "Faster trucks, heavier crates. Keep them coming!"}},
+		"truck": {"x": 860, "amp": 130, "period": 4.5, "wall": 52}, "guide": 0.5,
+		"intro": {"title": "RUSH", "text": "A faster truck and heavy crates. Stack it full!"}},
 	{"world": 0, "cargo": "bcbbcbcb", "goal": 4, "s2": 6,
 		"truck": {"x": 860, "amp": 140, "period": 4.2, "wall": 56}, "guide": 0.5},
 	# ---------------- WOODS ----------------
