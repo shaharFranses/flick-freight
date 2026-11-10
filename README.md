@@ -31,6 +31,10 @@ from the loading dock into the truck. 96 levels across 9 worlds, 1–3 stars eac
   on every restart; warning lights and sounds tell you what's coming.
 - Each new world has its own music loop (`tools/make_music.py <out.ogg> harbor|snow|yard`).
 - Progress (stars, mute, tutorial) is saved locally. New players land straight in level 1.
+- **CrazyGames SDK v3:** `custom_html/custom_shell.html` loads it and reports loading start/stop;
+  `scripts/portal.gd` reports gameplay start/stop (level start, pause, resume, level end) and
+  `happytime` when a world's last level is beaten. Off CrazyGames every call is a no-op;
+  add `?useLocalSdk=true` to the URL to test the calls (logged by the SDK) on GitHub Pages.
 
 ## Project layout
 

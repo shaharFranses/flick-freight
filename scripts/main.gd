@@ -79,21 +79,30 @@ func start_level(i: int):
 	game.finished.connect(_on_finished)
 	game.start()
 	Sfx.start_music(Levels.world_of(level_index).get("music", Sfx.MUSIC))
+	Portal.gameplay_start()
 
 
-func _show_pause():
+## `auto`: paused because the tab lost focus. CrazyGames handles that itself, so it's no game break.
+func _show_pause(auto := false):
 	if game == null or game.ended:
 		return
 	get_tree().paused = true
 	screens.show_pause()
+	if not auto:
+		Portal.gameplay_stop()
 
 
 func _resume():
 	screens.close()
 	get_tree().paused = false
+	Portal.gameplay_start()
 
 
 func _on_finished(stars: int, delivered: int, total: int):
+	Portal.gameplay_stop()
+	var next = Levels.next_of(level_index)
+	if stars > 0 and (next < 0 or Levels.get_level(next).world != Levels.get_level(level_index).world):
+		Portal.happytime()  # the world's last level
 	screens.show_results(level_index, stars, delivered, total)
 
 
@@ -101,7 +110,7 @@ func _notification(what: int):
 	# auto-pause when the tab/window loses focus (portal best practice)
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
 		if game and not game.ended and not screens.is_open():
-			_show_pause()
+			_show_pause(true)
 
 
 func _unhandled_input(event: InputEvent):
