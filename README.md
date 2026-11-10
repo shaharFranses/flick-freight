@@ -61,12 +61,12 @@ scripts/
 tools/
   bot.gd         QA bot: plays levels (analytic solver for 1-15, search solver after)
   bot_sim.gd     throw model for the search solver (vehicles, movers, release timing)
-  parity.sh      levels 1-40, one process each, must match the pre-Plan-2 snapshot
+  parity.sh      levels 6-40, one process each, must match the pre-Plan-2 snapshot
   replay_check.sh  new levels must replay identically 3 times
   timing_test.sh release-time search test with a dev gate (tools/test/)
   save_test.gd, layout_check.gd, cab_test.gd  other CI checks
-  frozen_check.gd  hash check that levels 1-15 never change
-  baseline_1_40*.json  regression snapshot of levels 1-40 (results + throws)
+  frozen_check.gd  hash check that levels 6-40 never change
+  baseline_1_40*.json  regression snapshot of levels 1-40 (results + throws; 1-5 no longer compared)
   cover.gd       renders the CrazyGames cover images
   make_music.py  synthesizes the music loop
   make_sfx.py    synthesizes boing / splash / pop
@@ -90,14 +90,15 @@ godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=all --error=0.
 
 ### Guardrails (run by CI on every branch)
 
-Levels 1–40 are frozen (`docs/EXPANSION_PLAN_2.md` §1). The checks:
+Levels 6–40 are frozen (`docs/EXPANSION_PLAN_2.md` §1). Levels 1–5 were unfrozen on purpose
+to make the opening livelier (shorter levels, the moving truck at level 2). The checks:
 
 ```bash
-godot --headless -s res://tools/frozen_check.gd       # levels 1-40 data unchanged
+godot --headless -s res://tools/frozen_check.gd       # levels 6-40 data unchanged
 godot --headless -s res://tools/layout_check.gd       # no vehicle drives through an obstacle
 godot --headless --fixed-fps 60 -s res://tools/cab_test.gd
 godot --headless -s res://tools/save_test.gd          # old saves keep their levels; world unlock rule
-# parity: each of levels 1-40 in its own process must give the same results AND the same
+# parity: each of levels 6-40 in its own process must give the same results AND the same
 # throws as the snapshot taken before Plan 2 (one process per level: no level can affect another)
 tools/parity.sh check
 ```
