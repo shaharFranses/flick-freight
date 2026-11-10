@@ -25,8 +25,7 @@ from the loading dock into the truck. 96 levels across 9 worlds, 1–3 stars eac
   neighbours break). Level 40 has one of everything.
 - **Act II (Plan 2, `docs/EXPANSION_PLAN_2.md`):** each world gets 5 more levels after its Act I,
   unlocked once Act I is done. The next world opens once every level of this one (Act I and
-  Act II) has been won at least once. Town: a garage door that opens and closes, a bus passing in front
-  (it only stops cargo in the air), a courier motorcycle (3 boxes on a tiny rack: 1 is easy, 3 is
+  Act II) has been won at least once. Town: a courier motorcycle (3 boxes on a tiny rack: 1 is easy, 3 is
   very hard) and a garbage truck with a small hopper. Harbor: a swinging gantry-crane container and
   a forklift patrolling the quay. Moving obstacles run on the level clock, so they're identical
   on every restart; warning lights and sounds tell you what's coming.
@@ -45,7 +44,8 @@ scripts/
   backdrops.gd   code-drawn backgrounds for Harbor and later worlds
   cargo_vehicle.gd  the interface every vehicle implements (the truck is V0)
   vehicle_base.gd  shared code for the new vehicles; vehicle_moto.gd, vehicle_garbage.gd
-  movers/        crane, garage_door, bus (also a train), forklift
+  movers/        crane, forklift, ...; garage_door and bus (also a train) are no longer used by any level
+                 (they made players wait)
   vehicles.gd    vehicle factory ("vehicle" key in a truck config)
   mover.gd, movers.gd  moving obstacles: pose = f(level clock), AnimatableBody2D
   bridges.gd     the low bridges (height limit; no level in play uses it any more)
