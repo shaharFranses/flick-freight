@@ -109,6 +109,7 @@ html {
 	z-index: 1;
 }
 		</style>
+		<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
 <link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
 
@@ -136,6 +137,34 @@ const GODOT_CONFIG = $GODOT_CONFIG;
 GODOT_CONFIG.ensureCrossOriginIsolationHeaders = false;
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
+
+// CrazyGames SDK v3. Calls throw outside CrazyGames ("disabled" environment, e.g. GitHub Pages),
+// so ffPortal only forwards them on CrazyGames or the SDK's local mode, once, without repeats.
+window.ffPortal = (function () {
+	let sdk = null;
+	let loading = false;
+	let playing = false;
+	function call(fn) {
+		try { if (sdk) sdk.game[fn](); } catch (e) { console.warn('CrazyGames SDK', fn, e); }
+	}
+	return {
+		init: async function () {
+			try {
+				const s = window.CrazyGames && window.CrazyGames.SDK;
+				if (!s) return;
+				// never hold the game back for more than 3 s
+				await Promise.race([s.init(), new Promise((r) => setTimeout(r, 3000))]);
+				if (s.environment === 'crazygames' || s.environment === 'local') sdk = s;
+			} catch (e) { console.warn('CrazyGames SDK init', e); }
+		},
+		loadingStart: function () { loading = true; call('loadingStart'); },
+		// the game may report gameplay before the page reports loading done: send it after
+		loadingStop: function () { loading = false; call('loadingStop'); if (playing) call('gameplayStart'); },
+		gameplayStart: function () { if (!playing) { playing = true; if (!loading) call('gameplayStart'); } },
+		gameplayStop: function () { if (playing) { playing = false; if (!loading) call('gameplayStop'); } },
+		happytime: function () { call('happytime'); },
+	};
+}());
 
 // r3 letterbox: canvasResizePolicy 0 (Godot never touches the canvas). We size the
 // canvas to the 16:9 box ourselves: CSS size AND backing buffer together, so input maps 1:1.
@@ -241,18 +270,22 @@ const engine = new Engine(GODOT_CONFIG);
 		}
 	} else {
 		setStatusMode('progress');
-		engine.startGame({
-			'onProgress': function (current, total) {
-				if (current > 0 && total > 0) {
-					statusProgress.value = current;
-					statusProgress.max = total;
-				} else {
-					statusProgress.removeAttribute('value');
-					statusProgress.removeAttribute('max');
-				}
-			},
+		window.ffPortal.init().then(() => {
+			window.ffPortal.loadingStart();
+			return engine.startGame({
+				'onProgress': function (current, total) {
+					if (current > 0 && total > 0) {
+						statusProgress.value = current;
+						statusProgress.max = total;
+					} else {
+						statusProgress.removeAttribute('value');
+						statusProgress.removeAttribute('max');
+					}
+				},
+			});
 		}).then(() => {
 			setStatusMode('hidden');
+			window.ffPortal.loadingStop();
 		}, displayFailureNotice);
 	}
 }());
