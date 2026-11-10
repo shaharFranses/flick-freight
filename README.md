@@ -30,7 +30,11 @@ from the loading dock into the truck. 96 levels across 9 worlds, 1–3 stars eac
   a forklift patrolling the quay. Moving obstacles run on the level clock, so they're identical
   on every restart; warning lights and sounds tell you what's coming.
 - Each new world has its own music loop (`tools/make_music.py <out.ogg> harbor|snow|yard`).
-- Progress (stars, mute, tutorial) is saved locally. New players land straight in level 1.
+- **Main menu:** the game opens on a title screen drawn over the next unbeaten level (its truck
+  drives in and parks). PLAY starts that level; LEVELS opens level select; there is a mute toggle
+  and the total star count. Pause and results screens have a home button back to the menu.
+  `?level=N` (dev builds / localhost / GitHub Pages) still skips the menu.
+- Progress (stars, mute, tutorial) is saved locally.
 - **CrazyGames SDK v3:** `custom_html/custom_shell.html` loads it and reports loading start/stop;
   `scripts/portal.gd` reports gameplay start/stop (level start, pause, resume, level end) and
   `happytime` when a world's last level is beaten. Off CrazyGames every call is a no-op;
@@ -40,7 +44,7 @@ from the loading dock into the truck. 96 levels across 9 worlds, 1–3 stars eac
 
 ```
 scripts/
-  main.gd        boot + level flow + pause
+  main.gd        boot + main menu + level flow + pause
   game.gd        one level: scene build, cargo queue, aiming, scoring
   truck.gd       side-view truck (code-drawn), motion, carried cargo
   cargo.gd       cargo physics + resolve (delivered / missed / broken)
