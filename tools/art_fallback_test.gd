@@ -10,6 +10,9 @@ extends SceneTree
 ## at its size and used by its hook). --p23=empty|present|auto additionally asserts that
 ## every Phase 2/3 slot is missing / present (auto = no assertion, per-file only).
 ##   tools/art_p23_dummy.sh   runs this on a scratch copy with dummy files dropped in
+## A slot whose .png is gone but whose .png.import or .godot/imported cache is still there
+## is a problem (a stale import keeps the old art alive). --clean_stale deletes those
+## leftovers (the .import and the cache entries for exactly that path), then reports.
 
 const CARGO_SIZES = {
 	"box": Vector2(60, 60),
@@ -28,6 +31,11 @@ const PHASE1_CARGO = ["box", "crate", "barrel", "fragile"]
 
 
 func _init():
+	if "--list_p23" in OS.get_cmdline_user_args():
+		for path in ArtAssets.phase23_paths():
+			print("P23SLOT " + path.trim_prefix("res://"))
+		quit(0)
+		return
 	var mode := "auto"
 	var p23 := "auto"
 	for a in OS.get_cmdline_user_args():
@@ -36,6 +44,8 @@ func _init():
 			mode = p[1]
 		if p[0] == "p23" and p.size() > 1:
 			p23 = p[1]
+		if p[0] == "clean_stale":
+			clean_stale = true
 	var rasters_present := ArtAssets.truck_texture() != null or ArtAssets.town_background() != null
 	if mode == "auto":
 		mode = "present" if rasters_present else "empty"
@@ -207,7 +217,7 @@ func _check_empty() -> int:
 ## Allowed pixel sizes per slot (1x and exact 2x design px).
 const P2_CARGO = ["ice", "tire", "plank", "canister", "parcel"]
 const SQ_STAR = [Vector2i(64, 64), Vector2i(96, 96), Vector2i(128, 128)]
-const SQ_STAR_S = [Vector2i(30, 30), Vector2i(60, 60)]
+const SQ_STAR_S = [Vector2i(30, 30), Vector2i(60, 60), Vector2i(34, 34), Vector2i(68, 68)]
 const SQ_THUMB = [Vector2i(32, 32), Vector2i(64, 64)]
 const SQ_LOCK = [Vector2i(48, 48), Vector2i(96, 96)]
 const SQ_ARROW = [Vector2i(44, 44), Vector2i(88, 88)]
@@ -215,6 +225,7 @@ const SQ_HUD_ICON = [Vector2i(40, 40), Vector2i(80, 80)]
 const WORLD_ICON = [Vector2i(96, 56), Vector2i(192, 112)]
 const SKY = [Vector2i(1280, 720), Vector2i(2560, 1440)]
 const PLANK_TEST_LENGTH := 220.0
+var clean_stale := false
 
 
 class FakeGame:
@@ -225,8 +236,33 @@ func _sizes_of(v: Vector2) -> Array:
 	return [Vector2i(v), Vector2i(v * 2.0)]
 
 
-## One slot: present -> loads at an allowed size; missing -> resolver returns null.
+## Leftovers of a deleted PNG: its .png.import and .godot/imported/<file>-<md5(path)>.*
+static func stale_import_files(path: String) -> PackedStringArray:
+	var out: PackedStringArray = []
+	if FileAccess.file_exists(path + ".import"):
+		out.append(ProjectSettings.globalize_path(path + ".import"))
+	var stem: String = path.get_file() + "-" + path.md5_text()
+	var dir := "res://.godot/imported/"
+	for f in DirAccess.get_files_at(dir):
+		if f.begins_with(stem + "."):
+			out.append(ProjectSettings.globalize_path(dir + f))
+	return out
+
+
+## One slot: present -> loads at an allowed size; missing -> resolver returns null and no
+## stale import of it is left behind.
 func _slot(path: String, got: Texture2D, allowed: Array, present: Array, missing: Array) -> int:
+	if not FileAccess.file_exists(path):
+		var stale := stale_import_files(path)
+		if not stale.is_empty():
+			if clean_stale:
+				for f in stale:
+					DirAccess.remove_absolute(f)
+				print("ART P23: %s missing; removed %d stale import file(s)" % [path, stale.size()])
+				missing.append(path)
+				return 0  # this run's resolver result predates the clean; rerun to verify
+			print("ART P23: %s missing but a stale import keeps it alive: %s" % [path, stale])
+			return 1
 	if ResourceLoader.exists(path):
 		present.append(path)
 		if got == null:
