@@ -906,11 +906,13 @@ func _score():
 	var stars = Levels.stars_for(level_index, delivered, thrown)
 	SaveData.set_stars(level_index, stars)
 	if stars > 0:
-		# showcase: the loaded truck drives out under the low bridge, the helicopter lifts off
+		# showcase: every loaded vehicle honks and drives off (the helicopter lifts off) under confetti
 		for t in live_trucks():
-			if t.is_parked() and (level.has("height_limit") or t.lift_off_on_win):
+			if t.is_parked():
 				t.leave()
-	get_tree().create_timer(0.9, false).timeout.connect(func():
+		popup.emit(["", "LEVEL CLEAR!", "GREAT!", "PERFECT!"][stars], Vector2(640, 300), C_GOLD, 72)
+		Fx.confetti(fx_root, stars)
+	get_tree().create_timer(1.3 if stars > 0 else 0.9, false).timeout.connect(func():
 		finished.emit(stars, delivered, level.cargo.length()))
 
 
