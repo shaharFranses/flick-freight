@@ -160,17 +160,17 @@ func _static_node() -> Node2D:
 
 func _build_background():
 	var w = Levels.world_of(level_index)
-	if w.has("backdrop"):
+	# S1-S3, S6, S7: art/v3/bg/bg_<world>.png (1280x720 or 2x) replaces the Kenney sprite
+	# or the whole code backdrop. Missing = today's look.
+	var v3bg: Texture2D = ArtAssets.world_background(w.get("name", ""))
+	if w.has("backdrop") and v3bg == null:
 		var bd = _static_node()
 		bd.z_index = -20
 		bd.draw.connect(Backdrops.draw.bind(bd, w.backdrop))
 		_build_clouds()
 		return
 	var bg = Sprite2D.new()
-	# Town (L1-10, including Act II) can drop art/v3/bg/bg_town.png; other worlds stay on v2.
-	var tex: Texture2D = null
-	if w.get("name", "") == "TOWN":
-		tex = ArtAssets.town_background()
+	var tex: Texture2D = v3bg
 	if tex == null:
 		tex = load(w.bg)
 	bg.texture = tex

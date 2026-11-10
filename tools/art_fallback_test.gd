@@ -6,6 +6,10 @@ extends SceneTree
 ## Palette B and the Lilita One title font are always required.
 ##   godot --headless -s res://tools/art_fallback_test.gd
 ##   godot --headless -s res://tools/art_fallback_test.gd -- --mode=empty|present|auto
+## Phase 2 / 3 slots are checked per file (each slot: missing = old look, present = loaded
+## at its size and used by its hook). --p23=empty|present|auto additionally asserts that
+## every Phase 2/3 slot is missing / present (auto = no assertion, per-file only).
+##   tools/art_p23_dummy.sh   runs this on a scratch copy with dummy files dropped in
 
 const CARGO_SIZES = {
 	"box": Vector2(60, 60),
@@ -25,10 +29,13 @@ const PHASE1_CARGO = ["box", "crate", "barrel", "fragile"]
 
 func _init():
 	var mode := "auto"
+	var p23 := "auto"
 	for a in OS.get_cmdline_user_args():
 		var p = a.trim_prefix("--").split("=")
 		if p[0] == "mode" and p.size() > 1:
 			mode = p[1]
+		if p[0] == "p23" and p.size() > 1:
+			p23 = p[1]
 	var rasters_present := ArtAssets.truck_texture() != null or ArtAssets.town_background() != null
 	if mode == "auto":
 		mode = "present" if rasters_present else "empty"
@@ -80,8 +87,10 @@ func _init():
 		bad += _check_present()
 	else:
 		bad += _check_empty()
+	var p23_bad := _check_phase23(p23)
+	bad += p23_bad
 
-	print("ART FALLBACK CHECK: %d problem(s) (mode=%s)" % [bad, mode])
+	print("ART FALLBACK CHECK: %d problem(s) (mode=%s, p23=%s)" % [bad, mode, p23])
 	quit(1 if bad else 0)
 
 
@@ -158,13 +167,7 @@ func _check_present() -> int:
 		if tex and Cargo.texture_for(kind) != tex:
 			print("ART PRESENT: Cargo.texture_for(%s) did not use the v3 texture" % kind)
 			bad += 1
-	# Later cargo types are not in this slice.
-	for kind in CARGO_SIZES:
-		if kind in PHASE1_CARGO:
-			continue
-		if ArtAssets.cargo_texture(kind) != null:
-			print("ART PRESENT: unexpected Phase-2 cargo drop %s" % kind)
-			bad += 1
+	# Phase 2 cargo (C5-C9) is checked per file in _check_phase23().
 	return bad
 
 
@@ -186,14 +189,246 @@ func _check_empty() -> int:
 		print("ART FALLBACK: a belt/beacon PNG is present; this test expects empty slots")
 		bad += 1
 	var font_paths: PackedStringArray = ArtAssets.TITLE_FONT_CANDIDATES
+	var p23_paths: PackedStringArray = ArtAssets.phase23_paths()
 	for path in ArtAssets.all_v3_paths():
-		if path in font_paths:
-			continue
+		if path in font_paths or path in p23_paths:
+			continue  # Phase 2/3 slots: per-file in _check_phase23()
 		if ResourceLoader.exists(path):
 			print("ART FALLBACK: unexpected v3 resource %s" % path)
 			bad += 1
-	for kind in CARGO_SIZES:
+	for kind in PHASE1_CARGO:
 		if ArtAssets.cargo_texture(kind) != null:
 			print("ART FALLBACK: cargo %s v3 PNG is present" % kind)
 			bad += 1
 	return bad
+
+
+# ============================================================== Phase 2 / 3
+## Allowed pixel sizes per slot (1x and exact 2x design px).
+const P2_CARGO = ["ice", "tire", "plank", "canister", "parcel"]
+const SQ_STAR = [Vector2i(64, 64), Vector2i(96, 96), Vector2i(128, 128)]
+const SQ_STAR_S = [Vector2i(30, 30), Vector2i(60, 60)]
+const SQ_THUMB = [Vector2i(32, 32), Vector2i(64, 64)]
+const SQ_LOCK = [Vector2i(48, 48), Vector2i(96, 96)]
+const SQ_ARROW = [Vector2i(44, 44), Vector2i(88, 88)]
+const SQ_HUD_ICON = [Vector2i(40, 40), Vector2i(80, 80)]
+const WORLD_ICON = [Vector2i(96, 56), Vector2i(192, 112)]
+const SKY = [Vector2i(1280, 720), Vector2i(2560, 1440)]
+const PLANK_TEST_LENGTH := 220.0
+
+
+class FakeGame:
+	var level := {"plank": {"length": PLANK_TEST_LENGTH, "spin": 1.8}}
+
+
+func _sizes_of(v: Vector2) -> Array:
+	return [Vector2i(v), Vector2i(v * 2.0)]
+
+
+## One slot: present -> loads at an allowed size; missing -> resolver returns null.
+func _slot(path: String, got: Texture2D, allowed: Array, present: Array, missing: Array) -> int:
+	if ResourceLoader.exists(path):
+		present.append(path)
+		if got == null:
+			print("ART P23: %s exists but its hook returned null" % path)
+			return 1
+		if not _is_size(got, allowed):
+			print("ART P23: %s is %dx%d, expected one of %s" % [path, got.get_width(), got.get_height(), allowed])
+			return 1
+		return 0
+	missing.append(path)
+	if got != null:
+		print("ART P23: %s missing but its hook returned a texture" % path)
+		return 1
+	return 0
+
+
+func _shape_size(c: Cargo) -> Vector2:
+	for ch in c.get_children():
+		if ch is CollisionShape2D:
+			if ch.shape is RectangleShape2D:
+				return ch.shape.size
+			if ch.shape is CircleShape2D:
+				return Vector2(ch.shape.radius * 2.0, ch.shape.radius * 2.0)
+	return Vector2.ZERO
+
+
+func _check_phase23(expect: String) -> int:
+	var bad := 0
+	var present: Array = []
+	var missing: Array = []
+	# ---- (a) cargo C5-C9 + queue thumbs. Collision is always TYPES size.
+	for kind in P2_CARGO:
+		var path: String = ArtAssets.CARGO_DIR + kind + ".png"
+		var v3 := ArtAssets.cargo_texture(kind)
+		bad += _slot(path, v3, _sizes_of(CARGO_SIZES[kind]), present, missing)
+		var used := Cargo.texture_for(kind)
+		if v3 and used != v3:
+			print("ART P23: Cargo.texture_for(%s) ignored the v3 file" % kind)
+			bad += 1
+		if v3 == null and used.resource_path != Cargo.TYPES[kind].tex:
+			print("ART P23: %s fallback is %s, not v2" % [kind, used.resource_path])
+			bad += 1
+		var c := Cargo.new()
+		c.setup(kind, FakeGame.new() if kind == "plank" else null)
+		var want: Vector2 = CARGO_SIZES[kind]
+		if kind == "plank":
+			want = Vector2(PLANK_TEST_LENGTH, 24)
+		if _shape_size(c) != want:
+			print("ART P23: %s collision %s != %s" % [kind, _shape_size(c), want])
+			bad += 1
+		if not is_equal_approx(c.mass, Cargo.TYPES[kind].mass):
+			print("ART P23: %s mass changed" % kind)
+			bad += 1
+		if kind == "plank" and v3:
+			# 3-slice: no Sprite2D, skin covers exactly the collision rect
+			if c.plank_skin == null or c.sprite != null:
+				print("ART P23: v3 plank is not drawn as a 3-slice")
+				bad += 1
+			else:
+				var vis: Vector2 = c.plank_skin.size * c.plank_skin.scale
+				if not vis.is_equal_approx(want) or not c.plank_skin.position.is_equal_approx(-want * 0.5):
+					print("ART P23: plank skin %s at %s, expected %s centred" % [vis, c.plank_skin.position, want])
+					bad += 1
+				var kx := float(v3.get_width()) / ArtAssets.PLANK_NATIVE.x
+				if c.plank_skin.patch_margin_left != int(round(ArtAssets.PLANK_CAP * kx)):
+					print("ART P23: plank cap margin %d" % c.plank_skin.patch_margin_left)
+					bad += 1
+		else:
+			# old look: one Sprite2D scaled to the collision rect
+			if c.sprite == null or c.plank_skin != null:
+				print("ART P23: %s should use a plain Sprite2D" % kind)
+				bad += 1
+			elif not (c.sprite.scale * c.sprite.texture.get_size()).is_equal_approx(want):
+				print("ART P23: %s sprite drawn at %s, not %s" % [kind, c.sprite.scale * c.sprite.texture.get_size(), want])
+				bad += 1
+		c.free()
+	for kind in CARGO_SIZES:
+		var tpath: String = ArtAssets.CARGO_THUMB_DIR + kind + ".png"
+		var th := ArtAssets.cargo_thumb(kind)
+		bad += _slot(tpath, th, SQ_THUMB, present, missing)
+		var want_thumb: Texture2D = th if th else Cargo.texture_for(kind)
+		if Cargo.thumb_for(kind) != want_thumb:
+			print("ART P23: Cargo.thumb_for(%s) wrong source" % kind)
+			bad += 1
+
+	# ---- (b) stars: big (results, header) and small (HUD bar, tiles)
+	var on := ArtAssets.star_texture(true)
+	var off := ArtAssets.star_texture(false)
+	bad += _slot(ArtAssets.STAR_ON, on, SQ_STAR, present, missing)
+	bad += _slot(ArtAssets.STAR_OFF, off, SQ_STAR, present, missing)
+	var on_s: Texture2D = ArtAssets.try_texture(ArtAssets.STAR_ON_S)
+	var off_s: Texture2D = ArtAssets.try_texture(ArtAssets.STAR_OFF_S)
+	bad += _slot(ArtAssets.STAR_ON_S, on_s, SQ_STAR_S, present, missing)
+	bad += _slot(ArtAssets.STAR_OFF_S, off_s, SQ_STAR_S, present, missing)
+	if ArtAssets.star_texture(true, true) != (on_s if on_s else on):
+		print("ART P23: small on-star does not fall back to the big one")
+		bad += 1
+	if ArtAssets.star_texture(false, true) != (off_s if off_s else off):
+		print("ART P23: small off-star does not fall back to the big one")
+		bad += 1
+	if Screens.star_on() != (on if on else Screens.STAR_TEX):
+		print("ART P23: Screens.star_on() wrong source")
+		bad += 1
+	var hs: Dictionary = Hud.hud_stars()
+	var hud_on: Texture2D = on_s if on_s else on
+	if hud_on:
+		if hs.on != hud_on or hs.size != ArtAssets.HUD_STAR_SIZE_V3 or hs.off != (off_s if off_s else off):
+			print("ART P23: HUD does not use the v3 star at %d px" % ArtAssets.HUD_STAR_SIZE_V3)
+			bad += 1
+		if ArtAssets.HUD_STAR_SIZE_V3 < ArtAssets.HUD_STAR_SIZE:
+			print("ART P23: v3 HUD star is smaller than v2")
+			bad += 1
+	elif hs.on != Hud.STAR_TEX or hs.size != 26.0 or hs.off != null:
+		print("ART P23: HUD stars are not the v2 look (v2 star, 26 px, tinted empty)")
+		bad += 1
+
+	# ---- (c) icons: padlock, arrows (+ the Phase 1 pause / sound files if dropped)
+	var lock := ArtAssets.padlock_icon()
+	bad += _slot(ArtAssets.ICON_PADLOCK, lock, SQ_LOCK, present, missing)
+	if Screens.lock_tex() != (lock if lock else Screens.LOCK_TEX):
+		print("ART P23: Screens.lock_tex() wrong source")
+		bad += 1
+	var right := ArtAssets.arrow_icon(false)
+	var left := ArtAssets.arrow_icon(true)
+	bad += _slot(ArtAssets.ICON_ARROW_RIGHT, right, SQ_ARROW, present, missing)
+	bad += _slot(ArtAssets.ICON_ARROW_LEFT, left, SQ_ARROW, present, missing)
+	var r_used := Screens.arrow_tex(false)
+	if right and r_used != right:
+		print("ART P23: right arrow ignores v3")
+		bad += 1
+	if right == null and r_used.resource_path != Screens.RIGHT_ICON_V2:
+		print("ART P23: right arrow fallback is not v2 right.png")
+		bad += 1
+	var l_used := Screens.arrow_tex(true)
+	if left and l_used != left:
+		print("ART P23: left arrow ignores v3 arrow_left.png")
+		bad += 1
+	if left == null:
+		# mirrored right arrow, pixel-identical to flipping the source by hand
+		var want_img: Image = (right if right else load(Screens.RIGHT_ICON_V2)).get_image().duplicate()
+		want_img.flip_x()
+		var got_img: Image = l_used.get_image()
+		if got_img.get_size() != want_img.get_size() or got_img.get_data() != want_img.get_data():
+			print("ART P23: left arrow fallback is not the mirrored right arrow")
+			bad += 1
+	for v2 in ArtAssets.V2_ICON_TO_V3:
+		var v3p: String = ArtAssets.V2_ICON_TO_V3[v2]
+		var t3: Texture2D = ArtAssets.try_texture(v3p)
+		bad += _slot(v3p, t3, SQ_HUD_ICON, present, missing)
+		var used: Texture2D = ArtAssets.hud_icon(v2)
+		if (t3 and used != t3) or (t3 == null and used.resource_path != v2):
+			print("ART P23: HUD icon %s wrong source" % v2.get_file())
+			bad += 1
+
+	# ---- (d) V8 world icons
+	var shared: Texture2D = ArtAssets.try_texture(ArtAssets.WORLD_ICON_SHARED)
+	bad += _slot(ArtAssets.WORLD_ICON_SHARED, shared, WORLD_ICON, present, missing)
+	for w in Levels.WORLDS:
+		var wpath: String = ArtAssets.WORLD_ICON_DIR + ArtAssets.world_key(w.name) + ".png"
+		var own: Texture2D = ArtAssets.try_texture(wpath)
+		bad += _slot(wpath, own, WORLD_ICON, present, missing)
+		var icon := WorldIcons.make(w.get("icon", ""), w.name)
+		if icon.tex != (own if own else shared):
+			print("ART P23: world icon for %s wrong source" % w.name)
+			bad += 1
+		if icon.custom_minimum_size != Vector2(96, 56):
+			print("ART P23: world icon box changed")
+			bad += 1
+		icon.free()
+
+	# ---- (e) skies: S2 Woods, S3 Desert, S6 Freight Yard, S7 Downtown
+	for wname in ArtAssets.PHASE3_BG_WORLDS:
+		var path: String = ArtAssets.world_background_path(wname)
+		var tex := ArtAssets.world_background(wname)
+		bad += _slot(path, tex, SKY, present, missing)
+		var w := _world(wname)
+		if w.is_empty():
+			print("ART P23: world %s not found" % wname)
+			bad += 1
+		elif w.has("backdrop") == w.has("bg"):
+			print("ART P23: %s data changed (bg / backdrop)" % wname)
+			bad += 1
+		elif w.has("bg") and not String(w.bg).begins_with("res://art/v2/bg/"):
+			print("ART P23: %s v2 bg path changed" % wname)
+			bad += 1
+	if ArtAssets.world_background_path("TOWN") != ArtAssets.TOWN_BG:
+		print("ART P23: Town sky path moved")
+		bad += 1
+
+	if expect == "empty" and not present.is_empty():
+		print("ART P23: --p23=empty but present: %s" % [present])
+		bad += present.size()
+	if expect == "present" and not missing.is_empty():
+		print("ART P23: --p23=present but missing: %s" % [missing])
+		bad += missing.size()
+	print("ART P23: %d slot(s) present, %d missing (old look)" % [present.size(), missing.size()])
+	return bad
+
+
+func _world(wname: String) -> Dictionary:
+	for w in Levels.WORLDS:
+		if w.name == wname:
+			return w
+	return {}
+

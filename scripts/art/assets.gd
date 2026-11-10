@@ -29,6 +29,51 @@ const TITLE_FONT_CANDIDATES := [
 ]
 const WORDMARK := "res://art/v3/brand/wordmark.png"
 const FX_ATLAS := "res://art/v3/fx/fx_atlas.png"
+# ---- Phase 2: cargo C5-C9 extras, stars, icons, world icons -----------------
+# File names follow FF Visuals' phase2 handoff (art/v3/ui/*, art/v3/ui/world/*).
+## Optional queue thumbnail per cargo kind (square 32x32 or 64x64).
+## Missing = the HUD queue uses the cargo texture itself (today's look).
+const CARGO_THUMB_DIR := "res://art/v3/cargo/thumb/"
+## PLANK (C7) is drawn as a 3-slice when the v3 file is present: PLANK_CAP design px at
+## each end keep their shape and only the middle stretches to the per-level length.
+## Collision stays TYPES.plank.size / level.plank.length; this is visual only.
+const PLANK_NATIVE := Vector2(150, 24)
+const PLANK_CAP := 16.0
+const UI_DIR := "res://art/v3/ui/"
+## U3 stars. Big (96 px, also 64 / 128 accepted): results card and the level-select
+## header total. Small (30 px or 2x 60): HUD LOADED bar and level tiles. A missing small
+## file falls back to the big one; a missing "off" star falls back to the tinted "on"
+## star, and a missing "on" star to v2 star_gold.png (today's look).
+const STAR_ON := "res://art/v3/ui/star_on.png"
+const STAR_OFF := "res://art/v3/ui/star_off.png"
+const STAR_ON_S := "res://art/v3/ui/star_on_s.png"
+const STAR_OFF_S := "res://art/v3/ui/star_off_s.png"
+## HUD bar star size: v2 = 26 px. With a v3 small star the HUD draws it at its own
+## design size (30) so the stars read at 800x450; bump this for a larger variant.
+const HUD_STAR_SIZE := 26.0
+const HUD_STAR_SIZE_V3 := 30.0
+## U4 icons (white glyph art). Missing = v2 Kenney icon. Missing left arrow = the
+## right arrow (v3 or v2) mirrored, as today.
+const ICON_PADLOCK := "res://art/v3/ui/padlock.png"
+const ICON_ARROW_RIGHT := "res://art/v3/ui/arrow_right.png"
+const ICON_ARROW_LEFT := "res://art/v3/ui/arrow_left.png"
+const ICON_PAUSE := "res://art/v3/ui/pause.png"
+const ICON_SOUND_ON := "res://art/v3/ui/sound_on.png"
+const ICON_SOUND_OFF := "res://art/v3/ui/sound_off.png"
+## V8 world icons (level select, 96x56 box, file 96x56 or 2x 192x112). Per-world file
+## (world name lower-case, spaces -> _) wins, then the shared truck.png, then the
+## code-drawn vehicle (today).
+const WORLD_ICON_DIR := "res://art/v3/ui/world/"
+const WORLD_ICON_SHARED := "res://art/v3/ui/world/truck.png"
+const WORLD_ICON_SIZE := Vector2(96, 56)
+
+# ---- Phase 3: skies ------------------------------------------------------------
+## Full-frame world background, 1280x720 (or 2x), top-left at (0, 0), z -20, under the
+## clouds: art/v3/bg/bg_<world>.png. S1 town, S2 woods, S3 desert, S6 freight_yard,
+## S7 downtown. For a code-drawn backdrop world (Freight Yard, Downtown) the file
+## replaces the whole backdrop. Missing = v2 Kenney sprite / code backdrop (today).
+const BG_DIR := "res://art/v3/bg/"
+const PHASE3_BG_WORLDS := ["WOODS", "DESERT", "FREIGHT YARD", "DOWNTOWN"]
 
 ## Truck sprite slots at 720p (or 2x):
 ##   470 x 190, origin (157, 112) — crop from the cab roof
@@ -133,6 +178,108 @@ static func cargo_texture(kind: String) -> Texture2D:
 	return try_texture(CARGO_DIR + kind + ".png")
 
 
+static func cargo_thumb(kind: String) -> Texture2D:
+	return try_texture(CARGO_THUMB_DIR + kind + ".png")
+
+
+static func kind_is_v3(kind: String) -> bool:
+	return exists(CARGO_DIR + kind + ".png")
+
+
+## Visual-only 3-slice for the v3 plank. Returns null (use a plain stretched Sprite2D)
+## when there is no v3 plank, so the v2 look and node tree stay as they were.
+static func plank_skin(length: float, height: float) -> NinePatchRect:
+	var tex := cargo_texture("plank")
+	if tex == null:
+		return null
+	var kx := float(tex.get_width()) / PLANK_NATIVE.x
+	var ky := float(tex.get_height()) / PLANK_NATIVE.y
+	var np := NinePatchRect.new()
+	np.texture = tex
+	np.patch_margin_left = int(round(PLANK_CAP * kx))
+	np.patch_margin_right = int(round(PLANK_CAP * kx))
+	np.axis_stretch_horizontal = NinePatchRect.AXIS_STRETCH_MODE_STRETCH
+	np.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	np.size = Vector2(length * kx, height * ky)
+	np.scale = Vector2(1.0 / kx, 1.0 / ky)
+	np.position = -Vector2(length, height) * 0.5
+	return np
+
+
+## U3 star art: on/off, big (96) or small (30, falls back to big). null = no v3 file.
+static func star_texture(on: bool, small := false) -> Texture2D:
+	if small:
+		var s := try_texture(STAR_ON_S if on else STAR_OFF_S)
+		if s:
+			return s
+	return try_texture(STAR_ON if on else STAR_OFF)
+
+
+static func padlock_icon() -> Texture2D:
+	return try_texture(ICON_PADLOCK)
+
+
+static func arrow_icon(left: bool) -> Texture2D:
+	return try_texture(ICON_ARROW_LEFT if left else ICON_ARROW_RIGHT)
+
+
+## v2 HUD icon path -> v3 file if dropped (pause, sound on/off).
+const V2_ICON_TO_V3 := {
+	"res://art/v2/icons/pause.png": ICON_PAUSE,
+	"res://art/v2/icons/audioOn.png": ICON_SOUND_ON,
+	"res://art/v2/icons/audioOff.png": ICON_SOUND_OFF,
+}
+
+
+static func hud_icon(v2_path: String) -> Texture2D:
+	var t := try_texture(V2_ICON_TO_V3.get(v2_path, ""))
+	return t if t else load(v2_path)
+
+
+## "FREIGHT YARD" -> "freight_yard"
+static func world_key(world_name: String) -> String:
+	return world_name.to_lower().replace(" ", "_")
+
+
+static func world_icon(world_name: String) -> Texture2D:
+	if world_name != "":
+		var t := try_texture(WORLD_ICON_DIR + world_key(world_name) + ".png")
+		if t:
+			return t
+	return try_texture(WORLD_ICON_SHARED)
+
+
+static func world_background_path(world_name: String) -> String:
+	return BG_DIR + "bg_" + world_key(world_name) + ".png" if world_name != "" else ""
+
+
+static func world_background(world_name: String) -> Texture2D:
+	return try_texture(world_background_path(world_name))
+
+
+static func world_icon_keys() -> PackedStringArray:
+	var out: PackedStringArray = []
+	for w in Levels.WORLDS:
+		out.append(world_key(w.name))
+	return out
+
+
+## Every Phase 2 / 3 slot path (tests and docs).
+static func phase23_paths() -> PackedStringArray:
+	var out: PackedStringArray = []
+	for k in ["ice", "tire", "plank", "canister", "parcel"]:
+		out.append(CARGO_DIR + k + ".png")
+	for k in ["box", "crate", "barrel", "fragile", "ice", "tire", "plank", "canister", "parcel"]:
+		out.append(CARGO_THUMB_DIR + k + ".png")
+	out.append_array([STAR_ON, STAR_OFF, STAR_ON_S, STAR_OFF_S, ICON_PADLOCK, ICON_ARROW_RIGHT, ICON_ARROW_LEFT,
+		ICON_PAUSE, ICON_SOUND_ON, ICON_SOUND_OFF, WORLD_ICON_SHARED])
+	for k in world_icon_keys():
+		out.append(WORLD_ICON_DIR + k + ".png")
+	for w in PHASE3_BG_WORLDS:
+		out.append(world_background_path(w))
+	return out
+
+
 static func title_font() -> Font:
 	for p in TITLE_FONT_CANDIDATES:
 		var f = try_font(p)
@@ -154,4 +301,7 @@ static func all_v3_paths() -> PackedStringArray:
 	for k in ["box", "crate", "barrel", "fragile", "ice", "tire", "plank", "canister", "parcel"]:
 		out.append(CARGO_DIR + k + ".png")
 	out.append_array(TITLE_FONT_CANDIDATES)
+	for p in phase23_paths():
+		if not p in out:
+			out.append(p)
 	return out

@@ -40,6 +40,14 @@ static func texture_for(kind: String) -> Texture2D:
 	return load(TYPES[kind].tex)
 
 
+## HUD queue thumbnail: v3 cargo/thumb/<kind>.png if present, else texture_for(kind).
+static func thumb_for(kind: String) -> Texture2D:
+	var t := ArtAssets.cargo_thumb(kind)
+	if t:
+		return t
+	return texture_for(kind)
+
+
 const SETTLE_SPEED := 14.0
 const SETTLE_TIME := 0.3
 const MAX_AIR_TIME := 7.0
@@ -67,6 +75,7 @@ var _through_dock := false
 var _cab_time := 0.0
 var _off_cab := 0.0
 var sprite: Sprite2D
+var plank_skin: NinePatchRect  # set instead of sprite for a v3 plank (3-slice)
 var game  # Game (untyped to avoid a cyclic class reference)
 
 
@@ -106,11 +115,17 @@ func setup(k: String, g):
 		rs.size = info.size
 		cs.shape = rs
 	add_child(cs)
-	sprite = Sprite2D.new()
-	var tex: Texture2D = texture_for(kind)
-	sprite.texture = tex
-	sprite.scale = info.size / tex.get_size()
-	add_child(sprite)
+	# C7: a v3 plank is a 3-slice so its end caps keep their shape at any per-level length.
+	# Visual only; the collision rect above is unchanged. No v3 plank = stretched sprite.
+	plank_skin = ArtAssets.plank_skin(info.size.x, info.size.y) if kind == "plank" else null
+	if plank_skin:
+		add_child(plank_skin)
+	else:
+		sprite = Sprite2D.new()
+		var tex: Texture2D = texture_for(kind)
+		sprite.texture = tex
+		sprite.scale = info.size / tex.get_size()
+		add_child(sprite)
 	freeze_mode = RigidBody2D.FREEZE_MODE_KINEMATIC
 	freeze = true
 	contact_monitor = true
