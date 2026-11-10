@@ -9,13 +9,27 @@ const FLOOR_T := 22.0
 const FRONT_H := 120.0
 const WHEEL_R := 30.0
 const CAB_W := 150.0
+## Palette 0 is the red stake-bed truck (art direction: mock-5 hybrid morning).
+## Every level uses only this colour; the other entries are kept so old indices
+## stay valid but are never selected.
+const RED_PALETTE_INDEX := 0
 const PALETTES = [
-	[Color("#E4572E"), Color("#B83F1F")],
+	[Color("#E4572E"), Color("#B83F1F")],  # red — the only colour in use
 	[Color("#3D8BDB"), Color("#2A6BB0")],
 	[Color("#2EAE6B"), Color("#1E8350")],
 	[Color("#F2B134"), Color("#C98E1D")],
 	[Color("#8E5BD6"), Color("#6A3FAE")],
 ]
+
+## Ignore the requested index (previously level_index + truck_count) and always
+## return the red truck. Bed physics and loaded-box counts are unchanged.
+static func resolved_palette_index(_requested: int = 0) -> int:
+	return RED_PALETTE_INDEX
+
+
+static func resolved_palette(_requested: int = 0) -> Array:
+	return PALETTES[RED_PALETTE_INDEX]
+
 const NAVY = Color("#1B2A41")
 const WOOD = Color("#A87444")
 const WOOD_DARK = Color("#7A4E2A")
@@ -60,7 +74,7 @@ func setup(cfg: Dictionary, palette_index: int, wall_height: float):
 	amp = cfg.get("amp", 0.0)
 	period = max(0.5, cfg.get("period", 4.0))
 	wall_h = wall_height
-	palette = PALETTES[palette_index % PALETTES.size()]
+	palette = resolved_palette(palette_index)
 	ferry = cfg.get("ferry", {})
 	icy = cfg.get("icy", false)
 	_build_bodies()

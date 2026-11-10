@@ -573,7 +573,12 @@ func _draw_wind_fx():
 func _new_truck(slot: int):
 	var cfg: Dictionary = slots[slot]
 	var t: CargoVehicle = Vehicles.make(cfg.get("vehicle", "truck"))
-	t.setup(cfg, level_index + truck_count, cfg.get("wall", 52))
+	# V0 truck colour is always red. Other vehicles keep their own look index
+	# (e.g. courier-bike accents); bed physics are unchanged either way.
+	var pal: int = level_index + truck_count
+	if cfg.get("vehicle", "truck") == "truck":
+		pal = Truck.resolved_palette_index(pal)
+	t.setup(cfg, pal, cfg.get("wall", 52))
 	t.height_limit = level.get("height_limit", 0.0)
 	for ch in cfg.get("accepts", ""):
 		t.accepts.append(Levels.LETTER[ch])
