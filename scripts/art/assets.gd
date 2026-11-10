@@ -49,9 +49,9 @@ const STAR_OFF := "res://art/v3/ui/star_off.png"
 const STAR_ON_S := "res://art/v3/ui/star_on_s.png"
 const STAR_OFF_S := "res://art/v3/ui/star_off_s.png"
 ## HUD bar star size: v2 = 26 px. With a v3 small star the HUD draws it at its own
-## design size (30) so the stars read at 800x450; bump this for a larger variant.
+## 34 px (21 px at 800x450, vs 16 for v2) with no tint so they read at 800x450.
 const HUD_STAR_SIZE := 26.0
-const HUD_STAR_SIZE_V3 := 30.0
+const HUD_STAR_SIZE_V3 := 34.0
 ## U4 icons (white glyph art). Missing = v2 Kenney icon. Missing left arrow = the
 ## right arrow (v3 or v2) mirrored, as today.
 const ICON_PADLOCK := "res://art/v3/ui/padlock.png"
@@ -66,6 +66,9 @@ const ICON_SOUND_OFF := "res://art/v3/ui/sound_off.png"
 const WORLD_ICON_DIR := "res://art/v3/ui/world/"
 const WORLD_ICON_SHARED := "res://art/v3/ui/world/truck.png"
 const WORLD_ICON_SIZE := Vector2(96, 56)
+## v3 icons draw bigger in the level-select header (120x70 at 720p = 75x44 at 800x450);
+## the code-drawn fallback keeps its 96x56 box.
+const WORLD_ICON_SIZE_V3 := Vector2(120, 70)
 
 # ---- Phase 3: skies ------------------------------------------------------------
 ## Full-frame world background, 1280x720 (or 2x), top-left at (0, 0), z -20, under the
@@ -247,6 +250,13 @@ static func world_icon(world_name: String) -> Texture2D:
 		if t:
 			return t
 	return try_texture(WORLD_ICON_SHARED)
+
+
+## V8 by world index (Levels.WORLDS); -1 = only the shared truck icon.
+static func world_icon_for(world: int) -> Texture2D:
+	if world >= 0 and world < Levels.WORLDS.size():
+		return world_icon(Levels.WORLDS[world].name)
+	return world_icon("")
 
 
 static func world_background_path(world_name: String) -> String:

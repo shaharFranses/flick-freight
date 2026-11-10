@@ -6,22 +6,24 @@ extends Control
 
 const NAVY = Color("#1B2A41")
 var kind := ""
-## V8 slot: v3 world/<world>.png, else world/truck.png, else null (code-drawn vehicle).
+## V8 slot, keyed by WORLD INDEX (Levels.WORLDS[w]): v3 world/<world>.png, else
+## world/truck.png, else null (today's code-drawn vehicle in the 96 x 56 box).
+## Loaded here, never inside _draw (a texture load()-ed in a draw callback renders white).
 var tex: Texture2D = null
 
 
-static func make(k: String, world_name := "") -> WorldIcons:
+static func make(k: String, world := -1) -> WorldIcons:
 	var c = WorldIcons.new()
 	c.kind = k
-	c.tex = ArtAssets.world_icon(world_name)
-	c.custom_minimum_size = Vector2(96, 56)
+	c.tex = ArtAssets.world_icon_for(world)
+	c.custom_minimum_size = ArtAssets.WORLD_ICON_SIZE_V3 if c.tex else Vector2(96, 56)
 	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return c
 
 
 func _draw():
 	if tex:
-		draw_texture_rect(tex, Rect2(Vector2.ZERO, ArtAssets.WORLD_ICON_SIZE), false)
+		draw_texture_rect(tex, Rect2(Vector2.ZERO, custom_minimum_size), false)
 		return
 	match kind:
 		"moto":

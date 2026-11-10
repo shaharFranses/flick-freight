@@ -263,7 +263,7 @@ func _fill_world_page(w: int):
 		_fill_world_page(Levels.WORLD_ORDER[wk - 1]))
 	nav.add_child(prev)
 	if Levels.WORLDS[w].has("icon"):
-		nav.add_child(WorldIcons.make(Levels.WORLDS[w].icon, Levels.WORLDS[w].name))  # the world's special vehicle
+		nav.add_child(WorldIcons.make(Levels.WORLDS[w].icon, w))  # the world's special vehicle
 	var name_box = VBoxContainer.new()
 	name_box.custom_minimum_size = Vector2(420, 0)
 	name_box.add_theme_constant_override("separation", -6)

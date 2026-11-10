@@ -1,7 +1,7 @@
 extends SceneTree
 ## Phase 2/3 shot set: the first level of every world, each world's level-select page,
-## and a 2-star results card. Needs a display:
-##   xvfb-run -s "-screen 0 1280x720x24" godot --fixed-fps 60 --resolution 1280x720 \
+## the HUD before / after two star markers, and a 2-star results card. Needs a display:
+##   xvfb-run -s "-screen 0 1280x720x24" godot --fixed-fps 60 --resolution 1280x720 \   (or 800x450)
 ##     -s res://tools/art_p23_shots.gd -- --out=/tmp/shots
 ## Frame counts are fixed so two trees can be diffed pixel for pixel.
 
@@ -39,6 +39,9 @@ func _init():
 		steps.append([func():
 			main.screens.show_levels(true)
 			main.screens._fill_world_page(w), 30, "select_" + key])
+	# HUD with the first two star markers reached (on / off stars side by side)
+	steps.append([func(): main.start_level(Levels.order()[0]), 40, "hud_0"])
+	steps.append([func(): main.hud._on_progress(main.hud._s2, 0), 10, "hud_2star"])
 	steps.append([func():
 		main.start_level(Levels.order()[0])
 		main.screens.show_results(Levels.order()[0], 2, 4, 5), 150, "results_2star"])

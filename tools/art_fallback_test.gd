@@ -384,16 +384,22 @@ func _check_phase23(expect: String) -> int:
 	# ---- (d) V8 world icons
 	var shared: Texture2D = ArtAssets.try_texture(ArtAssets.WORLD_ICON_SHARED)
 	bad += _slot(ArtAssets.WORLD_ICON_SHARED, shared, WORLD_ICON, present, missing)
-	for w in Levels.WORLDS:
+	for wi in Levels.WORLDS.size():
+		var w: Dictionary = Levels.WORLDS[wi]
 		var wpath: String = ArtAssets.WORLD_ICON_DIR + ArtAssets.world_key(w.name) + ".png"
 		var own: Texture2D = ArtAssets.try_texture(wpath)
 		bad += _slot(wpath, own, WORLD_ICON, present, missing)
-		var icon := WorldIcons.make(w.get("icon", ""), w.name)
-		if icon.tex != (own if own else shared):
-			print("ART P23: world icon for %s wrong source" % w.name)
+		var icon := WorldIcons.make(w.get("icon", ""), wi)
+		var want_tex: Texture2D = own if own else shared
+		if icon.tex != want_tex:
+			print("ART P23: world icon for world %d (%s) wrong source" % [wi, w.name])
 			bad += 1
-		if icon.custom_minimum_size != Vector2(96, 56):
-			print("ART P23: world icon box changed")
+		var want_box: Vector2 = ArtAssets.WORLD_ICON_SIZE_V3 if want_tex else Vector2(96, 56)
+		if icon.custom_minimum_size != want_box:
+			print("ART P23: world icon box %s != %s" % [icon.custom_minimum_size, want_box])
+			bad += 1
+		if want_tex and ((want_box * 0.625).x < 48 or (want_box * 0.625).y < 30):
+			print("ART P23: v3 world icon under 48x30 at 800x450")
 			bad += 1
 		icon.free()
 
