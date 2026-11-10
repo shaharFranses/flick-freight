@@ -31,6 +31,15 @@ const TYPES = {
 		"spin": 0.0},  # flies flat (no tumble), so it can go through a mail slot
 }
 
+## Visual only: v3 cargo PNG if present, otherwise the v2 path in TYPES.
+## Collision sizes always come from TYPES[kind].size and are never taken from the texture.
+static func texture_for(kind: String) -> Texture2D:
+	var v3 := ArtAssets.cargo_texture(kind)
+	if v3:
+		return v3
+	return load(TYPES[kind].tex)
+
+
 const SETTLE_SPEED := 14.0
 const SETTLE_TIME := 0.3
 const MAX_AIR_TIME := 7.0
@@ -98,7 +107,7 @@ func setup(k: String, g):
 		cs.shape = rs
 	add_child(cs)
 	sprite = Sprite2D.new()
-	var tex: Texture2D = load(info.tex)
+	var tex: Texture2D = texture_for(kind)
 	sprite.texture = tex
 	sprite.scale = info.size / tex.get_size()
 	add_child(sprite)

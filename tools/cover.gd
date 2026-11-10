@@ -98,6 +98,9 @@ func _build(shot):
 		l.text = line
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.theme = UiTheme.get_theme()
+		var title_font := ArtAssets.title_font()
+		if title_font:
+			l.add_theme_font_override("font", title_font)
 		l.add_theme_font_size_override("font_size", size)
 		l.add_theme_color_override("font_color", Color("#FFD34E"))
 		l.add_theme_color_override("font_outline_color", Color("#1B2A41"))
@@ -115,7 +118,7 @@ func _build(shot):
 
 func _sprite(parent: Node, kind: String, pos: Vector2, rot: float, scale := 1.0):
 	var s = Sprite2D.new()
-	var tex: Texture2D = load(Cargo.TYPES[kind].tex)
+	var tex: Texture2D = Cargo.texture_for(kind)
 	s.texture = tex
 	s.scale = Cargo.TYPES[kind].size / tex.get_size() * scale
 	s.position = pos

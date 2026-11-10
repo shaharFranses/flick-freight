@@ -20,7 +20,7 @@ const CAB_VIEW_MARGIN := 8.0  # keep the parked bumper this far inside the view
 ## stay valid but are never selected.
 const RED_PALETTE_INDEX := 0
 const PALETTES = [
-	[Color("#E4572E"), Color("#B83F1F")],  # red — the only colour in use
+	[Color("#E4572E"), Color("#B83F1F")],  # red — default until ArtAssets.USE_PALETTE_B
 	[Color("#3D8BDB"), Color("#2A6BB0")],
 	[Color("#2EAE6B"), Color("#1E8350")],
 	[Color("#F2B134"), Color("#C98E1D")],
@@ -29,12 +29,14 @@ const PALETTES = [
 
 ## Ignore the requested index (previously level_index + truck_count) and always
 ## return the red truck. Bed physics and loaded-box counts are unchanged.
+## Body colour is ArtAssets.truck_palette(): #E4572E today, or palette B
+## #DC2638 when USE_PALETTE_B is flipped.
 static func resolved_palette_index(_requested: int = 0) -> int:
 	return RED_PALETTE_INDEX
 
 
 static func resolved_palette(_requested: int = 0) -> Array:
-	return PALETTES[RED_PALETTE_INDEX]
+	return ArtAssets.truck_palette()
 
 
 ## Parked bed-centre x that keeps the cab and front bumper inside the 1280-wide
@@ -82,6 +84,8 @@ var visual: Node2D
 var back_layer: Node2D
 var front_layer: Node2D
 var wheels: Array[Node2D] = []
+## True when art/v3/truck/truck_v0.png is present; procedural body/wheels are skipped.
+var _use_truck_sprite := false
 
 
 func setup(cfg: Dictionary, palette_index: int, wall_height: float):
@@ -153,6 +157,19 @@ func cab_points() -> PackedVector2Array:
 func _build_visuals():
 	visual = Node2D.new()
 	add_child(visual)
+	var truck_tex := ArtAssets.truck_texture()
+	_use_truck_sprite = truck_tex != null
+	if _use_truck_sprite:
+		var spr = Sprite2D.new()
+		spr.texture = truck_tex
+		spr.centered = false
+		var sx := ArtAssets.TRUCK_W / float(truck_tex.get_width())
+		spr.scale = Vector2(sx, sx)
+		# With centered=false, scale is about the top-left; this maps the
+		# authored origin (157, 112) in 720p units onto the bed-floor centre.
+		spr.position = -ArtAssets.TRUCK_ORIGIN
+		spr.z_index = 1
+		visual.add_child(spr)
 	back_layer = Node2D.new()
 	back_layer.z_index = -1
 	back_layer.draw.connect(_draw_back)
@@ -175,6 +192,8 @@ func _draw_back():
 	var L = -BED_W * 0.5
 	if not ferry.is_empty():
 		_draw_ferry_hull()
+	if _use_truck_sprite:
+		return
 	# far side of the bed (behind the cargo)
 	back_layer.draw_rect(Rect2(L, -wall_h, BED_W, wall_h), WOOD_DARK)
 	for i in range(1, 4):
@@ -189,6 +208,15 @@ func _draw_front():
 	var dark: Color = palette[1]
 	var body: Color = palette[0]
 	var cab_x0 = BED_W * 0.5 + WALL_T + 4
+	if _use_truck_sprite:
+		# Sprite replaces the body; keep only the overlays that are level state.
+		if icy:
+			front_layer.draw_rect(Rect2(L - WALL_T, -3, BED_W + WALL_T * 2, 9), Color("#BFE7F7"))
+			for gx in [L + 30, L + 120, L + 210]:
+				front_layer.draw_line(Vector2(gx, 0), Vector2(gx + 22, 0), Color.WHITE, 3.0)
+		if height_limit > 0:
+			_draw_height_line(L)
+		return
 	# chassis + bed floor
 	front_layer.draw_rect(Rect2(L - WALL_T, 0, BED_W + WALL_T * 2 + CAB_W + 4, FLOOR_T), dark)
 	front_layer.draw_rect(Rect2(L - WALL_T, 0, BED_W + WALL_T * 2, 7), WOOD)
@@ -258,6 +286,8 @@ func _draw_ferry_hull():
 
 
 func _draw_wheel(w: Node2D):
+	if _use_truck_sprite:
+		return
 	w.draw_circle(Vector2.ZERO, WHEEL_R, TYRE)
 	w.draw_circle(Vector2.ZERO, WHEEL_R * 0.45, HUB)
 	for i in 4:

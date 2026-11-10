@@ -167,10 +167,23 @@ func _build_background():
 		_build_clouds()
 		return
 	var bg = Sprite2D.new()
-	bg.texture = load(w.bg)
+	# Town (L1-10, including Act II) can drop art/v3/bg/bg_town.png; other worlds stay on v2.
+	var tex: Texture2D = null
+	if w.get("name", "") == "TOWN":
+		tex = ArtAssets.town_background()
+	if tex == null:
+		tex = load(w.bg)
+	bg.texture = tex
 	bg.centered = false
-	bg.scale = Vector2(1.25, 1.25)
-	bg.position = Vector2(0, -250)
+	# New 1280-wide (or 2x) skies sit on the canvas; the Kenney 1024x1024 files keep
+	# the original 1.25 scale and (0, -250) offset so a missing v3 file looks identical.
+	if tex.get_width() == 1280 or tex.get_width() == 2560:
+		var s := 1280.0 / float(tex.get_width())
+		bg.scale = Vector2(s, s)
+		bg.position = Vector2(0, 0)
+	else:
+		bg.scale = Vector2(1.25, 1.25)
+		bg.position = Vector2(0, -250)
 	bg.z_index = -20
 	bg.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	add_child(bg)
@@ -178,7 +191,9 @@ func _build_background():
 
 
 func _build_clouds():
-	var ctex = load("res://art/v2/bg/clouds.png")
+	var ctex: Texture2D = ArtAssets.clouds_texture()
+	if ctex == null:
+		ctex = load("res://art/v2/bg/clouds.png")
 	for i in 2:
 		var c = Sprite2D.new()
 		c.texture = ctex
@@ -219,11 +234,18 @@ func _build_road():
 	add_child(ground)
 
 
-func _tile(parent: Node, file: String, pos: Vector2, z := 0) -> Sprite2D:
+func _tile(parent: Node, file: String, pos: Vector2, z := 0, tex: Texture2D = null) -> Sprite2D:
 	var s = Sprite2D.new()
-	s.texture = load(file)
+	s.texture = tex if tex else load(file)
 	s.centered = false
-	s.scale = Vector2(0.9, 0.9)
+	# v3 63 px tiles are already in design pixels; 2x is 126 px; Kenney 70 px stays at 0.9.
+	var tw := float(s.texture.get_width())
+	var sc := 1.0
+	if tw == TILE * 2:
+		sc = 0.5
+	elif tw != TILE:
+		sc = 0.9
+	s.scale = Vector2(sc, sc)
 	s.position = pos
 	s.z_index = z
 	s.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
@@ -240,17 +262,25 @@ func _build_dock():
 	# warehouse wall behind the conveyor (behind the cargo)
 	var wh = _static_node()
 	wh.z_index = -3
-	wh.draw.connect(_draw_warehouse.bind(wh))
+	var wh_tex := ArtAssets.warehouse_texture()
+	if wh_tex:
+		_place_dock_sprite(wh, wh_tex, Vector2(-10, WAREHOUSE_TOP - 6))
+	else:
+		wh.draw.connect(_draw_warehouse.bind(wh))
 	# dock platform (in front of the cargo's lower edge)
 	var dock = _static_node()
 	dock.z_index = 1
-	dock.draw.connect(_draw_dock_face.bind(dock))
-	# conveyor belt set into the deck (Kenney industrial belt tiles)
+	var face_tex := ArtAssets.dock_face_texture()
+	if face_tex:
+		_place_dock_sprite(dock, face_tex, Vector2(-10, DOCK_TOP))
+	else:
+		dock.draw.connect(_draw_dock_face.bind(dock))
+	# conveyor belt set into the deck (Kenney industrial belt tiles, or v3 drop-ins)
 	var belts = ["ind_049", "ind_050", "ind_051"]
 	for i in 3:
-		_tile(dock, "res://art/v2/tiles/%s.png" % belts[i], Vector2(i * TILE, DOCK_TOP))
+		_tile(dock, "res://art/v2/tiles/%s.png" % belts[i], Vector2(i * TILE, DOCK_TOP), 0, ArtAssets.belt_texture(i))
 	# beacon that pulses when cargo is ready to throw (on the warehouse roof)
-	beacon = _tile(dock, "res://art/v2/tiles/ind_040.png", Vector2(WAREHOUSE_RIGHT - 70, WAREHOUSE_TOP - TILE + 2))
+	beacon = _tile(dock, "res://art/v2/tiles/ind_040.png", Vector2(WAREHOUSE_RIGHT - 70, WAREHOUSE_TOP - TILE + 2), 0, ArtAssets.beacon_texture())
 	var body = StaticBody2D.new()
 	dock_body = body
 	body.add_to_group("dock")
@@ -261,6 +291,15 @@ func _build_dock():
 	cs.position = Vector2(DOCK_RIGHT * 0.5, (DOCK_TOP + ROAD_Y) * 0.5)
 	body.add_child(cs)
 	add_child(body)
+
+
+func _place_dock_sprite(parent: Node2D, tex: Texture2D, top_left: Vector2):
+	var s = Sprite2D.new()
+	s.texture = tex
+	s.centered = false
+	s.position = top_left
+	s.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	parent.add_child(s)
 
 
 func _draw_warehouse(n: Node2D):

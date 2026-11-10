@@ -76,12 +76,14 @@ func _center_card(p: PanelContainer):
 	p.create_tween().tween_property(p, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-func _title(text: String, size := 52, color := GOLD) -> Label:
+func _title(text: String, size := 52, color := GOLD, font: Font = null) -> Label:
 	var l = Label.new()
 	l.text = text
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color)
+	if font:
+		l.add_theme_font_override("font", font)
 	return l
 
 
@@ -181,7 +183,7 @@ func show_levels(can_close: bool):
 	v.custom_minimum_size = Vector2(1000, 0)
 	d.add_child(v)
 	var head = HBoxContainer.new()
-	var t = _title("FLICK FREIGHT", 56)
+	var t = _title("FLICK FREIGHT", 56, GOLD, ArtAssets.title_font())
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(t)

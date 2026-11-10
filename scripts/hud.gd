@@ -8,17 +8,6 @@ signal pause_pressed
 const NAVY = Color("#1B2A41")
 const GOLD = Color("#FFD34E")
 const STAR_TEX = preload("res://art/v2/fx/star_gold.png")
-const CARGO_TEX = {
-	"box": preload("res://art/v2/cargo/box.png"),
-	"crate": preload("res://art/v2/cargo/crate.png"),
-	"barrel": preload("res://art/v2/cargo/barrel.png"),
-	"fragile": preload("res://art/v2/cargo/fragile.png"),
-	"ice": preload("res://art/v2/cargo/ice.png"),
-	"tire": preload("res://art/v2/cargo/tire.png"),
-	"plank": preload("res://art/v2/cargo/plank.png"),
-	"canister": preload("res://art/v2/cargo/canister.png"),
-	"parcel": preload("res://art/v2/cargo/parcel.png"),
-}
 
 var game: Game
 var root: Control
@@ -211,7 +200,7 @@ func _on_queue(types: Array):
 	var n = 0
 	for t in types:
 		var tr = TextureRect.new()
-		tr.texture = CARGO_TEX[t]
+		tr.texture = Cargo.texture_for(t)
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tr.custom_minimum_size = Vector2(26, 26) if n > 0 else Vector2(32, 32)
@@ -250,9 +239,9 @@ func show_banner(title: String, text: String, icon := "", hold := 3.2):
 	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var h = HBoxContainer.new()
 	h.add_theme_constant_override("separation", 16)
-	if icon in CARGO_TEX:
+	if icon in Cargo.TYPES:
 		var tr = TextureRect.new()
-		tr.texture = CARGO_TEX[icon]
+		tr.texture = Cargo.texture_for(icon)
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tr.custom_minimum_size = Vector2(60, 60)
