@@ -42,8 +42,14 @@ static func resolved_palette(_requested: int = 0) -> Array:
 ## view. Levels 1-40 are frozen, so this is a runtime clamp rather than an edit
 ## of level data. The sine drive (amp) is left alone: moving trucks may still
 ## travel past the right edge, as they already do in Town / Woods / Desert.
+## If a v3 truck sprite is present, the clamp uses that slot's right edge
+## (still 313 px for both the 190 and 198 crops).
+static func visual_front_extent() -> float:
+	return ArtAssets.truck_front_extent()
+
+
 static func fitted_base_x(authored_x: float) -> float:
-	return minf(authored_x, VIEW_WIDTH - CAB_VIEW_MARGIN - FRONT_EXTENT)
+	return minf(authored_x, VIEW_WIDTH - CAB_VIEW_MARGIN - visual_front_extent())
 
 
 const NAVY = Color("#1B2A41")
@@ -164,9 +170,9 @@ func _build_visuals():
 		spr.centered = false
 		var sx := ArtAssets.TRUCK_W / float(truck_tex.get_width())
 		spr.scale = Vector2(sx, sx)
-		# With centered=false, scale is about the top-left; this maps the
-		# authored origin (157, 112) in 720p units onto the bed-floor centre.
-		spr.position = -ArtAssets.TRUCK_ORIGIN
+		# With centered=false, scale is about the top-left. Origin is (157, 112)
+		# for the 470x190 slot or (157, 120) for 470x198, including 2x.
+		spr.position = -ArtAssets.truck_origin_for(truck_tex)
 		spr.z_index = 1
 		visual.add_child(spr)
 	back_layer = Node2D.new()
@@ -192,6 +198,7 @@ func _draw_back():
 	if not ferry.is_empty():
 		_draw_ferry_hull()
 	if _use_truck_sprite:
+		_draw_far_wall_v3(L)
 		return
 	# far side of the bed (behind the cargo)
 	back_layer.draw_rect(Rect2(L, -wall_h, BED_W, wall_h), WOOD_DARK)
@@ -200,6 +207,18 @@ func _draw_back():
 		back_layer.draw_line(Vector2(L, y), Vector2(-L, y), WOOD_LINE.darkened(0.25), 2.0)
 	# bulkhead inner face
 	back_layer.draw_rect(Rect2(-L, -FRONT_H, WALL_T, FRONT_H), palette[1])
+
+
+## v3 far bed wall behind the cargo (the truck_v0.png sprite sits above the cargo, so the
+## wall can't be in it). Uses wall_h, so it is right for every level's wall height.
+func _draw_far_wall_v3(L: float):
+	var seam = Color("#7D8AA0")
+	back_layer.draw_rect(Rect2(L, -wall_h, BED_W, wall_h + 2), Color("#8E9BB0"))
+	for t in [1.0 / 3.0, 2.0 / 3.0]:
+		back_layer.draw_rect(Rect2(L, -wall_h * t - 1, BED_W, 2), seam)
+	for t in [0.25, 0.5, 0.75]:
+		back_layer.draw_rect(Rect2(L + BED_W * t - 4, -wall_h, 8, wall_h), seam)
+	back_layer.draw_rect(Rect2(L, -wall_h - 6, BED_W, 8), Color("#5A6680"))
 
 
 func _draw_front():

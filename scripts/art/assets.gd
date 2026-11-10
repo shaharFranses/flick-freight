@@ -30,12 +30,19 @@ const TITLE_FONT_CANDIDATES := [
 const WORDMARK := "res://art/v3/brand/wordmark.png"
 const FX_ATLAS := "res://art/v3/fx/fx_atlas.png"
 
-## Truck sprite: 470 x 190 px at 720p (or 2x 940 x 380). Origin = bed-floor
-## top centre, which is 157 px from the left (rear bumper) and 112 px from the
-## top (cab roof). See build-swap-in-points.md.
+## Truck sprite slots at 720p (or 2x):
+##   470 x 190, origin (157, 112) — crop from the cab roof
+##   470 x 198, origin (157, 120) — 8 px taller so the bulkhead reaches FRONT_H
+## Detected from the texture height (1x or 2x). Width and origin.x stay 470 / 157,
+## so the front bumper is still 313 px right of the bed centre.
 const TRUCK_W := 470.0
-const TRUCK_H := 190.0
-const TRUCK_ORIGIN := Vector2(157, 112)
+const TRUCK_H_190 := 190.0
+const TRUCK_H_198 := 198.0
+const TRUCK_ORIGIN_190 := Vector2(157, 112)
+const TRUCK_ORIGIN_198 := Vector2(157, 120)
+## Default (190-slot) origin, kept so older comments/docs still resolve.
+const TRUCK_ORIGIN := TRUCK_ORIGIN_190
+const TRUCK_H := TRUCK_H_190
 
 
 static func exists(path: String) -> bool:
@@ -70,6 +77,30 @@ static func truck_palette() -> Array:
 
 static func truck_texture() -> Texture2D:
 	return try_texture(TRUCK_V0)
+
+
+## Design-pixel size of the truck slot (width always 470).
+static func truck_design_size(tex: Texture2D) -> Vector2:
+	var sx := TRUCK_W / float(tex.get_width())
+	return Vector2(TRUCK_W, float(tex.get_height()) * sx)
+
+
+## Pivot in design pixels, chosen by the slot height (190 or 198, 1x or 2x).
+static func truck_origin_for(tex: Texture2D) -> Vector2:
+	var h := truck_design_size(tex).y
+	if abs(h - TRUCK_H_198) < 1.0:
+		return TRUCK_ORIGIN_198
+	return TRUCK_ORIGIN_190
+
+
+## Right edge of the truck slot, in design px relative to the bed-floor centre.
+## Both slots are 470 wide with origin.x 157, so this is 313 — same as Truck.FRONT_EXTENT.
+static func truck_front_extent(tex: Texture2D = null) -> float:
+	var t: Texture2D = tex if tex else truck_texture()
+	var origin := TRUCK_ORIGIN_190
+	if t:
+		origin = truck_origin_for(t)
+	return TRUCK_W - origin.x
 
 
 static func town_background() -> Texture2D:
