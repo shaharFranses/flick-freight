@@ -9,6 +9,12 @@ const FLOOR_T := 22.0
 const FRONT_H := 120.0
 const WHEEL_R := 30.0
 const CAB_W := 150.0
+## Drawn bumper extents, relative to the bed centre (origin).
+const FRONT_EXTENT := 313.0  # right edge of the front bumper
+const REAR_EXTENT := -157.0  # left edge of the rear bumper
+const VIEW_WIDTH := 1280.0
+const CAB_VIEW_MARGIN := 8.0  # keep the parked bumper this far inside the view
+
 ## Palette 0 is the red stake-bed truck (art direction: mock-5 hybrid morning).
 ## Every level uses only this colour; the other entries are kept so old indices
 ## stay valid but are never selected.
@@ -29,6 +35,15 @@ static func resolved_palette_index(_requested: int = 0) -> int:
 
 static func resolved_palette(_requested: int = 0) -> Array:
 	return PALETTES[RED_PALETTE_INDEX]
+
+
+## Parked bed-centre x that keeps the cab and front bumper inside the 1280-wide
+## view. Levels 1-40 are frozen, so this is a runtime clamp rather than an edit
+## of level data. The sine drive (amp) is left alone: moving trucks may still
+## travel past the right edge, as they already do in Town / Woods / Desert.
+static func fitted_base_x(authored_x: float) -> float:
+	return minf(authored_x, VIEW_WIDTH - CAB_VIEW_MARGIN - FRONT_EXTENT)
+
 
 const NAVY = Color("#1B2A41")
 const WOOD = Color("#A87444")
@@ -70,7 +85,7 @@ var wheels: Array[Node2D] = []
 
 
 func setup(cfg: Dictionary, palette_index: int, wall_height: float):
-	base_x = cfg.x
+	base_x = fitted_base_x(cfg.x)
 	amp = cfg.get("amp", 0.0)
 	period = max(0.5, cfg.get("period", 4.0))
 	wall_h = wall_height

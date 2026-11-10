@@ -430,7 +430,10 @@ func _build_low_bridge():
 	var cfg: Dictionary = slots[0]
 	var floor_y = ROAD_Y - Truck.FLOOR_T - 18 - Truck.WHEEL_R
 	var under = floor_y - level.height_limit
-	var x0 = cfg.x + Truck.BED_W * 0.5 + Truck.WALL_T + 12  # just past the bulkhead
+	var park_x = cfg.x
+	if cfg.get("vehicle", "truck") == "truck":
+		park_x = Truck.fitted_base_x(cfg.x)
+	var x0 = park_x + Truck.BED_W * 0.5 + Truck.WALL_T + 12  # just past the bulkhead
 	var n = _static_node()
 	n.z_index = 4  # in front of the cab: the cab is "under" the bridge
 	var style = Levels.world_of(level_index).get("bridge", "stone")
