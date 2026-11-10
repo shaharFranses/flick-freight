@@ -5,4 +5,4 @@ Kenney audio rows stay in `art/v2/CREDITS.md` until audio is replaced.
 
 | File / generator | Licence | Source | Notes |
 |---|---|---|---|
-| *(none shipped yet)* | | | Phase 1 swap-in slots are empty; the game falls back to the current look. |
+| `font/title.ttf` | SIL OFL 1.1 | [google/fonts ofl/lilitaone](https://github.com/google/fonts/tree/main/ofl/lilitaone) (`LilitaOne-Regular.ttf`) | In-game “FLICK FREIGHT” wordmark only. `OFL.txt` sits beside the font. Reserved Font Name: Lilita. |

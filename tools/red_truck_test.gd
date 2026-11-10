@@ -1,5 +1,5 @@
 extends SceneTree
-## Assert the V0 truck always resolves to the red palette (#E4572E / #B83F1F),
+## Assert the V0 truck always resolves to palette B (#DC2638 / #A51A2B),
 ## for every level and every palette index that used to cycle colours.
 ## Special vehicles keep their type so bed physics stay unchanged.
 ##   godot --headless -s res://tools/red_truck_test.gd
@@ -8,15 +8,14 @@ func _init():
 	var red: Color = ArtAssets.truck_body()
 	var dark: Color = ArtAssets.truck_shade()
 	var bad := 0
-	# Default until the v3 truck art lands (or Shahar picks B): keep #E4572E.
-	# Flipping ArtAssets.USE_PALETTE_B is the one-line switch to #DC2638.
-	var expect_red := Color("#DC2638") if ArtAssets.USE_PALETTE_B else Color("#E4572E")
-	var expect_dark := Color("#A51A2B") if ArtAssets.USE_PALETTE_B else Color("#B83F1F")
+	var expect_red := Color("#DC2638")
+	var expect_dark := Color("#A51A2B")
+	if not ArtAssets.USE_PALETTE_B:
+		print("RED TRUCK: USE_PALETTE_B is off; expected palette B")
+		bad += 1
 	if not red.is_equal_approx(expect_red) or not dark.is_equal_approx(expect_dark):
 		print("RED TRUCK: active palette is %s / %s, expected %s / %s" % [red, dark, expect_red, expect_dark])
 		bad += 1
-	if ArtAssets.USE_PALETTE_B:
-		print("RED TRUCK: NOTE palette B is on (#DC2638)")
 	for requested in [0, 1, 2, 3, 4, 17, 99]:
 		if Truck.resolved_palette_index(requested) != Truck.RED_PALETTE_INDEX:
 			print("RED TRUCK: index %d did not resolve to %d" % [requested, Truck.RED_PALETTE_INDEX])

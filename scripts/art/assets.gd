@@ -3,11 +3,11 @@ extends RefCounted
 ## Central swap-in points for v3 art. Each path is a file drop: if the resource
 ## is missing, callers keep the current v2 / code-drawn look.
 ##
-## Flip USE_PALETTE_B to true when the V0 truck art lands (or Shahar picks red B).
-## Until then the body stays #E4572E so the game looks unchanged.
+## Palette B is on: the V0 truck body is fire-engine #DC2638 / shade #A51A2B.
+## Flip this to false to restore the previous coral #E4572E / #B83F1F.
 
-## false = today's #E4572E / #B83F1F. true = palette B fire-engine #DC2638 / #A51A2B.
-const USE_PALETTE_B := false
+## true = palette B fire-engine #DC2638 / #A51A2B. false = previous #E4572E / #B83F1F.
+const USE_PALETTE_B := true
 
 # ---- paths (720p design px unless noted) ---------------------------------
 const TRUCK_V0 := "res://art/v3/truck/truck_v0.png"

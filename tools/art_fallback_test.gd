@@ -1,6 +1,7 @@
 extends SceneTree
-## Assert the v3 swap-in fallback: with no art/v3 files present, every hook
-## returns null / the current look, and cargo collision sizes stay unchanged.
+## Assert the v3 PNG swap-in fallback: with no raster drops present, those hooks
+## return null and cargo collision sizes stay unchanged. Palette B and the
+## Lilita One title font are already on (not part of the missing-file fallback).
 ##   godot --headless -s res://tools/art_fallback_test.gd
 
 const CARGO_SIZES = {
@@ -18,15 +19,15 @@ const CARGO_SIZES = {
 
 func _init():
 	var bad := 0
-	if ArtAssets.USE_PALETTE_B:
-		print("ART FALLBACK: USE_PALETTE_B is true; default must stay false until assets land")
+	if not ArtAssets.USE_PALETTE_B:
+		print("ART FALLBACK: USE_PALETTE_B is off; expected palette B")
 		bad += 1
 	var pal: Array = ArtAssets.truck_palette()
-	if not pal[0].is_equal_approx(Color("#E4572E")) or not pal[1].is_equal_approx(Color("#B83F1F")):
-		print("ART FALLBACK: default palette is %s, not #E4572E / #B83F1F" % pal)
+	if not pal[0].is_equal_approx(Color("#DC2638")) or not pal[1].is_equal_approx(Color("#A51A2B")):
+		print("ART FALLBACK: palette is %s, not #DC2638 / #A51A2B" % pal)
 		bad += 1
-	if not Truck.resolved_palette(0)[0].is_equal_approx(Color("#E4572E")):
-		print("ART FALLBACK: Truck.resolved_palette is not the current red")
+	if not Truck.resolved_palette(0)[0].is_equal_approx(Color("#DC2638")):
+		print("ART FALLBACK: Truck.resolved_palette is not palette B")
 		bad += 1
 	if ArtAssets.truck_texture() != null:
 		print("ART FALLBACK: truck_v0.png is present; this test expects an empty slot")
@@ -43,13 +44,17 @@ func _init():
 	if ArtAssets.beacon_texture() != null or ArtAssets.belt_texture(0) != null:
 		print("ART FALLBACK: a belt/beacon PNG is present; this test expects empty slots")
 		bad += 1
-	if ArtAssets.title_font() != null:
-		print("ART FALLBACK: title font is present; this test expects an empty slot")
+	if ArtAssets.title_font() == null:
+		print("ART FALLBACK: title font (Lilita One) is missing")
 		bad += 1
 	if ArtAssets.wordmark_texture() != null:
 		print("ART FALLBACK: wordmark is present; this test expects an empty slot")
 		bad += 1
+	# Raster slots should still be empty; the title font is the one shipped v3 file.
+	var font_paths: PackedStringArray = ArtAssets.TITLE_FONT_CANDIDATES
 	for path in ArtAssets.all_v3_paths():
+		if path in font_paths:
+			continue
 		if ResourceLoader.exists(path):
 			print("ART FALLBACK: unexpected v3 resource %s" % path)
 			bad += 1

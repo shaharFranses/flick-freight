@@ -20,7 +20,7 @@ const CAB_VIEW_MARGIN := 8.0  # keep the parked bumper this far inside the view
 ## stay valid but are never selected.
 const RED_PALETTE_INDEX := 0
 const PALETTES = [
-	[Color("#E4572E"), Color("#B83F1F")],  # red — default until ArtAssets.USE_PALETTE_B
+	[Color("#E4572E"), Color("#B83F1F")],  # previous coral; active red comes from ArtAssets
 	[Color("#3D8BDB"), Color("#2A6BB0")],
 	[Color("#2EAE6B"), Color("#1E8350")],
 	[Color("#F2B134"), Color("#C98E1D")],
@@ -29,8 +29,7 @@ const PALETTES = [
 
 ## Ignore the requested index (previously level_index + truck_count) and always
 ## return the red truck. Bed physics and loaded-box counts are unchanged.
-## Body colour is ArtAssets.truck_palette(): #E4572E today, or palette B
-## #DC2638 when USE_PALETTE_B is flipped.
+## Body colour is ArtAssets.truck_palette() (palette B #DC2638 / #A51A2B).
 static func resolved_palette_index(_requested: int = 0) -> int:
 	return RED_PALETTE_INDEX
 
@@ -220,15 +219,9 @@ func _draw_front():
 	# chassis + bed floor
 	front_layer.draw_rect(Rect2(L - WALL_T, 0, BED_W + WALL_T * 2 + CAB_W + 4, FLOOR_T), dark)
 	front_layer.draw_rect(Rect2(L - WALL_T, 0, BED_W + WALL_T * 2, 7), WOOD)
-	# rear tailgate post
+	# rear tailgate post (B3: ends only — no near-side rails or posts in front of cargo)
 	front_layer.draw_rect(Rect2(L - WALL_T, -wall_h, WALL_T, wall_h), body)
 	front_layer.draw_rect(Rect2(L - WALL_T, -wall_h, WALL_T, 6), body.lightened(0.25))
-	# side rails (near side): top rail + mid rail, with posts. Cargo shows between them.
-	front_layer.draw_rect(Rect2(L, -wall_h, BED_W, 9), WOOD)
-	front_layer.draw_rect(Rect2(L, -wall_h, BED_W, 3), WOOD.lightened(0.2))
-	front_layer.draw_rect(Rect2(L, -wall_h * 0.45, BED_W, 7), WOOD)
-	for px in [L + BED_W * 0.33, L + BED_W * 0.66]:
-		front_layer.draw_rect(Rect2(px - 4, -wall_h, 8, wall_h), WOOD_DARK)
 	# bulkhead
 	front_layer.draw_rect(Rect2(-L, -FRONT_H, WALL_T, FRONT_H), body)
 	front_layer.draw_rect(Rect2(-L, -FRONT_H, WALL_T, 6), body.lightened(0.25))

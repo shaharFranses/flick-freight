@@ -98,9 +98,7 @@ func _build(shot):
 		l.text = line
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.theme = UiTheme.get_theme()
-		var title_font := ArtAssets.title_font()
-		if title_font:
-			l.add_theme_font_override("font", title_font)
+		# Covers stay on Fredoka (UiTheme). The Lilita One wordmark is in-game only.
 		l.add_theme_font_size_override("font_size", size)
 		l.add_theme_color_override("font_color", Color("#FFD34E"))
 		l.add_theme_color_override("font_outline_color", Color("#1B2A41"))
