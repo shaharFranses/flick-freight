@@ -232,6 +232,10 @@ func _on_body_entered(body: Node):
 		_finish(false, "road")
 	elif group == "truck_cab" and impact > 60:
 		Sfx.play("rim", -4.0, 0.9)
+		# easter egg: a box that bonks the courier's helmet gets an "OUCH!" (visual + sound only)
+		var v = body.get_parent()
+		if v and v.has_method("bonk_head"):
+			v.bonk_head(global_position)
 
 
 func _touching_cab() -> bool:

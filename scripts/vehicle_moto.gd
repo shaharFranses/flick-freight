@@ -69,3 +69,59 @@ func _draw_front(n: Node2D):
 	n.draw_circle(Vector2(half + 36, -80), 17, NAVY)
 	n.draw_circle(Vector2(half + 36, -80), 14, look[2])
 	n.draw_rect(Rect2(half + 38, -84, 14, 8), Color("#BFE7F7"))  # visor
+
+
+# ---------------------------------------------------------------- easter egg: "OUCH!"
+## Helmet centre in local space (see _draw_front).
+const HEAD := Vector2(RACK_W * 0.5 + 36, -80)
+const BUBBLE_FONT = preload("res://art/v2/font/fredoka.ttf")
+var _ouch_cd := 0.0
+
+
+## Called by cargo when it hits the rider ("truck_cab"). Only a hit up at the helmet counts,
+## not the tank or the handlebars. Purely cosmetic: no effect on physics or scoring.
+func bonk_head(cargo_pos: Vector2):
+	var p = to_local(cargo_pos)
+	if p.y > HEAD.y + 12 or abs(p.x - HEAD.x) > 46:
+		return
+	var now = Time.get_ticks_msec() / 1000.0
+	if now < _ouch_cd:
+		return
+	_ouch_cd = now + 1.2
+	Sfx.play("ouch", -3.0)
+	_bubble()
+	var parent = get_parent()
+	if parent:
+		Fx.burst(parent, to_global(HEAD + Vector2(0, -14)), Fx.TEX_STAR, Color("#FFD34E"), 6, 160.0, 0.6, 0.18, 0.0, 180.0)
+
+
+func _bubble():
+	var b = Node2D.new()
+	b.z_index = 30
+	b.position = HEAD + Vector2(64, -64)
+	b.rotation = -rotation  # stay upright on a tilted bike
+	b.scale = Vector2.ONE * 0.2
+	b.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	b.draw.connect(func():
+		var text = "OUCH!"
+		var fs = 26
+		var size = BUBBLE_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
+		var r = Rect2(-size.x * 0.5 - 14, -size.y * 0.5 - 8, size.x + 28, size.y + 16)
+		# tail pointing down-left at the helmet
+		var tail = PackedVector2Array([Vector2(-18, r.end.y - 2), Vector2(-4, r.end.y - 2), Vector2(-26, r.end.y + 18)])
+		b.draw_colored_polygon(Geometry2D.offset_polygon(tail, 3)[0], NAVY)
+		var sb = StyleBoxFlat.new()
+		sb.bg_color = Color.WHITE
+		sb.border_color = NAVY
+		sb.set_border_width_all(3)
+		sb.set_corner_radius_all(14)
+		sb.draw(b.get_canvas_item(), r)
+		b.draw_colored_polygon(tail, Color.WHITE)
+		var base = Vector2(-size.x * 0.5, BUBBLE_FONT.get_ascent(fs) - size.y * 0.5)
+		b.draw_string(BUBBLE_FONT, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color("#E4572E")))
+	add_child(b)
+	var tw = b.create_tween()
+	tw.tween_property(b, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(0.7)
+	tw.tween_property(b, "modulate:a", 0.0, 0.3)
+	tw.tween_callback(b.queue_free)
