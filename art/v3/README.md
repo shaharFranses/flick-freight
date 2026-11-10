@@ -12,7 +12,8 @@ bed, the v3 far-wall draw behind cargo, and the Phase 1 Town PNG drop (truck, To
 clouds, dock, C1–C4).
 
 The truck slot accepts 470x190 (origin 157,112) or 470x198 (origin 157,120), 1x or 2x,
-detected from the image height. The delivered `truck_v0.png` is 940x396 (the 198 slot).
+detected from the image height. The delivered `truck_v0.png` is 940x396 (the 198 slot)
+and has no baked rear post; Build draws the post in code at each level's `wall_h`.
 
 `art/v3/fx/fx_atlas.png` is reserved and unused; it is excluded from the web export.
 

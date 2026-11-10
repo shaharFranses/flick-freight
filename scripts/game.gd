@@ -192,6 +192,7 @@ func _build_background():
 
 func _build_clouds():
 	var ctex: Texture2D = ArtAssets.clouds_texture()
+	var cloud_alpha := 1.0 if ctex != null else 0.55
 	if ctex == null:
 		ctex = load("res://art/v2/bg/clouds.png")
 	for i in 2:
@@ -200,7 +201,7 @@ func _build_clouds():
 		c.centered = false
 		c.scale = Vector2(1.3, 0.8)
 		c.position = Vector2(i * 1024 * 1.3, -60)
-		c.modulate = Color(1, 1, 1, 0.55)
+		c.modulate = Color(1, 1, 1, cloud_alpha)
 		c.z_index = -19
 		c.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 		add_child(c)

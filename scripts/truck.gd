@@ -39,17 +39,43 @@ static func resolved_palette(_requested: int = 0) -> Array:
 
 
 ## Parked bed-centre x that keeps the cab and front bumper inside the 1280-wide
-## view. Levels 1-40 are frozen, so this is a runtime clamp rather than an edit
-## of level data. The sine drive (amp) is left alone: moving trucks may still
-## travel past the right edge, as they already do in Town / Woods / Desert.
-## If a v3 truck sprite is present, the clamp uses that slot's right edge
-## (still 313 px for both the 190 and 198 crops).
+## view. Levels 1-40 are frozen, so clamps live at runtime rather than as edits
+## of level data. If a v3 truck sprite is present, the clamp uses that slot's
+## right edge (still 313 px for both the 190 and 198 crops), so max bed-centre
+## x is 959. Moving V0 paths that would swing past 959 are remapped by
+## fitted_drive: same left extreme and period, new centre and amplitude so the
+## sine spans [left, 959] without stalling at the edge. Special vehicles are
+## unchanged. Bot / cab hit-timing read the live base_x and amp (and
+## predict_pose / predict_vx), so they follow the remapped sine automatically.
 static func visual_front_extent() -> float:
 	return ArtAssets.truck_front_extent()
 
 
+## Largest bed-centre x that keeps the front bumper 8 px inside the view.
+static func max_bed_x() -> float:
+	return VIEW_WIDTH - CAB_VIEW_MARGIN - visual_front_extent()
+
+
 static func fitted_base_x(authored_x: float) -> float:
-	return minf(authored_x, VIEW_WIDTH - CAB_VIEW_MARGIN - visual_front_extent())
+	return minf(authored_x, max_bed_x())
+
+
+## Runtime drive: (base_x, amp) after the parked clamp and, if the right
+## extreme would pass max_bed_x(), a same-period sine remap that keeps the
+## left extreme. Paths that already fit, and parked trucks (amp 0), are
+## unchanged beyond the parked clamp. Does not hard-clip position.x.
+static func fitted_drive(authored_x: float, authored_amp: float) -> Vector2:
+	var centre := fitted_base_x(authored_x)
+	var a := authored_amp
+	if a > 0.0:
+		var left := centre - a
+		var right := centre + a
+		var cap := max_bed_x()
+		if right > cap:
+			right = cap
+			centre = (left + right) * 0.5
+			a = (right - left) * 0.5
+	return Vector2(centre, a)
 
 
 const NAVY = Color("#1B2A41")
@@ -94,8 +120,9 @@ var _use_truck_sprite := false
 
 
 func setup(cfg: Dictionary, palette_index: int, wall_height: float):
-	base_x = fitted_base_x(cfg.x)
-	amp = cfg.get("amp", 0.0)
+	var drive: Vector2 = fitted_drive(float(cfg.x), float(cfg.get("amp", 0.0)))
+	base_x = drive.x
+	amp = drive.y
 	period = max(0.5, cfg.get("period", 4.0))
 	wall_h = wall_height
 	palette = resolved_palette(palette_index)
@@ -199,6 +226,7 @@ func _draw_back():
 		_draw_ferry_hull()
 	if _use_truck_sprite:
 		_draw_far_wall_v3(L)
+		_draw_rear_post_v3(L)
 		return
 	# far side of the bed (behind the cargo)
 	back_layer.draw_rect(Rect2(L, -wall_h, BED_W, wall_h), WOOD_DARK)
@@ -221,6 +249,23 @@ func _draw_far_wall_v3(L: float):
 	back_layer.draw_rect(Rect2(L, -wall_h - 6, BED_W, 8), Color("#5A6680"))
 
 
+## v3 rear tailgate post at this level's wall_h (SWAP-IN.md §2c). Visual only;
+## the rear-wall collision already uses wall_h. Drawn on back_layer (z -1),
+## after the far wall and below the sprite, so the amber rear marker in the
+## PNG stays on top. 1x truck-local px, origin = bed-floor top centre.
+## Fallback procedural body keeps its own post in _draw_front.
+func _draw_rear_post_v3(L: float):
+	var r := Rect2(L - WALL_T, -wall_h - 6.0, WALL_T, wall_h + 10.0)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color("#DC2638")
+	sb.border_color = Color("#1B2A41")
+	sb.set_border_width_all(4)
+	sb.set_corner_radius_all(3)
+	back_layer.draw_style_box(sb, r)
+	# Cap highlight, clipped inside the 4 px navy outline: x -145..-139, y -wall_h-2..-wall_h+2.
+	back_layer.draw_rect(Rect2(L - WALL_T + 4.0, -wall_h - 2.0, 6.0, 4.0), Color("#F5606A"))
+
+
 func _draw_front():
 	var L = -BED_W * 0.5
 	var dark: Color = palette[1]
@@ -228,6 +273,7 @@ func _draw_front():
 	var cab_x0 = BED_W * 0.5 + WALL_T + 4
 	if _use_truck_sprite:
 		# Sprite replaces the body; keep only the overlays that are level state.
+		# Rear post is on back_layer (_draw_rear_post_v3), under the sprite.
 		if icy:
 			front_layer.draw_rect(Rect2(L - WALL_T, -3, BED_W + WALL_T * 2, 9), Color("#BFE7F7"))
 			for gx in [L + 30, L + 120, L + 210]:
