@@ -2,6 +2,13 @@ name: Deploy web build to GitHub Pages
 on:
   push:
     branches: [main]
+  # A push to staging runs "Staging push" (staging-push.yml), which then
+  # triggers this workflow on main's ref, so the github-pages environment
+  # (main-only deploys) still accepts the deployment.
+  workflow_run:
+    workflows: ["Staging push"]
+    types: [completed]
+    branches: [staging]
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,12 +23,27 @@ jobs:
     container:
       image: barichello/godot-ci:4.3
     steps:
-      - uses: actions/checkout@v4
+      # The site root is always main's build. staging's build is published
+      # under /staging/ so it can be played without touching main's URL.
+      - name: Check out main (site root)
+        id: main_co
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+      - name: Check out staging (published under /staging/)
+        id: staging_co
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          ref: staging
+          path: staging
       - name: Install export templates
         run: |
           mkdir -p ~/.local/share/godot/export_templates
           mv /root/.local/share/godot/export_templates/4.3.stable ~/.local/share/godot/export_templates/4.3.stable || true
       - name: Export Web (single-threaded)
+        working-directory: main
         run: |
           mkdir -p build
           godot --headless --verbose --import || true
@@ -29,6 +51,7 @@ jobs:
           touch build/.nojekyll
       - name: CrazyGames size and file-count check
         shell: bash
+        working-directory: main
         run: |
           cd build
           files=$(find . -type f ! -name .nojekyll | sort)
@@ -64,15 +87,37 @@ jobs:
       - name: Upload CrazyGames build (zip of build/ contents)
         uses: actions/upload-artifact@v4
         with:
-          name: flick-freight-crazygames-${{ github.sha }}
+          name: flick-freight-crazygames-${{ steps.main_co.outputs.commit }}
           path: |
-            build/
-            !build/.nojekyll
+            main/build/
+            !main/build/.nojekyll
           if-no-files-found: error
           retention-days: 30
+      - name: Export staging Web (single-threaded)
+        if: steps.staging_co.outcome == 'success'
+        working-directory: staging
+        run: |
+          mkdir -p build
+          godot --headless --verbose --import || true
+          godot --headless --verbose --export-release "Web" build/index.html
+      - name: Assemble site (main at root, staging under /staging/)
+        shell: bash
+        run: |
+          mkdir -p site
+          cp -a main/build/. site/
+          if [ "${{ steps.staging_co.outcome }}" = "success" ]; then
+            mkdir -p site/staging
+            cp -a staging/build/. site/staging/
+            rm -f site/staging/.nojekyll
+            echo "staging ${{ steps.staging_co.outputs.commit }} published at /staging/" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No staging branch: only main is published." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "main ${{ steps.main_co.outputs.commit }} published at /" >> "$GITHUB_STEP_SUMMARY"
+          ls -la site site/staging 2>/dev/null || true
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: build
+          path: site
   deploy:
     needs: build
     runs-on: ubuntu-latest
