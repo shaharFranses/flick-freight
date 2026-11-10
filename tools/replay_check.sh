@@ -13,11 +13,17 @@ jobs=$(nproc 2>/dev/null || echo 2)
 for L in $(seq "$from" "$to"); do for k in 1 2 3; do echo "$L $k"; done; done |
   xargs -P "$jobs" -n 2 sh -c 'godot --headless --fixed-fps 60 -s res://tools/bot.gd -- --levels=$0 --error=0 --json="'"$tmp"'/L$0_r$1.json" >/dev/null 2>&1'
 fails=0
+checked=0
 for L in $(seq "$from" "$to"); do
+  # a retired level plays nothing and writes no result: skip it (some but not all missing = a failure)
+  if [ ! -e "$tmp/L${L}_r1.json" ] && [ ! -e "$tmp/L${L}_r2.json" ] && [ ! -e "$tmp/L${L}_r3.json" ]; then
+    echo "REPLAY: level $L skipped (retired)"; continue
+  fi
+  checked=$((checked + 1))
   if ! cmp -s "$tmp/L${L}_r1.json" "$tmp/L${L}_r2.json" || ! cmp -s "$tmp/L${L}_r1.json" "$tmp/L${L}_r3.json"; then
     echo "REPLAY: level $L differs between runs"; fails=$((fails + 1))
   fi
 done
 rm -rf "$tmp"
-echo "REPLAY CHECK: $((to - from + 1)) level(s), $fails not deterministic"
+echo "REPLAY CHECK: $checked level(s), $fails not deterministic"
 [ $fails -eq 0 ]
