@@ -42,38 +42,30 @@ func sim_profile() -> Dictionary:
 
 func _draw_back(n: Node2D):
 	var half = IN_W * 0.5
-	n.draw_rect(Rect2(-half, -IN_H, IN_W, IN_H), Color("#3B2F2A"))
-	n.draw_rect(Rect2(half - 50, -IN_H + 20, 40, 60), Color("#5A4A42"))  # fridge
-	n.draw_circle(Vector2(half - 70, -30), 10, Color("#6B5A50"))
+	# cutaway: the kitchen wall behind the cargo
+	ArtDraw.bed_wall(n, Rect2(-half, -IN_H, IN_W, IN_H), 3, false)
 
 
 func _draw_front(n: Node2D):
 	var half = IN_W * 0.5
-	var body = Color("#3DDC97")
-	var dark = Color("#24A872")
-	n.draw_rect(shape.floor.grow(2), NAVY)
-	n.draw_rect(shape.floor, body)
-	n.draw_rect(Rect2(-half - T, -4, IN_W + 2 * T, 8), Color("#C9CED6"))  # counter
+	var col: Array = ArtPalette.VEHICLE.foodtruck
+	ArtDraw.ink_rect(n, Rect2(-half - T, 30, IN_W + 2 * T + 88, 10), ArtPalette.STEEL, 3.0)
+	# counter + the body below it
+	ArtDraw.panel(n, Rect2(-half - T, 0, IN_W + 2 * T + 4, 30), col, ArtDraw.PROP, 5.0, 7.0)
+	# shell: wall above the window, roof, bulkhead, sill (the near side is cut away)
 	for r in [shape.rear, shape.walls[0], shape.walls[1], shape.walls[3]]:
-		n.draw_rect(r.grow(2), NAVY)
-		n.draw_rect(r, body)
-	# awning, red and white stripes
+		ArtDraw.ink_rect(n, r, col[0], 2.0)
+	# awning, coral and white stripes
 	var aw: PackedVector2Array = shape.walls[2]
-	n.draw_colored_polygon(Geometry2D.offset_polygon(aw, 2)[0], NAVY)
+	n.draw_colored_polygon(Geometry2D.offset_polygon(aw, 2.5)[0], NAVY)
 	n.draw_colored_polygon(aw, Color.WHITE)
 	for k in 3:
 		var a = float(k) / 3.0
 		var b = a + 1.0 / 6.0
-		n.draw_colored_polygon(PackedVector2Array([aw[0].lerp(aw[1], a), aw[0].lerp(aw[1], b), aw[3].lerp(aw[2], b), aw[3].lerp(aw[2], a)]), Color("#E4572E"))
-	var cab = shape.front[0]
-	n.draw_colored_polygon(Geometry2D.offset_polygon(cab, 3)[0], NAVY)
-	n.draw_colored_polygon(cab, body)
-	n.draw_colored_polygon(PackedVector2Array([Vector2(half + 56, -62), Vector2(half + 60, -62), Vector2(half + 78, -26),
-		Vector2(half + 56, -26)]), Color("#BFE7F7"))
-	n.draw_rect(Rect2(-half - T, 30, IN_W + 2 * T + 88, 10), NAVY)
-	n.draw_rect(Rect2(-half + 10, 8, IN_W - 20, 14), dark)
+		n.draw_colored_polygon(PackedVector2Array([aw[0].lerp(aw[1], a), aw[0].lerp(aw[1], b), aw[3].lerp(aw[2], b), aw[3].lerp(aw[2], a)]), ArtPalette.CORAL)
+	ArtDraw.cab(n, shape.front[0], col)
 	# sign on the roof
-	n.draw_rect(Rect2(-56, -IN_H - T - 34, 112, 30).grow(2), NAVY)
-	n.draw_rect(Rect2(-56, -IN_H - T - 34, 112, 30), Color("#FFD34E"))
-	n.draw_circle(Vector2(-30, -IN_H - T - 19), 9, Color("#E4572E"))
-	n.draw_rect(Rect2(-14, -IN_H - T - 24, 56, 10), Color("#E4572E"))
+	var s = Rect2(-58, -IN_H - T - 34, 116, 35)
+	ArtDraw.ink_rect(n, s, ArtPalette.AMBER, 3.0)
+	n.draw_circle(Vector2(-32, s.get_center().y), 9, ArtPalette.CORAL)
+	n.draw_rect(Rect2(-15, s.get_center().y - 5, 56, 10), ArtPalette.CORAL)

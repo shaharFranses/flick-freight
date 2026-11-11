@@ -58,19 +58,15 @@ func sim_shapes(f: int) -> Array:
 
 func _draw():
 	var f = game.frame + phase
-	var navy = Color("#1B2A41")
 	draw_set_transform(Vector2(x, Game.ROAD_Y), _angle(f), Vector2.ONE)
 	var trunk = Rect2(-TRUNK * 0.5, -height, TRUNK, height)
-	draw_rect(trunk.grow(3), navy)
-	draw_rect(trunk, Color("#8A5A32"))
-	draw_line(Vector2(-4, -40), Vector2(-4, -height + 40), Color("#6E4526"), 3.0)
-	draw_line(Vector2(0, -height * 0.55), Vector2(-38, -height * 0.75), Color("#8A5A32"), 8.0)  # branch
+	ArtDraw.ink_line(self, Vector2(0, -height * 0.55), Vector2(-38, -height * 0.75), ArtPalette.TRUNK, 11.0, 3.0)  # branch
+	ArtDraw.ink_rect(self, trunk, ArtPalette.TRUNK, ArtDraw.PROP)
+	draw_rect(Rect2(TRUNK * 0.5 - 4 - 6, -height + 4, 6, height - 4), ArtPalette.TRUNK_SHADE)
 	var poly = _crown_poly()
-	draw_colored_polygon(Geometry2D.offset_polygon(poly, 3)[0], navy)
-	draw_colored_polygon(poly, Color("#2F8F5B"))
-	# leafy lumps and a highlight
-	for k in 5:
-		var a = TAU * k / 5 + 0.4
-		draw_circle(Vector2(cos(a) * crown * 0.45, -height + sin(a) * crown * 0.4), crown * 0.38, Color("#38A86A"))
-	draw_circle(Vector2(-crown * 0.3, -height - crown * 0.35), crown * 0.25, Color("#5BC488"))
+	ArtDraw.ink_poly(self, poly, ArtPalette.GREEN, ArtDraw.HERO)
+	# one shade lump low, one highlight lump top-left
+	draw_circle(Vector2(crown * 0.22, -height + crown * 0.3), crown * 0.42, ArtPalette.GREEN_SHADE)
+	draw_circle(Vector2(-crown * 0.05, -height - crown * 0.05), crown * 0.52, ArtPalette.GREEN)
+	draw_circle(Vector2(-crown * 0.3, -height - crown * 0.32), crown * 0.24, ArtPalette.GREEN_HI)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

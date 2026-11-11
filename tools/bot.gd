@@ -12,6 +12,7 @@ extends SceneTree
 ##                         auto = analytic for the frozen levels 1-15, sim for everything after
 ##   --json=res://...      write per-level results as JSON
 ##   --compare=res://...   fail (exit 1) if any level in that JSON gives a different result
+##                         on a mismatch, also prints PARITY_ACTUAL e0|e05 L<n> {json}
 ##   --append              merge into the --json file instead of overwriting it
 ##   --perf                log physics frame time per level
 ##   --test_mover=res://   add a dev moving obstacle (tools/timing_test.sh)
@@ -265,6 +266,14 @@ func _report():
 	quit(1 if (fails > 0 and error == 0.0) or regress > 0 else 0)
 
 
+func _parity_error_tag() -> String:
+	if is_equal_approx(error, 0.0):
+		return "e0"
+	if is_equal_approx(error, 0.5):
+		return "e05"
+	return "e%s" % str(error)
+
+
 func _compare() -> int:
 	var data = JSON.parse_string(FileAccess.get_file_as_string(compare_path))
 	if data == null:
@@ -278,9 +287,11 @@ func _compare() -> int:
 		var lv = int(b.level)
 		if not mine.has(lv):
 			continue
+		var level_diffs = 0
 		for k in ["pass", "stars", "delivered", "missed", "broken", "total"]:
 			if str(mine[lv][k]) != str(b[k] if typeof(b[k]) != TYPE_FLOAT else int(b[k])):
 				print("REGRESSION: level %d %s = %s, baseline %s" % [lv, k, mine[lv][k], b[k]])
+				level_diffs += 1
 				diffs += 1
 		# the solver must also make the same throws (within 0.5 px of pull)
 		if b.has("throws"):
@@ -292,7 +303,11 @@ func _compare() -> int:
 					same = false
 			if not same:
 				print("REGRESSION: level %d throws differ (%d vs baseline %d)" % [lv, a.size(), want.size()])
+				level_diffs += 1
 				diffs += 1
+		if level_diffs > 0:
+			# one compact line so a CI job log (and tools/parity_apply_actual.py) can recover the entry
+			print("PARITY_ACTUAL %s L%d %s" % [_parity_error_tag(), lv, JSON.stringify(mine[lv])])
 	print("REGRESSION GATE: %s (%d differences vs %s)" % ["PASS" if diffs == 0 else "FAIL", diffs, compare_path])
 	return diffs
 

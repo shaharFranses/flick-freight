@@ -65,22 +65,23 @@ func sim_shapes(f: int) -> Array:
 
 func _draw():
 	var f = game.frame + phase
-	var navy = Color("#1B2A41")
-	var steel = Color("#E8955E")
+	var navy = ArtPalette.INK
 	# gantry beam + trolley
-	draw_rect(Rect2(px - abs(slide) - 260, py - 22, 520 + 2 * abs(slide), 22).grow(3), navy)
-	draw_rect(Rect2(px - abs(slide) - 260, py - 22, 520 + 2 * abs(slide), 22), steel)
+	var beam = Rect2(px - abs(slide) - 263, py - 25, 526 + 2 * abs(slide), 28)
+	ArtDraw.panel(self, beam, [ArtPalette.AMBER, ArtPalette.AMBER_SHADE, ArtPalette.AMBER_HI], ArtDraw.PROP, 4.0, 5.0)
 	var p = _pivot(f)
-	draw_rect(Rect2(p.x - 24, py - 6, 48, 18), navy)
+	ArtDraw.ink_rect(self, Rect2(p.x - 24, py - 6, 48, 18), ArtPalette.STEEL, 3.0)
 	# cable + container
 	var t = _box_xf(f)
 	var top = t * Vector2(0, -load_size.y * 0.5)
 	draw_line(p + Vector2(0, 12), top, navy, 4.0)
 	var h = load_size * 0.5
 	var poly = PackedVector2Array([t * Vector2(-h.x, -h.y), t * Vector2(h.x, -h.y), t * Vector2(h.x, h.y), t * Vector2(-h.x, h.y)])
-	draw_colored_polygon(Geometry2D.offset_polygon(poly, 3)[0], navy)
-	draw_colored_polygon(poly, Color("#C9826B"))
+	ArtDraw.ink_poly(self, poly, ArtPalette.CORAL, ArtDraw.PROP)
+	var e = ArtDraw.PROP
+	draw_colored_polygon(PackedVector2Array([t * Vector2(-h.x + e, -h.y + e), t * Vector2(h.x - e, -h.y + e),
+		t * Vector2(h.x - e, -h.y + e + 5), t * Vector2(-h.x + e, -h.y + e + 5)]), ArtPalette.CORAL_HI)
 	for k in 5:
-		var a = t * Vector2(-h.x + 16 + k * 27, -h.y + 8)
+		var a = t * Vector2(-h.x + 16 + k * 27, -h.y + 13)
 		var b = t * Vector2(-h.x + 16 + k * 27, h.y - 8)
-		draw_line(a, b, Color("#A8644F"), 4.0)
+		draw_line(a, b, ArtPalette.CORAL_SHADE, 4.0)

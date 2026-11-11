@@ -86,9 +86,12 @@ func sim_profile() -> Dictionary:
 
 func _draw_front(n: Node2D):
 	var half = BED * 0.5
-	n.draw_rect(Rect2(-half - 4, 0, BED + 8, 20), NAVY)
-	n.draw_rect(Rect2(-half, 2, BED, 12), Color("#7F8EA3"))
+	# steel rail car: deck plate on top, low stakes at the ends, couplers
+	ArtDraw.ink_rect(n, Rect2(-half - 22, 8, 20, 10), ArtPalette.STEEL_SHADE, 2.6)
+	ArtDraw.ink_rect(n, Rect2(half + 2, 8, 20, 10), ArtPalette.STEEL_SHADE, 2.6)
+	ArtDraw.ink_rect(n, Rect2(-half - 6, 0, BED + 12, 20), ArtPalette.STEEL, ArtDraw.PROP)
+	n.draw_rect(Rect2(-half - 2, 4, BED + 4, 5), ArtPalette.DECK_PLATE)
+	for x in range(int(-half) + 22, int(half), 44):
+		ArtDraw.rivet(n, Vector2(x, 13), 2.0)
 	for x in [-half - 6, half]:
-		n.draw_rect(Rect2(x, -STAKE, 6, STAKE), NAVY)
-	n.draw_rect(Rect2(-half - 20, 8, 16, 8), NAVY)  # couplers
-	n.draw_rect(Rect2(half + 4, 8, 16, 8), NAVY)
+		ArtDraw.ink_rect(n, Rect2(x, -STAKE, 6, STAKE + 4), ArtPalette.STEEL_LIGHT, 2.0)

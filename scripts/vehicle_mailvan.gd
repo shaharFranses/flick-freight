@@ -38,33 +38,26 @@ func sim_profile() -> Dictionary:
 
 func _draw_back(n: Node2D):
 	var half = IN_W * 0.5
-	# cutaway: dark load space with shelves
-	n.draw_rect(Rect2(-half, -IN_H, IN_W, IN_H), Color("#2E3A4E"))
+	# cutaway: the load space behind the cargo, with two shelves
+	ArtDraw.bed_wall(n, Rect2(-half, -IN_H, IN_W, IN_H), 2, false)
 	for y in [-IN_H * 0.66, -IN_H * 0.33]:
-		n.draw_line(Vector2(-half + 70, y), Vector2(half - 6, y), Color("#46546B"), 4.0)
+		n.draw_rect(Rect2(-half + 70, y - 2, IN_W - 76, 4), ArtPalette.BED_RAIL)
 
 
 func _draw_front(n: Node2D):
 	var half = IN_W * 0.5
-	var body = Color("#F2F2EE")
-	var stripe = Color("#E4572E")
+	var col: Array = ArtPalette.VEHICLE.mailvan
+	# body shell: only the walls, roof and floor; the near side is cut away
+	ArtDraw.ink_rect(n, Rect2(-half - T, 0, IN_W + 2 * T + 4, 16), col[0], 3.0)
+	n.draw_rect(Rect2(-half - T + 3, 6, IN_W + 2 * T - 2, 5), ArtPalette.CORAL)
 	for r in [shape.rear] + shape.walls:
-		n.draw_rect(r.grow(2), NAVY)
-		n.draw_rect(r, body)
-	n.draw_rect(Rect2(-half - T, 0, IN_W + 2 * T + 96, 16).grow(2), NAVY)
-	n.draw_rect(Rect2(-half - T, 0, IN_W + 2 * T + 96, 16), body)
-	n.draw_rect(Rect2(-half - T, 4, IN_W + 2 * T + 96, 6), stripe)
-	# slot frame: yellow edges so it reads at a glance
-	n.draw_rect(Rect2(-half - T - 3, -SLOT_LO - SLOT_H - 4, T + 6, 4), Color("#FFD34E"))
-	n.draw_rect(Rect2(-half - T - 3, -SLOT_LO, T + 6, 4), Color("#FFD34E"))
-	var cab = shape.front[0]
-	n.draw_colored_polygon(Geometry2D.offset_polygon(cab, 3)[0], NAVY)
-	n.draw_colored_polygon(cab, body)
-	n.draw_colored_polygon(PackedVector2Array([Vector2(half + 60, -IN_H + 18), Vector2(half + 66, -IN_H + 18),
-		Vector2(half + 86, -46), Vector2(half + 60, -46)]), Color("#BFE7F7"))
-	n.draw_rect(Rect2(half + 18, -60, 34, 10), stripe)
-	# envelope logo on the roof edge
-	n.draw_rect(Rect2(-24, -IN_H - T - 26, 48, 22), NAVY)
-	n.draw_rect(Rect2(-22, -IN_H - T - 24, 44, 18), Color("#FFD34E"))
-	n.draw_line(Vector2(-22, -IN_H - T - 24), Vector2(0, -IN_H - T - 12), NAVY, 2.0)
-	n.draw_line(Vector2(22, -IN_H - T - 24), Vector2(0, -IN_H - T - 12), NAVY, 2.0)
+		ArtDraw.ink_rect(n, r, col[0], 2.0)
+	# slot frame: amber edges so it reads at a glance
+	ArtDraw.ink_rect(n, Rect2(-half - T - 4, -SLOT_LO - SLOT_H - 6, T + 8, 8), ArtPalette.AMBER, 2.0)
+	ArtDraw.ink_rect(n, Rect2(-half - T - 4, -SLOT_LO - 2, T + 8, 8), ArtPalette.AMBER, 2.0)
+	ArtDraw.cab(n, shape.front[0], col, ArtPalette.CORAL)
+	# envelope sign on the roof
+	var e = Rect2(-25, -IN_H - T - 26, 50, 27)
+	ArtDraw.ink_rect(n, e, ArtPalette.AMBER, 3.0)
+	n.draw_line(e.position + Vector2(3, 3), Vector2(0, e.position.y + 15), NAVY, 2.5)
+	n.draw_line(Vector2(e.end.x - 3, e.position.y + 3), Vector2(0, e.position.y + 15), NAVY, 2.5)

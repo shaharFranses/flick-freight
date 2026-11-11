@@ -264,54 +264,52 @@ func _draw():
 
 
 func _draw_back(n: Node2D):
+	# the whole mesh is behind the cargo, so the load stays readable
 	var half = net_w * 0.5
-	n.draw_rect(Rect2(-half, -net_h, net_w, net_h), Color(0.106, 0.165, 0.255, 0.25))
+	var rope = ArtPalette.KRAFT_SHADE
+	var k = -half
+	while k <= half:
+		n.draw_line(Vector2(k, -net_h), Vector2(k, 2), rope, 2.5)
+		k += 16.0
+	for y in [-net_h * 0.5, -2.0]:
+		n.draw_line(Vector2(-half, y), Vector2(half, y), rope, 2.5)
+	n.draw_rect(Rect2(-half - 6, -net_h - 3, net_w + 12, 6), ArtPalette.AMBER)
 
 
 func _draw_front(n: Node2D):
+	# in front of the cargo: only the floor bar and the two end posts
 	var half = net_w * 0.5
-	var rope = Color("#E8D9B0")
-	n.draw_rect(Rect2(-half - 6, 0, net_w + 12, 10), NAVY)
+	ArtDraw.ink_rect(n, Rect2(-half - 6, 0, net_w + 12, 10), ArtPalette.PLANK, 2.6)
 	for x in [-half - 6, half]:
-		n.draw_rect(Rect2(x, -net_h, 6, net_h), NAVY)
-	# mesh
-	var k = -half
-	while k <= half:
-		n.draw_line(Vector2(k, -net_h), Vector2(k, 2), rope, 2.0)
-		k += 16.0
-	for y in [-net_h + 2, -net_h * 0.5, -2.0]:
-		n.draw_line(Vector2(-half, y), Vector2(half, y), rope, 2.0)
-	n.draw_line(Vector2(-half - 6, -net_h), Vector2(half + 6, -net_h), Color("#F2B134"), 4.0)
+		ArtDraw.ink_rect(n, Rect2(x, -net_h - 3, 6, net_h + 9), ArtPalette.AMBER, 2.0)
 
 
 func _draw_heli():
 	var n = heli_vis
-	var body = Color("#E4572E")
-	var dark = Color("#B8401F")
-	var glass = Color("#BFE7F7")
+	var col: Array = ArtPalette.VEHICLE.heli
 	# tail boom + tail rotor
-	n.draw_colored_polygon(PackedVector2Array([Vector2(-133, -9), Vector2(-48, -9), Vector2(-48, 15), Vector2(-133, 7)]), NAVY)
-	n.draw_colored_polygon(PackedVector2Array([Vector2(-130, -6), Vector2(-50, -6), Vector2(-50, 12), Vector2(-130, 4)]), dark)
+	ArtDraw.ink_poly(n, PackedVector2Array([Vector2(-133, -9), Vector2(-48, -9), Vector2(-48, 15), Vector2(-133, 7)]), col[1], 3.0)
 	var tr = 18.0 if _blade % 4 < 2 else 6.0
 	n.draw_line(Vector2(-130, -tr), Vector2(-130, tr), NAVY, 4.0)
 	n.draw_circle(Vector2(-130, 0), 5, NAVY)
-	# cabin
-	var cab = PackedVector2Array([Vector2(-54, 4), Vector2(-40, -18), Vector2(40, -18), Vector2(62, 2), Vector2(56, 30), Vector2(-46, 30)])
-	n.draw_colored_polygon(Geometry2D.offset_polygon(cab, 3)[0], NAVY)
-	n.draw_colored_polygon(cab, body)
-	n.draw_colored_polygon(PackedVector2Array([Vector2(12, -14), Vector2(38, -14), Vector2(56, 2), Vector2(12, 2)]), glass)
-	n.draw_rect(Rect2(-30, -12, 30, 14), glass)
-	n.draw_rect(Rect2(-46, 18, 102, 6), dark)
 	# skids
-	n.draw_line(Vector2(-40, 30), Vector2(-46, 42), NAVY, 4.0)
-	n.draw_line(Vector2(36, 30), Vector2(42, 42), NAVY, 4.0)
-	n.draw_line(Vector2(-60, 42), Vector2(62, 42), NAVY, 5.0)
+	n.draw_line(Vector2(-40, 28), Vector2(-46, 42), NAVY, 4.0)
+	n.draw_line(Vector2(36, 28), Vector2(42, 42), NAVY, 4.0)
+	ArtDraw.ink_line(n, Vector2(-62, 42), Vector2(64, 42), ArtPalette.CHROME, 7.0, 2.0)
+	# cabin
+	var cab = Geometry2D.offset_polygon(PackedVector2Array([Vector2(-54, 4), Vector2(-40, -18), Vector2(40, -18),
+		Vector2(62, 2), Vector2(56, 30), Vector2(-46, 30)]), 3)[0]
+	var inner = ArtDraw.ink_poly(n, cab, col[0], ArtDraw.HERO)
+	ArtDraw.clip_rect(n, inner, Rect2(-60, -18, 130, 5), col[2])
+	ArtDraw.clip_rect(n, inner, Rect2(-60, 17, 130, 12), col[1])
+	ArtDraw.glass_poly(n, PackedVector2Array([Vector2(10, -11), Vector2(36, -11), Vector2(53, 5), Vector2(10, 5)]), 3.0)
+	ArtDraw.glass_rect(n, Rect2(-32, -11, 34, 16), 3.0)
 	# mast + main rotor: two alternating frames for the blur
-	n.draw_rect(Rect2(-5, -30, 10, 14), NAVY)
+	n.draw_rect(Rect2(-5, -30, 10, 12), NAVY)
 	if _blade % 4 < 2:
-		n.draw_line(Vector2(-150, -31), Vector2(150, -31), NAVY, 6.0)
-		n.draw_line(Vector2(-150, -31), Vector2(150, -31), Color(0.9, 0.93, 1.0, 0.55), 2.0)
+		n.draw_line(Vector2(-150, -31), Vector2(150, -31), NAVY, 7.0)
+		n.draw_line(Vector2(-146, -31), Vector2(146, -31), ArtPalette.STEEL_LIGHT, 2.0)
 	else:
-		n.draw_line(Vector2(-90, -33), Vector2(90, -29), NAVY, 6.0)
-		n.draw_rect(Rect2(-150, -35, 300, 8), Color(0.106, 0.165, 0.255, 0.15))
+		n.draw_line(Vector2(-90, -33), Vector2(90, -29), NAVY, 7.0)
+		n.draw_line(Vector2(-86, -33), Vector2(86, -29), ArtPalette.STEEL_LIGHT, 2.0)
 	n.draw_circle(Vector2(0, -31), 7, NAVY)

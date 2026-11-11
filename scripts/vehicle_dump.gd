@@ -50,30 +50,22 @@ func _cab_poly() -> PackedVector2Array:
 
 func _draw_back(n: Node2D):
 	var half = BED * 0.5
-	n.draw_rect(Rect2(-half, -60, BED, 60), Color("#8A6A3A"))
+	# far side of the tipped bed, behind the cargo
+	ArtDraw.bed_wall(n, Rect2(-half, -60, BED, 60), 3, true)
 
 
 func _draw_front(n: Node2D):
 	var half = BED * 0.5
-	var body = Color("#F2B134")
-	var dark = Color("#C98E1D")
-	# tipped bed: floor, low tailgate, side panel, headboard
-	n.draw_rect(Rect2(-half - 8, 0, BED + 16, 16), NAVY)
-	n.draw_rect(Rect2(-half - 8, -GATE, 8, GATE), NAVY)
-	n.draw_rect(Rect2(-half, -30, BED, 30), body)
-	n.draw_rect(Rect2(-half, -30, BED, 5), body.lightened(0.25))
-	for x in [-half + 60, 0.0, half - 60]:
-		n.draw_rect(Rect2(x - 4, -30, 8, 30), dark)
-	n.draw_rect(Rect2(half, -110, 12, 110), dark)
+	var col: Array = ArtPalette.VEHICLE.dump
+	# tipped bed: floor, low tailgate, headboard (the near side is left off: open cutaway)
+	ArtDraw.panel(n, Rect2(-half - 8, 0, BED + 20, 16), col, ArtDraw.PROP, 4.0, 4.0)
+	ArtDraw.ink_rect(n, Rect2(-half - 8, -GATE, 8, GATE + 6), col[0], 2.5)
+	ArtDraw.panel(n, Rect2(half, -110, 12, 122), col, 3.0, 5.0, 0.0)
 	# chassis, cab and wheels drawn level: counter-rotate around the origin
 	n.draw_set_transform(Vector2.ZERO, deg_to_rad(tilt), Vector2.ONE)
-	n.draw_rect(Rect2(-half - 10, 34, BED + 150, 18), NAVY)
-	n.draw_line(Vector2(-half + 30, 34), Vector2(-half + 50, 4), dark, 10.0)  # hydraulic ram
-	var cab = _cab_poly()
-	n.draw_colored_polygon(Geometry2D.offset_polygon(cab, 3)[0], NAVY)
-	n.draw_colored_polygon(cab, body)
-	n.draw_rect(Rect2(half + 28, -90, 36, 30), Color("#BFE7F7"))
+	ArtDraw.ink_rect(n, Rect2(-half - 10, 34, BED + 150, 18), ArtPalette.STEEL, ArtDraw.PROP)
+	ArtDraw.ink_line(n, Vector2(-half + 30, 40), Vector2(-half + 50, 8), ArtPalette.CHROME, 11.0, 3.0)  # hydraulic ram
+	ArtDraw.cab(n, _cab_poly(), col)
 	for w in [Vector2(-half + 50, 62), Vector2(half - 30, 62), Vector2(half + 100, 62)]:
-		n.draw_circle(w, 30, Color("#2E3440"))
-		n.draw_circle(w, 13, Color("#C9CED6"))
+		ArtDraw.wheel(n, w, 30.0)
 	n.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

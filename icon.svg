@@ -1,5 +1,17 @@
-<svg width="128" height="128" xmlns="http://www.w3.org/2000/svg">
-  <rect width="128" height="128" fill="#3d5a80"/>
-  <rect x="32" y="48" width="32" height="32" fill="#cc9966" stroke="#000" stroke-width="2"/>
-  <text x="64" y="100" font-family="Arial" font-size="20" fill="#fff" text-anchor="middle">FF</text>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Flick Freight app icon in the "Morning Hybrid" look: the amber BOX with its navy
+       inside-outline, tape strip and "this way up" arrow, on the morning sky. -->
+  <rect width="128" height="128" rx="22" fill="#7FBDEE"/>
+  <rect y="78" width="128" height="50" fill="#FFE4AE"/>
+  <rect y="104" width="128" height="24" rx="0" fill="#5A5F70"/>
+  <rect y="100" width="128" height="6" fill="#E9EEF4"/>
+  <path d="M0 106h128v0H0z" fill="#4A4F5C"/>
+  <g transform="rotate(-10 64 60)">
+    <rect x="26" y="22" width="76" height="76" rx="8" fill="#1B2A41"/>
+    <rect x="33" y="29" width="62" height="62" rx="3" fill="#F2B134"/>
+    <rect x="33" y="29" width="62" height="7" fill="#FFC95C"/>
+    <rect x="33" y="84" width="62" height="7" fill="#C98E1D"/>
+    <rect x="57" y="29" width="14" height="40" fill="#D4932A"/>
+    <path d="M80 82V66h-6l9-11 9 11h-6v16z" fill="#C98E1D"/>
+  </g>
 </svg>

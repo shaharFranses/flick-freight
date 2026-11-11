@@ -27,7 +27,7 @@ const END_SETTLE := 1.2  # s to let stacks settle before the level is scored
 
 const C_GOOD = Color("#3DDC97")
 const C_GOLD = Color("#FFD34E")
-const C_BAD = Color("#FF6B57")
+const C_BAD = Color("#E4572E")  # coral (guide: miss)
 
 static var verbose := false
 
@@ -160,17 +160,30 @@ func _static_node() -> Node2D:
 
 func _build_background():
 	var w = Levels.world_of(level_index)
-	if w.has("backdrop"):
+	# S1-S3, S6, S7: art/v3/bg/bg_<world>.png (1280x720 or 2x) replaces the Kenney sprite
+	# or the whole code backdrop. Missing = today's look.
+	var v3bg: Texture2D = ArtAssets.world_background(w.get("name", ""))
+	if w.has("backdrop") and v3bg == null:
 		var bd = _static_node()
 		bd.z_index = -20
 		bd.draw.connect(Backdrops.draw.bind(bd, w.backdrop))
 		_build_clouds()
 		return
 	var bg = Sprite2D.new()
-	bg.texture = load(w.bg)
+	var tex: Texture2D = v3bg
+	if tex == null:
+		tex = load(w.bg)
+	bg.texture = tex
 	bg.centered = false
-	bg.scale = Vector2(1.25, 1.25)
-	bg.position = Vector2(0, -250)
+	# New 1280-wide (or 2x) skies sit on the canvas; the Kenney 1024x1024 files keep
+	# the original 1.25 scale and (0, -250) offset so a missing v3 file looks identical.
+	if tex.get_width() == 1280 or tex.get_width() == 2560:
+		var s := 1280.0 / float(tex.get_width())
+		bg.scale = Vector2(s, s)
+		bg.position = Vector2(0, 0)
+	else:
+		bg.scale = Vector2(1.25, 1.25)
+		bg.position = Vector2(0, -250)
 	bg.z_index = -20
 	bg.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	add_child(bg)
@@ -178,14 +191,17 @@ func _build_background():
 
 
 func _build_clouds():
-	var ctex = load("res://art/v2/bg/clouds.png")
+	var ctex: Texture2D = ArtAssets.clouds_texture()
+	var cloud_alpha := 1.0 if ctex != null else 0.55
+	if ctex == null:
+		ctex = load("res://art/v2/bg/clouds.png")
 	for i in 2:
 		var c = Sprite2D.new()
 		c.texture = ctex
 		c.centered = false
 		c.scale = Vector2(1.3, 0.8)
 		c.position = Vector2(i * 1024 * 1.3, -60)
-		c.modulate = Color(1, 1, 1, 0.55)
+		c.modulate = Color(1, 1, 1, cloud_alpha)
 		c.z_index = -19
 		c.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 		add_child(c)
@@ -196,14 +212,14 @@ func _build_road():
 	var road = _static_node()
 	road.z_index = -10
 	road.draw.connect(func():
-		road.draw_rect(Rect2(0, ROAD_Y - 16, 1280, 16), Color("#D3D8DF"))
-		road.draw_rect(Rect2(0, ROAD_Y - 16, 1280, 4), Color("#EEF1F4"))
-		road.draw_rect(Rect2(0, ROAD_Y, 1280, 100), Color("#5B6170"))
-		road.draw_rect(Rect2(0, ROAD_Y, 1280, 5), Color("#4A4F5C"))
+		road.draw_rect(Rect2(0, ROAD_Y - 16, 1280, 16), ArtPalette.CURB_SHADE)
+		road.draw_rect(Rect2(0, ROAD_Y - 16, 1280, 5), ArtPalette.CURB)
+		road.draw_rect(Rect2(0, ROAD_Y, 1280, 100), ArtPalette.ROAD)
+		road.draw_rect(Rect2(0, ROAD_Y, 1280, 5), ArtPalette.ROAD_EDGE)
 		var x = -20.0
 		while x < 1300:
-			road.draw_rect(Rect2(x, ROAD_Y + 46, 56, 7), Color("#F2F2EC"))
-			x += 110.0)
+			road.draw_rect(Rect2(x, ROAD_Y + 46, 56, 8), ArtPalette.LANE_DASH)
+			x += 112.0)
 	var ground = StaticBody2D.new()
 	ground.add_to_group("ground")
 	var pm = PhysicsMaterial.new()
@@ -219,11 +235,18 @@ func _build_road():
 	add_child(ground)
 
 
-func _tile(parent: Node, file: String, pos: Vector2, z := 0) -> Sprite2D:
+func _tile(parent: Node, file: String, pos: Vector2, z := 0, tex: Texture2D = null) -> Sprite2D:
 	var s = Sprite2D.new()
-	s.texture = load(file)
+	s.texture = tex if tex else load(file)
 	s.centered = false
-	s.scale = Vector2(0.9, 0.9)
+	# v3 63 px tiles are already in design pixels; 2x is 126 px; Kenney 70 px stays at 0.9.
+	var tw := float(s.texture.get_width())
+	var sc := 1.0
+	if tw == TILE * 2:
+		sc = 0.5
+	elif tw != TILE:
+		sc = 0.9
+	s.scale = Vector2(sc, sc)
 	s.position = pos
 	s.z_index = z
 	s.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
@@ -240,17 +263,25 @@ func _build_dock():
 	# warehouse wall behind the conveyor (behind the cargo)
 	var wh = _static_node()
 	wh.z_index = -3
-	wh.draw.connect(_draw_warehouse.bind(wh))
+	var wh_tex := ArtAssets.warehouse_texture()
+	if wh_tex:
+		_place_dock_sprite(wh, wh_tex, Vector2(-10, WAREHOUSE_TOP - 6))
+	else:
+		wh.draw.connect(_draw_warehouse.bind(wh))
 	# dock platform (in front of the cargo's lower edge)
 	var dock = _static_node()
 	dock.z_index = 1
-	dock.draw.connect(_draw_dock_face.bind(dock))
-	# conveyor belt set into the deck (Kenney industrial belt tiles)
+	var face_tex := ArtAssets.dock_face_texture()
+	if face_tex:
+		_place_dock_sprite(dock, face_tex, Vector2(-10, DOCK_TOP))
+	else:
+		dock.draw.connect(_draw_dock_face.bind(dock))
+	# conveyor belt set into the deck (Kenney industrial belt tiles, or v3 drop-ins)
 	var belts = ["ind_049", "ind_050", "ind_051"]
 	for i in 3:
-		_tile(dock, "res://art/v2/tiles/%s.png" % belts[i], Vector2(i * TILE, DOCK_TOP))
+		_tile(dock, "res://art/v2/tiles/%s.png" % belts[i], Vector2(i * TILE, DOCK_TOP), 0, ArtAssets.belt_texture(i))
 	# beacon that pulses when cargo is ready to throw (on the warehouse roof)
-	beacon = _tile(dock, "res://art/v2/tiles/ind_040.png", Vector2(WAREHOUSE_RIGHT - 70, WAREHOUSE_TOP - TILE + 2))
+	beacon = _tile(dock, "res://art/v2/tiles/ind_040.png", Vector2(WAREHOUSE_RIGHT - 70, WAREHOUSE_TOP - TILE + 2), 0, ArtAssets.beacon_texture())
 	var body = StaticBody2D.new()
 	dock_body = body
 	body.add_to_group("dock")
@@ -261,6 +292,15 @@ func _build_dock():
 	cs.position = Vector2(DOCK_RIGHT * 0.5, (DOCK_TOP + ROAD_Y) * 0.5)
 	body.add_child(cs)
 	add_child(body)
+
+
+func _place_dock_sprite(parent: Node2D, tex: Texture2D, top_left: Vector2):
+	var s = Sprite2D.new()
+	s.texture = tex
+	s.centered = false
+	s.position = top_left
+	s.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	parent.add_child(s)
 
 
 func _draw_warehouse(n: Node2D):
@@ -397,27 +437,24 @@ func _draw_pad(pd: Dictionary):
 	var n: Node2D = pd.vis
 	var sq = sin(pd.squash * PI) * 10.0
 	var w = PAD_W
-	var outline = Color("#1B2A41")
 	# base on the ground
-	n.draw_rect(Rect2(-w * 0.5 - 2, PAD_H - 12, w + 4, 14), outline)
-	n.draw_rect(Rect2(-w * 0.5, PAD_H - 10, w, 10), Color("#5B6574"))
+	ArtDraw.ink_rect(n, Rect2(-w * 0.5 - 2, PAD_H - 12, w + 4, 14), ArtPalette.DOCK_STEEL, 2.6)
 	# two coil springs (pushed down by `sq` on a hit)
 	var top = sq + 6.0
 	for sx in [-w * 0.27, w * 0.27]:
 		var pts = PackedVector2Array()
 		for k in 7:
 			pts.append(Vector2(sx + (-12 if k % 2 == 0 else 12), lerp(PAD_H - 10.0, top, k / 6.0)))
-		n.draw_polyline(pts, outline, 9.0)
-		n.draw_polyline(pts, Color("#D3D8DF"), 5.0)
+		n.draw_polyline(pts, ArtPalette.INK, 9.0)
+		n.draw_polyline(pts, ArtPalette.CHROME, 4.0)
 	# plate: its face sits at y = 0
 	var plate = Rect2(-w * 0.5, top - 14, w, 14)
-	n.draw_rect(plate.grow(2), outline)
-	n.draw_rect(plate, Color("#FF6B57"))
-	n.draw_rect(Rect2(plate.position, Vector2(w, 4)), Color("#FFC2B8"))
+	ArtDraw.ink_rect(n, plate.grow(2), ArtPalette.CORAL, 3.0)
+	n.draw_rect(Rect2(plate.position + Vector2(1, 1), Vector2(w - 2, 3)), ArtPalette.CORAL_HI)
 	var x = plate.position.x + 8
-	while x < plate.end.x - 14:  # yellow chevrons
-		n.draw_colored_polygon(PackedVector2Array([Vector2(x, plate.end.y - 3), Vector2(x + 7, plate.position.y + 5),
-			Vector2(x + 14, plate.end.y - 3)]), Color("#FFD34E"))
+	while x < plate.end.x - 14:  # gold chevrons
+		n.draw_colored_polygon(PackedVector2Array([Vector2(x, plate.end.y - 2), Vector2(x + 7, plate.position.y + 5),
+			Vector2(x + 14, plate.end.y - 2)]), ArtPalette.GOLD)
 		x += 22.0
 
 
@@ -430,7 +467,10 @@ func _build_low_bridge():
 	var cfg: Dictionary = slots[0]
 	var floor_y = ROAD_Y - Truck.FLOOR_T - 18 - Truck.WHEEL_R
 	var under = floor_y - level.height_limit
-	var x0 = cfg.x + Truck.BED_W * 0.5 + Truck.WALL_T + 12  # just past the bulkhead
+	var park_x = cfg.x
+	if cfg.get("vehicle", "truck") == "truck":
+		park_x = Truck.fitted_base_x(cfg.x)
+	var x0 = park_x + Truck.BED_W * 0.5 + Truck.WALL_T + 12  # just past the bulkhead
 	var n = _static_node()
 	n.z_index = 4  # in front of the cab: the cab is "under" the bridge
 	var style = Levels.world_of(level_index).get("bridge", "stone")
@@ -445,15 +485,16 @@ func _build_water():
 	n.z_index = -9
 	var w = level.water
 	n.draw.connect(func():
-		n.draw_rect(Rect2(w[0], ROAD_Y - 18, w[1] - w[0], 140), Color("#2B6CB0"))
-		n.draw_rect(Rect2(w[0], ROAD_Y - 18, w[1] - w[0], 8), Color("#63A4E8"))
+		n.draw_rect(Rect2(w[0], ROAD_Y - 18, w[1] - w[0], 140), ArtPalette.WATER)
+		n.draw_rect(Rect2(w[0], ROAD_Y - 18, w[1] - w[0], 6), ArtPalette.WATER_HI)
+		n.draw_rect(Rect2(w[0], ROAD_Y + 62, w[1] - w[0], 60), ArtPalette.WATER_SHADE)
 		var x = w[0] + 10.0
 		while x < w[1] - 30:
-			n.draw_line(Vector2(x, ROAD_Y + 30), Vector2(x + 26, ROAD_Y + 30), Color(1, 1, 1, 0.35), 3.0)
+			n.draw_rect(Rect2(x, ROAD_Y + 28, 26, 4), ArtPalette.WATER_HI)
 			x += 70.0
 		# quay edges
-		n.draw_rect(Rect2(w[0] - 10, ROAD_Y - 18, 10, 120), Color("#5B6170"))
-		n.draw_rect(Rect2(w[1], ROAD_Y - 18, 10, 120), Color("#5B6170")))
+		ArtDraw.ink_rect(n, Rect2(w[0] - 12, ROAD_Y - 18, 12, 122), ArtPalette.CONCRETE, 3.0)
+		ArtDraw.ink_rect(n, Rect2(w[1], ROAD_Y - 18, 12, 122), ArtPalette.CONCRETE, 3.0))
 
 
 func in_water(p: Vector2) -> bool:
@@ -461,57 +502,48 @@ func in_water(p: Vector2) -> bool:
 
 
 func _draw_girder(n: Node2D, r: Rect2):
-	# dark steel with a navy outline and hazard stripes: has to read on every backdrop
-	var outline = Color("#1B2A41")
-	var dark = Color("#3E4A5C")
-	var steel = Color("#6B7A8F")
-	n.draw_rect(r.grow(3), outline)
-	n.draw_rect(r, dark)
-	n.draw_rect(r.grow(-5), steel)
+	# steel lattice with an inside navy outline and hazard ends: has to read on every backdrop.
+	# The outline is inside r, so the drawn edge is the collision edge.
+	var dark = ArtPalette.STEEL_SHADE
+	ArtDraw.ink_rect(n, r, ArtPalette.STEEL, ArtDraw.PROP)
+	var e = ArtDraw.PROP
 	var vertical = r.size.y > r.size.x
 	if vertical:
-		var y = r.position.y + 8
+		n.draw_rect(Rect2(r.position.x + e, r.position.y + e, 4, r.size.y - 2 * e), ArtPalette.STEEL_LIGHT)
+		var y = r.position.y + 10
 		var flip = false
-		while y < r.end.y - 8:
-			var y2 = min(y + r.size.x, r.end.y - 6)
-			var a = Vector2(r.position.x + 7, y)
-			var b = Vector2(r.end.x - 7, y2)
+		while y < r.end.y - 10:
+			var y2 = min(y + r.size.x, r.end.y - 8)
+			var a = Vector2(r.position.x + 8, y)
+			var b = Vector2(r.end.x - 8, y2)
 			if flip:
-				a.x = r.end.x - 7
-				b.x = r.position.x + 7
+				a.x = r.end.x - 8
+				b.x = r.position.x + 8
 			n.draw_line(a, b, dark, 4.0)
 			flip = not flip
 			y = y2
-		_hazard(n, Rect2(r.position.x, r.end.y - 10, r.size.x, 10))  # ends are where cargo clips
+		_hazard(n, Rect2(r.position.x, r.end.y - 13, r.size.x, 13))  # ends are where cargo clips
 		if r.position.y > 0:
-			_hazard(n, Rect2(r.position.x, r.position.y, r.size.x, 10))
+			_hazard(n, Rect2(r.position.x, r.position.y, r.size.x, 13))
 	else:
-		var x = r.position.x + 8
+		n.draw_rect(Rect2(r.position.x + e, r.position.y + e, r.size.x - 2 * e, 4), ArtPalette.STEEL_LIGHT)
+		var x = r.position.x + 10
 		var flip = false
-		while x < r.end.x - 8:
-			var x2 = min(x + r.size.y, r.end.x - 6)
-			var a = Vector2(x, r.position.y + 7)
-			var b = Vector2(x2, r.end.y - 7)
+		while x < r.end.x - 10:
+			var x2 = min(x + r.size.y, r.end.x - 8)
+			var a = Vector2(x, r.position.y + 9)
+			var b = Vector2(x2, r.end.y - 9)
 			if flip:
-				a.y = r.end.y - 7
-				b.y = r.position.y + 7
+				a.y = r.end.y - 9
+				b.y = r.position.y + 9
 			n.draw_line(a, b, dark, 4.0)
 			flip = not flip
 			x = x2
-		_hazard(n, Rect2(r.position.x, r.end.y - 9, r.size.x, 9))
+		_hazard(n, Rect2(r.position.x, r.end.y - 12, r.size.x, 12))
 
 
 func _hazard(n: Node2D, hz: Rect2):
-	n.draw_rect(hz, Color("#2E3440"))
-	var sx = hz.position.x - hz.size.y
-	while sx < hz.end.x:
-		var poly = PackedVector2Array([Vector2(sx, hz.end.y), Vector2(sx + hz.size.y, hz.position.y),
-			Vector2(sx + hz.size.y + 10, hz.position.y), Vector2(sx + 10, hz.end.y)])
-		var clip = Geometry2D.intersect_polygons(poly, PackedVector2Array([hz.position,
-			Vector2(hz.end.x, hz.position.y), hz.end, Vector2(hz.position.x, hz.end.y)]))
-		for c in clip:
-			n.draw_colored_polygon(c, Color("#F2B134"))
-		sx += 20.0
+	ArtDraw.hazard(n, hz, 10.0, 3.0)
 
 
 func _build_flag():
@@ -525,8 +557,7 @@ func _build_flag():
 
 func _draw_flag():
 	var h = 88.0
-	flag.draw_rect(Rect2(-3, -h, 6, h), Color("#7D8894"))
-	flag.draw_circle(Vector2(0, -h), 6, Color("#AAB4BF"))
+	ArtDraw.ink_rect(flag, Rect2(-4, -h, 8, h), ArtPalette.CHROME, 2.0)
 	var dir = sign(wind)
 	var length = 40.0 + abs(wind) * 0.35
 	var pts = PackedVector2Array()
@@ -539,11 +570,15 @@ func _draw_flag():
 	var poly = pts.duplicate()
 	pts2.reverse()
 	poly.append_array(pts2)
-	flag.draw_colored_polygon(poly, Color("#FF6B57"))
+	var outer = Geometry2D.offset_polygon(poly, 2.6)
+	if not outer.is_empty():
+		flag.draw_colored_polygon(outer[0], ArtPalette.INK)
+	flag.draw_colored_polygon(poly, ArtPalette.CORAL)
 	for i in range(1, 3):
 		var t = i / 3.0
 		var wave = sin(_time * (6.0 + abs(wind) * 0.03) - t * 5.0) * 6.0 * t
 		flag.draw_line(Vector2(dir * length * t, -h + 2 + wave), Vector2(dir * length * t, -h + 32 - 12 * t + wave), Color.WHITE, 5.0)
+	ArtDraw.ink_circle(flag, Vector2(0, -h), 7, ArtPalette.CHROME, 2.0)
 
 
 ## Air streaks blowing across the whole screen, so the wind reads at a glance.

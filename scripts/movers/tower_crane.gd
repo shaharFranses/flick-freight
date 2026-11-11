@@ -15,40 +15,41 @@ func _build():
 
 func _draw():
 	var f = game.frame + phase
-	var navy = Color("#1B2A41")
-	var yellow = Color("#F2B134")
+	var navy = ArtPalette.INK
+	var amber = [ArtPalette.AMBER, ArtPalette.AMBER_SHADE, ArtPalette.AMBER_HI]
 	var jib_l = min(mast_x - 140, px - abs(slide) - 60)
 	var jib_r = max(mast_x + 60, px + abs(slide) + 80)
-	# mast: lattice tower down to the ground (behind everything, so drawn faintly)
+	# mast: lattice tower down to the ground. It is scenery (nothing collides with it),
+	# so it uses the pastel background language: light fill, thin tinted ink.
 	var mast = Rect2(mast_x - 16, py, 32, Game.ROAD_Y - py)
-	draw_rect(mast, Color(0.95, 0.69, 0.2, 0.55))
+	draw_rect(mast, ArtPalette.BG_INK)
+	draw_rect(mast.grow_individual(-3, 0, -3, 0), ArtPalette.PLANK_HI)
 	var y = py
 	while y < Game.ROAD_Y - 24:
-		draw_line(Vector2(mast_x - 16, y), Vector2(mast_x + 16, y + 24), Color(0.106, 0.165, 0.255, 0.35), 2.0)
-		draw_line(Vector2(mast_x + 16, y), Vector2(mast_x - 16, y + 24), Color(0.106, 0.165, 0.255, 0.35), 2.0)
+		draw_line(Vector2(mast_x - 13, y), Vector2(mast_x + 13, y + 24), ArtPalette.BG_INK, 2.0)
+		draw_line(Vector2(mast_x + 13, y), Vector2(mast_x - 13, y + 24), ArtPalette.BG_INK, 2.0)
 		y += 24.0
-	# cab + counterweight + jib
-	draw_rect(Rect2(jib_l, py - 16, jib_r - jib_l, 16).grow(3), navy)
-	draw_rect(Rect2(jib_l, py - 16, jib_r - jib_l, 16), yellow)
+	# tie bars, jib, counterweight, cab
+	draw_line(Vector2(mast_x, py - 16), Vector2(mast_x, py - 60), navy, 4.0)
+	draw_line(Vector2(mast_x, py - 60), Vector2(jib_r, py - 16), navy, 2.5)
+	draw_line(Vector2(mast_x, py - 60), Vector2(jib_l, py - 16), navy, 2.5)
+	var jib = Rect2(jib_l - 3, py - 19, jib_r - jib_l + 6, 22)
+	ArtDraw.ink_rect(self, jib, ArtPalette.AMBER, 3.0)
 	var k = jib_l
 	while k < jib_r - 20:
-		draw_line(Vector2(k, py - 16), Vector2(k + 20, py), navy, 2.0)
+		draw_line(Vector2(k, py - 15), Vector2(k + 20, py - 1), navy, 2.0)
 		k += 20.0
-	draw_rect(Rect2(jib_l, py - 2, 70, 34), Color("#6B7A8F"))  # counterweight
-	draw_rect(Rect2(mast_x - 22, py, 44, 34).grow(2), navy)
-	draw_rect(Rect2(mast_x - 22, py, 44, 34), yellow)
-	draw_rect(Rect2(mast_x - 14, py + 6, 28, 16), Color("#BFE7F7"))
-	draw_line(Vector2(mast_x, py - 16), Vector2(mast_x, py - 60), navy, 4.0)
-	draw_line(Vector2(mast_x, py - 60), Vector2(jib_r, py - 16), navy, 2.0)
-	draw_line(Vector2(mast_x, py - 60), Vector2(jib_l, py - 16), navy, 2.0)
+	ArtDraw.ink_rect(self, Rect2(jib_l - 3, py - 4, 76, 38), ArtPalette.STEEL, 3.0)  # counterweight
+	draw_rect(Rect2(jib_l, py - 1, 70, 5), ArtPalette.STEEL_LIGHT)
+	ArtDraw.panel(self, Rect2(mast_x - 24, py - 2, 48, 38), amber, 3.0, 4.0, 5.0)
+	ArtDraw.glass_rect(self, Rect2(mast_x - 15, py + 7, 30, 17), 2.6)
 	# trolley, cable, beam
 	var p = _pivot(f)
-	draw_rect(Rect2(p.x - 18, py - 4, 36, 12), navy)
+	ArtDraw.ink_rect(self, Rect2(p.x - 18, py - 4, 36, 13), ArtPalette.STEEL, 3.0)
 	var t = _box_xf(f)
 	var top = t * Vector2(0, -load_size.y * 0.5)
 	draw_line(p + Vector2(0, 8), top, navy, 3.0)
 	var h = load_size * 0.5
 	var poly = PackedVector2Array([t * Vector2(-h.x, -h.y), t * Vector2(h.x, -h.y), t * Vector2(h.x, h.y), t * Vector2(-h.x, h.y)])
-	draw_colored_polygon(Geometry2D.offset_polygon(poly, 3)[0], navy)
-	draw_colored_polygon(poly, Color("#C0392B"))
-	draw_line(t * Vector2(-h.x, 0), t * Vector2(h.x, 0), Color("#8E2A20"), 6.0)  # I-beam web
+	ArtDraw.ink_poly(self, poly, ArtPalette.CORAL, 3.5)
+	draw_line(t * Vector2(-h.x + 5, 0), t * Vector2(h.x - 5, 0), ArtPalette.CORAL_SHADE, 5.0)  # I-beam web

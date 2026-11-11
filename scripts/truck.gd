@@ -9,12 +9,18 @@ const FLOOR_T := 22.0
 const FRONT_H := 120.0
 const WHEEL_R := 30.0
 const CAB_W := 150.0
+## Drawn bumper extents, relative to the bed centre (origin).
+const FRONT_EXTENT := 313.0  # right edge of the front bumper
+const REAR_EXTENT := -157.0  # left edge of the rear bumper
+const VIEW_WIDTH := 1280.0
+const CAB_VIEW_MARGIN := 8.0  # keep the parked bumper this far inside the view
+
 ## Palette 0 is the red stake-bed truck (art direction: mock-5 hybrid morning).
 ## Every level uses only this colour; the other entries are kept so old indices
 ## stay valid but are never selected.
 const RED_PALETTE_INDEX := 0
 const PALETTES = [
-	[Color("#E4572E"), Color("#B83F1F")],  # red — the only colour in use
+	[Color("#E4572E"), Color("#B83F1F")],  # previous coral; active red comes from ArtAssets
 	[Color("#3D8BDB"), Color("#2A6BB0")],
 	[Color("#2EAE6B"), Color("#1E8350")],
 	[Color("#F2B134"), Color("#C98E1D")],
@@ -23,12 +29,54 @@ const PALETTES = [
 
 ## Ignore the requested index (previously level_index + truck_count) and always
 ## return the red truck. Bed physics and loaded-box counts are unchanged.
+## Body colour is ArtAssets.truck_palette() (palette B #DC2638 / #A51A2B).
 static func resolved_palette_index(_requested: int = 0) -> int:
 	return RED_PALETTE_INDEX
 
 
 static func resolved_palette(_requested: int = 0) -> Array:
-	return PALETTES[RED_PALETTE_INDEX]
+	return ArtAssets.truck_palette()
+
+
+## Parked bed-centre x that keeps the cab and front bumper inside the 1280-wide
+## view. Levels 1-40 are frozen, so clamps live at runtime rather than as edits
+## of level data. If a v3 truck sprite is present, the clamp uses that slot's
+## right edge (still 313 px for both the 190 and 198 crops), so max bed-centre
+## x is 959. Moving V0 paths that would swing past 959 are remapped by
+## fitted_drive: same left extreme and period, new centre and amplitude so the
+## sine spans [left, 959] without stalling at the edge. Special vehicles are
+## unchanged. Bot / cab hit-timing read the live base_x and amp (and
+## predict_pose / predict_vx), so they follow the remapped sine automatically.
+static func visual_front_extent() -> float:
+	return ArtAssets.truck_front_extent()
+
+
+## Largest bed-centre x that keeps the front bumper 8 px inside the view.
+static func max_bed_x() -> float:
+	return VIEW_WIDTH - CAB_VIEW_MARGIN - visual_front_extent()
+
+
+static func fitted_base_x(authored_x: float) -> float:
+	return minf(authored_x, max_bed_x())
+
+
+## Runtime drive: (base_x, amp) after the parked clamp and, if the right
+## extreme would pass max_bed_x(), a same-period sine remap that keeps the
+## left extreme. Paths that already fit, and parked trucks (amp 0), are
+## unchanged beyond the parked clamp. Does not hard-clip position.x.
+static func fitted_drive(authored_x: float, authored_amp: float) -> Vector2:
+	var centre := fitted_base_x(authored_x)
+	var a := authored_amp
+	if a > 0.0:
+		var left := centre - a
+		var right := centre + a
+		var cap := max_bed_x()
+		if right > cap:
+			right = cap
+			centre = (left + right) * 0.5
+			a = (right - left) * 0.5
+	return Vector2(centre, a)
+
 
 const NAVY = Color("#1B2A41")
 const WOOD = Color("#A87444")
@@ -67,11 +115,14 @@ var visual: Node2D
 var back_layer: Node2D
 var front_layer: Node2D
 var wheels: Array[Node2D] = []
+## True when art/v3/truck/truck_v0.png is present; procedural body/wheels are skipped.
+var _use_truck_sprite := false
 
 
 func setup(cfg: Dictionary, palette_index: int, wall_height: float):
-	base_x = cfg.x
-	amp = cfg.get("amp", 0.0)
+	var drive: Vector2 = fitted_drive(float(cfg.x), float(cfg.get("amp", 0.0)))
+	base_x = drive.x
+	amp = drive.y
 	period = max(0.5, cfg.get("period", 4.0))
 	wall_h = wall_height
 	palette = resolved_palette(palette_index)
@@ -138,6 +189,19 @@ func cab_points() -> PackedVector2Array:
 func _build_visuals():
 	visual = Node2D.new()
 	add_child(visual)
+	var truck_tex := ArtAssets.truck_texture()
+	_use_truck_sprite = truck_tex != null
+	if _use_truck_sprite:
+		var spr = Sprite2D.new()
+		spr.texture = truck_tex
+		spr.centered = false
+		var sx := ArtAssets.TRUCK_W / float(truck_tex.get_width())
+		spr.scale = Vector2(sx, sx)
+		# With centered=false, scale is about the top-left. Origin is (157, 112)
+		# for the 470x190 slot or (157, 120) for 470x198, including 2x.
+		spr.position = -ArtAssets.truck_origin_for(truck_tex)
+		spr.z_index = 1
+		visual.add_child(spr)
 	back_layer = Node2D.new()
 	back_layer.z_index = -1
 	back_layer.draw.connect(_draw_back)
@@ -160,6 +224,10 @@ func _draw_back():
 	var L = -BED_W * 0.5
 	if not ferry.is_empty():
 		_draw_ferry_hull()
+	if _use_truck_sprite:
+		_draw_far_wall_v3(L)
+		_draw_rear_post_v3(L)
+		return
 	# far side of the bed (behind the cargo)
 	back_layer.draw_rect(Rect2(L, -wall_h, BED_W, wall_h), WOOD_DARK)
 	for i in range(1, 4):
@@ -169,23 +237,56 @@ func _draw_back():
 	back_layer.draw_rect(Rect2(-L, -FRONT_H, WALL_T, FRONT_H), palette[1])
 
 
+## v3 far bed wall behind the cargo (the truck_v0.png sprite sits above the cargo, so the
+## wall can't be in it). Uses wall_h, so it is right for every level's wall height.
+func _draw_far_wall_v3(L: float):
+	var seam = Color("#7D8AA0")
+	back_layer.draw_rect(Rect2(L, -wall_h, BED_W, wall_h + 2), Color("#8E9BB0"))
+	for t in [1.0 / 3.0, 2.0 / 3.0]:
+		back_layer.draw_rect(Rect2(L, -wall_h * t - 1, BED_W, 2), seam)
+	for t in [0.25, 0.5, 0.75]:
+		back_layer.draw_rect(Rect2(L + BED_W * t - 4, -wall_h, 8, wall_h), seam)
+	back_layer.draw_rect(Rect2(L, -wall_h - 6, BED_W, 8), Color("#5A6680"))
+
+
+## v3 rear tailgate post at this level's wall_h (SWAP-IN.md §2c). Visual only;
+## the rear-wall collision already uses wall_h. Drawn on back_layer (z -1),
+## after the far wall and below the sprite, so the amber rear marker in the
+## PNG stays on top. 1x truck-local px, origin = bed-floor top centre.
+## Fallback procedural body keeps its own post in _draw_front.
+func _draw_rear_post_v3(L: float):
+	var r := Rect2(L - WALL_T, -wall_h - 6.0, WALL_T, wall_h + 10.0)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color("#DC2638")
+	sb.border_color = Color("#1B2A41")
+	sb.set_border_width_all(4)
+	sb.set_corner_radius_all(3)
+	back_layer.draw_style_box(sb, r)
+	# Cap highlight, clipped inside the 4 px navy outline: x -145..-139, y -wall_h-2..-wall_h+2.
+	back_layer.draw_rect(Rect2(L - WALL_T + 4.0, -wall_h - 2.0, 6.0, 4.0), Color("#F5606A"))
+
+
 func _draw_front():
 	var L = -BED_W * 0.5
 	var dark: Color = palette[1]
 	var body: Color = palette[0]
 	var cab_x0 = BED_W * 0.5 + WALL_T + 4
+	if _use_truck_sprite:
+		# Sprite replaces the body; keep only the overlays that are level state.
+		# Rear post is on back_layer (_draw_rear_post_v3), under the sprite.
+		if icy:
+			front_layer.draw_rect(Rect2(L - WALL_T, -3, BED_W + WALL_T * 2, 9), ArtPalette.ICE)
+			for gx in [L + 30, L + 120, L + 210]:
+				front_layer.draw_line(Vector2(gx, 0), Vector2(gx + 22, 0), Color.WHITE, 3.0)
+		if height_limit > 0:
+			_draw_height_line(L)
+		return
 	# chassis + bed floor
 	front_layer.draw_rect(Rect2(L - WALL_T, 0, BED_W + WALL_T * 2 + CAB_W + 4, FLOOR_T), dark)
 	front_layer.draw_rect(Rect2(L - WALL_T, 0, BED_W + WALL_T * 2, 7), WOOD)
-	# rear tailgate post
+	# rear tailgate post (B3: ends only — no near-side rails or posts in front of cargo)
 	front_layer.draw_rect(Rect2(L - WALL_T, -wall_h, WALL_T, wall_h), body)
 	front_layer.draw_rect(Rect2(L - WALL_T, -wall_h, WALL_T, 6), body.lightened(0.25))
-	# side rails (near side): top rail + mid rail, with posts. Cargo shows between them.
-	front_layer.draw_rect(Rect2(L, -wall_h, BED_W, 9), WOOD)
-	front_layer.draw_rect(Rect2(L, -wall_h, BED_W, 3), WOOD.lightened(0.2))
-	front_layer.draw_rect(Rect2(L, -wall_h * 0.45, BED_W, 7), WOOD)
-	for px in [L + BED_W * 0.33, L + BED_W * 0.66]:
-		front_layer.draw_rect(Rect2(px - 4, -wall_h, 8, wall_h), WOOD_DARK)
 	# bulkhead
 	front_layer.draw_rect(Rect2(-L, -FRONT_H, WALL_T, FRONT_H), body)
 	front_layer.draw_rect(Rect2(-L, -FRONT_H, WALL_T, 6), body.lightened(0.25))
@@ -210,7 +311,7 @@ func _draw_front():
 	for w in wheels:
 		front_layer.draw_arc(w.position, WHEEL_R + 6, PI, TAU, 16, dark, 6.0)
 	if icy:
-		front_layer.draw_rect(Rect2(L - WALL_T, -3, BED_W + WALL_T * 2, 9), Color("#BFE7F7"))
+		front_layer.draw_rect(Rect2(L - WALL_T, -3, BED_W + WALL_T * 2, 9), ArtPalette.ICE)
 		for gx in [L + 30, L + 120, L + 210]:
 			front_layer.draw_line(Vector2(gx, 0), Vector2(gx + 22, 0), Color.WHITE, 3.0)
 	if height_limit > 0:
@@ -234,15 +335,17 @@ func _draw_ferry_hull():
 	var deck = FLOOR_T + 18 + WHEEL_R
 	var hull = PackedVector2Array([Vector2(x0 - 20, deck), Vector2(x1 + 20, deck),
 		Vector2(x1 - 10, deck + 56), Vector2(x0 + 10, deck + 56)])
-	back_layer.draw_colored_polygon(hull, Color("#2E4A6B"))
-	back_layer.draw_rect(Rect2(x0 - 20, deck, x1 - x0 + 40, 10), Color("#C9CED6"))
-	back_layer.draw_rect(Rect2(x0, deck + 22, x1 - x0, 8), Color("#FF6B57"))
+	ArtDraw.ink_poly(back_layer, hull, ArtPalette.SLATE_BLUE_SHADE, ArtDraw.PROP)
+	back_layer.draw_rect(Rect2(x0, deck + 24, x1 - x0, 8), ArtPalette.CORAL)
 	for px in [x0 + 10, x1 - 10]:
-		back_layer.draw_rect(Rect2(px - 5, deck - 34, 10, 34), Color("#C9CED6"))
-		back_layer.draw_circle(Vector2(px, deck - 34), 7, Color("#FF6B57"))
+		ArtDraw.ink_rect(back_layer, Rect2(px - 6, deck - 34, 12, 38), ArtPalette.CHROME, 2.6)
+		ArtDraw.ink_circle(back_layer, Vector2(px, deck - 34), 8, ArtPalette.CORAL, 2.6)
+	ArtDraw.ink_rect(back_layer, Rect2(x0 - 22, deck - 1, x1 - x0 + 44, 12), ArtPalette.CHROME, 2.6)
 
 
 func _draw_wheel(w: Node2D):
+	if _use_truck_sprite:
+		return
 	w.draw_circle(Vector2.ZERO, WHEEL_R, TYRE)
 	w.draw_circle(Vector2.ZERO, WHEEL_R * 0.45, HUB)
 	for i in 4:

@@ -22,17 +22,10 @@ func _define(_cfg: Dictionary) -> Dictionary:
 
 func _draw_front(n: Node2D):
 	var half = BED * 0.5
-	var body = Color("#8E5BD6")
-	n.draw_rect(Rect2(-half - 4, 0, BED + 160, 20), NAVY)
-	n.draw_rect(Rect2(-half, 0, BED, 10), Color("#A87444"))
-	n.draw_rect(Rect2(-half, 0, BED, 3), Color("#C9945F"))
+	var col: Array = ArtPalette.VEHICLE.flatbed
+	# steel deck with no sides at all, on a chassis rail
+	ArtDraw.ink_rect(n, Rect2(-half - 4, 0, BED + 162, 20), ArtPalette.STEEL, ArtDraw.PROP)
+	n.draw_rect(Rect2(-half, 4, BED + 2, 6), ArtPalette.DECK_PLATE)
 	for x in range(int(-half) + 30, int(half), 60):
-		n.draw_line(Vector2(x, 1), Vector2(x, 9), Color("#7A4E2A"), 2.0)
-	var cab = PackedVector2Array([Vector2(half + 6, 18), Vector2(half + 6, -112), Vector2(half + 80, -112),
-		Vector2(half + 112, -62), Vector2(half + 150, -54), Vector2(half + 150, 18)])
-	n.draw_colored_polygon(Geometry2D.offset_polygon(cab, 3)[0], NAVY)
-	n.draw_colored_polygon(cab, body)
-	n.draw_rect(Rect2(half + 18, -100, 36, 30), Color("#BFE7F7"))
-	n.draw_colored_polygon(PackedVector2Array([Vector2(half + 62, -100), Vector2(half + 76, -100),
-		Vector2(half + 100, -66), Vector2(half + 62, -66)]), Color("#BFE7F7"))
-	n.draw_rect(Rect2(half + 6, -30, 144, 8), Color(1, 1, 1, 0.85))
+		n.draw_rect(Rect2(x - 1, 4, 2, 6), ArtPalette.BED_POST)
+	ArtDraw.cab(n, shape.front[0], col)

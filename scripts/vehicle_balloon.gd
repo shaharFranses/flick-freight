@@ -200,39 +200,41 @@ func sim_obstacles_lowest() -> float:
 
 # ---------------------------------------------------------------- drawing
 func _draw_back(n: Node2D):
-	# the wicker is behind the cargo so loads stay visible; only the rim is in front
+	# the wicker is behind the cargo so loads stay visible; in front only the basket ends
 	var half = BASKET_W * 0.5
 	var rim = -BASKET_H
-	n.draw_rect(Rect2(-half - 8, rim, BASKET_W + 16, BASKET_H + 12).grow(2), NAVY)
-	n.draw_rect(Rect2(-half - 8, rim, BASKET_W + 16, BASKET_H + 12), Color("#C98E4A"))
+	ArtDraw.ink_rect(n, Rect2(-half - 8, rim, BASKET_W + 16, BASKET_H + 12), ArtPalette.PLANK, 3.0)
 	for i in 4:
-		n.draw_line(Vector2(-half - 8, rim + 8 + i * 14), Vector2(half + 8, rim + 8 + i * 14), Color("#A26B33"), 3.0)
+		n.draw_rect(Rect2(-half - 5, rim + 9 + i * 14, BASKET_W + 10, 3), ArtPalette.PLANK_GRAIN)
+	n.draw_rect(Rect2(-half - 5, rim + 3, BASKET_W + 10, 4), ArtPalette.PLANK_HI)
 
 
 func _draw_front(n: Node2D):
 	var half = BASKET_W * 0.5
 	var ec = _env_centre()
 	var rim = -BASKET_H
+	var col: Array = ArtPalette.VEHICLE.balloon
 	# ropes up to the envelope
 	for x in [-half + 4, half - 4]:
 		n.draw_line(Vector2(x, rim), Vector2(sign(x) * ENV_R * 0.45, ec.y + ENV_R * 0.9), NAVY, 3.0)
 	# burner + flame
-	n.draw_rect(Rect2(-12, ec.y + ENV_R + 6, 24, 16), NAVY)
+	ArtDraw.ink_rect(n, Rect2(-12, ec.y + ENV_R + 6, 24, 16), ArtPalette.STEEL, 3.0)
 	if _flame % 6 < 3:
-		n.draw_colored_polygon(PackedVector2Array([Vector2(-8, ec.y + ENV_R + 6), Vector2(0, ec.y + ENV_R - 18), Vector2(8, ec.y + ENV_R + 6)]), Color("#FFB347"))
-	# envelope: striped
-	n.draw_circle(ec, ENV_R + 3, NAVY)
-	n.draw_circle(ec, ENV_R, Color("#F26B4E"))
+		n.draw_colored_polygon(PackedVector2Array([Vector2(-8, ec.y + ENV_R + 6), Vector2(0, ec.y + ENV_R - 18), Vector2(8, ec.y + ENV_R + 6)]), ArtPalette.AMBER_HI)
+	# envelope: coral with cream stripes, skirt in the shade tone
+	n.draw_colored_polygon(PackedVector2Array([ec + Vector2(-ENV_R * 0.62, ENV_R * 0.62), ec + Vector2(ENV_R * 0.62, ENV_R * 0.62),
+		ec + Vector2(ENV_R * 0.3 + 3, ENV_R + 7), ec + Vector2(-ENV_R * 0.3 - 3, ENV_R + 7)]), NAVY)
+	ArtDraw.ink_circle(n, ec, ENV_R + 3, col[0], ArtDraw.HERO)
 	for k in [-1.0, 1.0]:
 		var pts = PackedVector2Array()
 		for i in 13:
 			var a = -PI * 0.5 + PI * i / 12.0
-			pts.append(ec + Vector2(cos(a) * ENV_R * 0.45 * k, sin(a) * ENV_R))
-		n.draw_polyline(pts, Color("#FFD34E"), 10.0)
-	n.draw_colored_polygon(PackedVector2Array([ec + Vector2(-ENV_R * 0.62, ENV_R * 0.62), ec + Vector2(ENV_R * 0.62, ENV_R * 0.62),
-		ec + Vector2(ENV_R * 0.3, ENV_R + 4), ec + Vector2(-ENV_R * 0.3, ENV_R + 4)]), Color("#F26B4E"))
-	# basket sides and rim
+			pts.append(ec + Vector2(cos(a) * ENV_R * 0.45 * k, sin(a) * (ENV_R - 4)))
+		n.draw_polyline(pts, ArtPalette.CREAM, 10.0)
+	n.draw_arc(ec, ENV_R - 12, PI * 1.12, PI * 1.42, 12, col[2], 6.0)
+	n.draw_colored_polygon(PackedVector2Array([ec + Vector2(-ENV_R * 0.55, ENV_R * 0.7), ec + Vector2(ENV_R * 0.55, ENV_R * 0.7),
+		ec + Vector2(ENV_R * 0.3, ENV_R + 4), ec + Vector2(-ENV_R * 0.3, ENV_R + 4)]), col[1])
+	# basket ends and floor
 	for x in [-half - 8, half]:
-		n.draw_rect(Rect2(x, rim, 8, BASKET_H + 12), Color("#A26B33"))
-	n.draw_rect(Rect2(-half - 8, 0, BASKET_W + 16, 12), Color("#A26B33"))
-	n.draw_rect(Rect2(-half - 10, rim - 4, BASKET_W + 20, 8), Color("#8A5A32"))
+		ArtDraw.ink_rect(n, Rect2(x, rim - 3, 8, BASKET_H + 15), ArtPalette.PLANK_SHADE, 2.0)
+	ArtDraw.ink_rect(n, Rect2(-half - 8, 0, BASKET_W + 16, 12), ArtPalette.PLANK_SHADE, 2.6)

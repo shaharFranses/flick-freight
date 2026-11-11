@@ -60,8 +60,7 @@ func _draw():
 	var f = game.frame + phase
 	var p = _pos(f)
 	var spin = TAU * f / 40.0
-	draw_circle(p, r + 3, Color(0.106, 0.165, 0.255, 0.85))
-	draw_circle(p, r, Color("#C9A86B"))
-	for i in 7:
-		var a = spin + TAU * i / 7
-		draw_arc(p + Vector2(cos(a), sin(a)) * r * 0.35, r * 0.55, a, a + PI, 10, Color("#8A6A3A"), 3.0)
+	ArtDraw.ink_circle(self, p, r + 2, ArtPalette.KRAFT, ArtDraw.PROP)
+	for i in 6:
+		var a = spin + TAU * i / 6
+		draw_arc(p + Vector2(cos(a), sin(a)) * r * 0.3, r * 0.48, a, a + PI, 10, ArtPalette.KRAFT_SHADE, 3.0)

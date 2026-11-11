@@ -1,6 +1,8 @@
 class_name UiTheme
 extends RefCounted
-## Shared UI theme (Kenney Future font, chunky amber buttons, navy cards).
+## Shared UI theme (Fredoka, chunky amber buttons with a navy outline, navy cards).
+## Style guide page 15: prop outline 4 px navy on buttons; plates navy 94 %, r 18, 4 px lip;
+## no soft shadows.
 
 const NAVY = Color("#1B2A41")
 const AMBER = Color("#F2B134")
@@ -26,16 +28,35 @@ static func _flat(bg: Color, radius := 16, bottom := 0, border := Color.TRANSPAR
 	return sb
 
 
-static func _button_styles(t: Theme, type: String, base: Color, text: Color, font_size: int):
+static func _outlined(bg: Color, lip: int, alpha := 1.0) -> StyleBoxFlat:
+	var sb = _flat(bg, 18, 0)
+	sb.border_color = Color(NAVY, alpha)
+	sb.set_border_width_all(4)
+	sb.border_width_bottom = 4 + lip
+	sb.content_margin_top = 8 + (6 - lip)
+	sb.content_margin_bottom = 8 + lip
+	sb.anti_aliasing = true
+	return sb
+
+
+## Chunky button: fill + 4 px navy outline, with a thicker navy bottom edge as the lip
+## (it gets thinner when pressed, so the button sinks).
+static func _button_styles(t: Theme, type: String, base: Color, text: Color, font_size: int, outline := true):
 	var dark = base.darkened(0.25)
 	if type != "Button":
 		t.set_type_variation(type, "Button")
-	t.set_stylebox("normal", type, _flat(base, 18, 6, dark))
-	t.set_stylebox("hover", type, _flat(base.lightened(0.12), 18, 6, dark))
-	var pressed = _flat(base.darkened(0.05), 18, 2, dark)
-	pressed.content_margin_top = 12
-	t.set_stylebox("pressed", type, pressed)
-	t.set_stylebox("disabled", type, _flat(Color(base, 0.35), 18, 6, Color(dark, 0.35)))
+	if outline:
+		t.set_stylebox("normal", type, _outlined(base, 6))
+		t.set_stylebox("hover", type, _outlined(base.lightened(0.12), 6))
+		t.set_stylebox("pressed", type, _outlined(base.darkened(0.05), 2))
+		t.set_stylebox("disabled", type, _outlined(Color(base, 0.35), 6, 0.35))
+	else:
+		t.set_stylebox("normal", type, _flat(base, 18, 6, dark))
+		t.set_stylebox("hover", type, _flat(base.lightened(0.12), 18, 6, dark))
+		var pressed = _flat(base.darkened(0.05), 18, 2, dark)
+		pressed.content_margin_top = 12
+		t.set_stylebox("pressed", type, pressed)
+		t.set_stylebox("disabled", type, _flat(Color(base, 0.35), 18, 6, Color(dark, 0.35)))
 	t.set_stylebox("focus", type, StyleBoxEmpty.new())
 	t.set_color("font_color", type, text)
 	t.set_color("font_hover_color", type, text)
@@ -59,7 +80,7 @@ static func _build() -> Theme:
 	_button_styles(t, "BigButton", AMBER, NAVY, 34)
 	_button_styles(t, "SecondaryButton", Color("#E9EEF4"), NAVY, 28)
 	_button_styles(t, "LevelTile", Color("#E9EEF4"), NAVY, 28)
-	_button_styles(t, "IconButton", Color(NAVY, 0.85), Color.WHITE, 24)
+	_button_styles(t, "IconButton", Color(NAVY, 0.94), Color.WHITE, 24, false)
 	for s in ["normal", "hover", "pressed"]:
 		var sb: StyleBoxFlat = t.get_stylebox(s, "IconButton")
 		sb.border_width_bottom = 0
@@ -70,7 +91,7 @@ static func _build() -> Theme:
 	t.set_color("icon_normal_color", "IconButton", Color.WHITE)
 	t.set_color("icon_hover_color", "IconButton", Color.WHITE)
 	t.set_color("icon_pressed_color", "IconButton", Color(1, 1, 1, 0.8))
-	var card = _flat(NAVY, 28)
+	var card = _flat(Color(NAVY, 0.97), 28)
 	card.border_width_left = 4
 	card.border_width_right = 4
 	card.border_width_top = 4
@@ -80,8 +101,6 @@ static func _build() -> Theme:
 	card.content_margin_right = 36
 	card.content_margin_top = 30
 	card.content_margin_bottom = 30
-	card.shadow_color = Color(0, 0, 0, 0.3)
-	card.shadow_size = 18
 	t.set_type_variation("CardPanel", "PanelContainer")
 	t.set_stylebox("panel", "CardPanel", card)
 	return t

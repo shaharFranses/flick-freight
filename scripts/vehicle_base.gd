@@ -34,7 +34,7 @@ var back_layer: Node2D
 var front_layer: Node2D
 var wheel_nodes: Array[Node2D] = []
 
-const NAVY = Color("#1B2A41")
+const NAVY = ArtPalette.INK
 
 
 var palette := 0  # which colour scheme (e.g. each courier bike looks different)
@@ -117,13 +117,7 @@ func _build_visuals():
 		n.position = w[0]
 		n.z_index = 3
 		var r: float = w[1]
-		n.draw.connect(func():
-			n.draw_circle(Vector2.ZERO, r, Color("#2E3440"))
-			n.draw_circle(Vector2.ZERO, r * 0.45, Color("#C9CED6"))
-			for i in 4:
-				var a = i * PI / 2
-				n.draw_line(Vector2.ZERO, Vector2(cos(a), sin(a)) * r * 0.42, Color("#8A929E"), 3.0)
-			n.draw_circle(Vector2.ZERO, 4, Color("#2E3440")))
+		n.draw.connect(func(): ArtDraw.wheel(n, Vector2.ZERO, r))
 		visual.add_child(n)
 		wheel_nodes.append(n)
 

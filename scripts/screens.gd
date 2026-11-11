@@ -15,6 +15,35 @@ const NAVY = Color("#1B2A41")
 const GOLD = Color("#FFD34E")
 const STAR_TEX = preload("res://art/v2/fx/star_gold.png")
 const LOCK_TEX = preload("res://art/v2/icons/locked.png")
+const RIGHT_ICON_V2 := "res://art/v2/icons/right.png"
+
+
+## U3 "on" star: v3 file (small = 30 px tile art), else v2 star_gold.
+static func star_on(small := false) -> Texture2D:
+	var t := ArtAssets.star_texture(true, small)
+	return t if t else STAR_TEX
+
+
+## U4 padlock: v3 padlock.png, else v2 locked.png.
+static func lock_tex() -> Texture2D:
+	var t := ArtAssets.padlock_icon()
+	return t if t else LOCK_TEX
+
+
+## U4 arrows. Right: v3 arrow_right.png, else v2 right.png. Left: v3 arrow_left.png,
+## else the right arrow (v3 or v2) mirrored, as today.
+static func arrow_tex(left: bool) -> Texture2D:
+	var t := ArtAssets.arrow_icon(left)
+	if t:
+		return t
+	t = ArtAssets.arrow_icon(false)
+	if t == null:
+		t = load(RIGHT_ICON_V2)
+	if not left:
+		return t
+	var img: Image = t.get_image().duplicate()  # never mutate a shared image
+	img.flip_x()
+	return ImageTexture.create_from_image(img)
 
 var root: Control
 var current: Control = null
@@ -78,12 +107,14 @@ func _center_card(p: PanelContainer):
 	p.create_tween().tween_property(p, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-func _title(text: String, size := 52, color := GOLD) -> Label:
+func _title(text: String, size := 52, color := GOLD, font: Font = null) -> Label:
 	var l = Label.new()
 	l.text = text
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color)
+	if font:
+		l.add_theme_font_override("font", font)
 	return l
 
 
@@ -111,7 +142,7 @@ func _row(buttons: Array) -> HBoxContainer:
 
 func _icon_button(icon_path: String, cb: Callable, sz := 70) -> Button:
 	var b = Button.new()
-	b.icon = load(icon_path)
+	b.icon = ArtAssets.hud_icon(icon_path)  # v3 file if present, else this v2 path
 	b.expand_icon = true
 	b.custom_minimum_size = Vector2(sz, sz)
 	b.focus_mode = Control.FOCUS_NONE
@@ -154,7 +185,7 @@ func show_menu(next_level_index: int):
 	var title_box = VBoxContainer.new()
 	title_box.add_theme_constant_override("separation", -34)
 	for word in ["FLICK", "FREIGHT"]:
-		var l = _title(word, 112)
+		var l = _title(word, 112, GOLD, ArtAssets.title_font())  # Lilita One wordmark
 		l.add_theme_constant_override("outline_size", 22)
 		l.add_theme_color_override("font_outline_color", NAVY)
 		title_box.add_child(l)
@@ -177,7 +208,7 @@ func show_menu(next_level_index: int):
 	var mute = _icon_button("res://art/v2/icons/audioOn.png", func(): pass)
 	var set_icon = func():
 		if Sfx.inst:
-			mute.icon = load("res://art/v2/icons/audioOff.png" if Sfx.inst.muted else "res://art/v2/icons/audioOn.png")
+			mute.icon = ArtAssets.hud_icon("res://art/v2/icons/audioOff.png" if Sfx.inst.muted else "res://art/v2/icons/audioOn.png")
 	set_icon.call()
 	mute.pressed.connect(func():
 		if Sfx.inst:
@@ -190,15 +221,17 @@ func show_menu(next_level_index: int):
 	var total = _title("%d / %d" % [SaveData.total_stars(), Levels.order().size() * 3], 30)
 	stars.add_child(total)
 	var st = TextureRect.new()
-	st.texture = STAR_TEX
+	st.texture = star_on()
 	st.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	st.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	st.custom_minimum_size = Vector2(40, 40)
 	stars.add_child(st)
 	var sp = PanelContainer.new()
 	var sb = StyleBoxFlat.new()
-	sb.bg_color = Color(NAVY, 0.85)
+	sb.bg_color = Color(NAVY, 0.94)
 	sb.set_corner_radius_all(18)
+	sb.border_width_bottom = 4
+	sb.border_color = ArtPalette.HUD_LIP
 	sb.content_margin_left = 18
 	sb.content_margin_right = 14
 	sb.content_margin_top = 6
@@ -256,14 +289,19 @@ func show_results(level_index: int, stars: int, delivered: int, total: int):
 	star_row.add_theme_constant_override("separation", 14)
 	star_row.custom_minimum_size = Vector2(0, 110)
 	var star_nodes: Array = []
+	var on_tex := star_on()
+	var off_tex := ArtAssets.star_texture(false)
 	for i in 3:
 		var tr = TextureRect.new()
-		tr.texture = STAR_TEX
+		tr.texture = on_tex
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		var sz = 96 if i == 1 else 80
 		tr.custom_minimum_size = Vector2(sz, sz)
 		tr.modulate = Color(0.3, 0.35, 0.45, 1)
+		if off_tex:
+			tr.texture = off_tex  # v3: own empty-star art, no dimming
+			tr.modulate = Color.WHITE
 		tr.pivot_offset = Vector2(sz, sz) * 0.5
 		star_row.add_child(tr)
 		star_nodes.append(tr)
@@ -288,6 +326,7 @@ func show_results(level_index: int, stars: int, delivered: int, total: int):
 	for i in stars:
 		var s: TextureRect = star_nodes[i]
 		tw.tween_callback(func():
+			s.texture = on_tex
 			s.modulate = Color.WHITE
 			s.scale = Vector2(1.6, 1.6)
 			Sfx.play("deliver", -2.0, 1.0 + 0.15 * i)
@@ -308,7 +347,7 @@ func show_levels(can_close: bool):
 	v.custom_minimum_size = Vector2(1000, 0)
 	d.add_child(v)
 	var head = HBoxContainer.new()
-	var t = _title("FLICK FREIGHT", 56)
+	var t = _title("FLICK FREIGHT", 56, GOLD, ArtAssets.title_font())
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(t)
@@ -318,7 +357,7 @@ func show_levels(can_close: bool):
 	total.add_theme_color_override("font_color", GOLD)
 	head.add_child(total)
 	var st = TextureRect.new()
-	st.texture = STAR_TEX
+	st.texture = star_on()
 	st.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	st.custom_minimum_size = Vector2(44, 44)
 	st.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -353,7 +392,7 @@ func _fill_world_page(w: int):
 		_fill_world_page(Levels.WORLD_ORDER[wk - 1]))
 	nav.add_child(prev)
 	if Levels.WORLDS[w].has("icon"):
-		nav.add_child(WorldIcons.make(Levels.WORLDS[w].icon))  # the world's special vehicle
+		nav.add_child(WorldIcons.make(Levels.WORLDS[w].icon, w))  # the world's special vehicle
 	var name_box = VBoxContainer.new()
 	name_box.custom_minimum_size = Vector2(420, 0)
 	name_box.add_theme_constant_override("separation", -6)
@@ -391,17 +430,13 @@ func _fill_world_page(w: int):
 
 func _arrow_button(left: bool) -> Button:
 	var b = Button.new()
-	b.icon = load("res://art/v2/icons/right.png")
+	b.icon = arrow_tex(left)
 	b.expand_icon = true
 	b.custom_minimum_size = Vector2(76, 76)
 	b.focus_mode = Control.FOCUS_NONE
 	b.add_theme_constant_override("icon_max_width", 44)
 	b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	b.theme_type_variation = "IconButton"
-	if left:
-		var img: Image = b.icon.get_image()
-		img.flip_x()
-		b.icon = ImageTexture.create_from_image(img)
 	return b
 
 
@@ -430,13 +465,18 @@ func _level_tile(i: int, compact := false) -> Button:
 		sr.alignment = BoxContainer.ALIGNMENT_CENTER
 		sr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var s = SaveData.stars(i)
+		var on_tex := star_on(true)
+		var off_tex := ArtAssets.star_texture(false, true)
 		for k in 3:
 			var tr = TextureRect.new()
-			tr.texture = STAR_TEX
+			tr.texture = on_tex
 			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			tr.custom_minimum_size = Vector2(30, 30)
 			tr.modulate = Color.WHITE if k < s else Color(0, 0, 0, 0.25)
+			if k >= s and off_tex:
+				tr.texture = off_tex  # v3: own empty-star art, no tint
+				tr.modulate = Color.WHITE
 			tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			sr.add_child(tr)
 		v.add_child(sr)
@@ -445,11 +485,11 @@ func _level_tile(i: int, compact := false) -> Button:
 			play_level.emit(i))
 	else:
 		var tr = TextureRect.new()
-		tr.texture = LOCK_TEX
+		tr.texture = lock_tex()
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tr.custom_minimum_size = Vector2(48, 48)
-		tr.modulate = Color(1, 1, 1, 0.6)
+		tr.modulate = Color(1, 1, 1, 0.6) if tr.texture == LOCK_TEX else Color.WHITE  # v3 art: no fade
 		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		v.add_child(tr)
 	return b

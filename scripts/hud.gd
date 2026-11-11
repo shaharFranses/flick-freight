@@ -8,17 +8,6 @@ signal pause_pressed
 const NAVY = Color("#1B2A41")
 const GOLD = Color("#FFD34E")
 const STAR_TEX = preload("res://art/v2/fx/star_gold.png")
-const CARGO_TEX = {
-	"box": preload("res://art/v2/cargo/box.png"),
-	"crate": preload("res://art/v2/cargo/crate.png"),
-	"barrel": preload("res://art/v2/cargo/barrel.png"),
-	"fragile": preload("res://art/v2/cargo/fragile.png"),
-	"ice": preload("res://art/v2/cargo/ice.png"),
-	"tire": preload("res://art/v2/cargo/tire.png"),
-	"plank": preload("res://art/v2/cargo/plank.png"),
-	"canister": preload("res://art/v2/cargo/canister.png"),
-	"parcel": preload("res://art/v2/cargo/parcel.png"),
-}
 
 var game: Game
 var root: Control
@@ -27,6 +16,8 @@ var world_label: Label
 var progress_label: Label
 var bar: Control
 var queue_box: HBoxContainer
+## U3 HUD stars, resolved once in _ready (never load() inside a draw callback).
+var _stars: Dictionary
 var mute_btn: Button
 var banner: PanelContainer
 var tutorial: Node2D
@@ -46,13 +37,17 @@ func _ready():
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.theme = UiTheme.get_theme()
 	add_child(root)
+	_stars = hud_stars()
 	_build_top_bar()
 
 
-func _panel_style(alpha := 0.82, radius := 18) -> StyleBoxFlat:
+## HUD plate (style guide page 15): navy 94 %, r 18, 4 px lip #0F1A2B.
+func _panel_style(alpha := 0.94, radius := 18) -> StyleBoxFlat:
 	var sb = StyleBoxFlat.new()
 	sb.bg_color = Color(NAVY, alpha)
 	sb.set_corner_radius_all(radius)
+	sb.border_width_bottom = 4
+	sb.border_color = ArtPalette.HUD_LIP
 	sb.content_margin_left = 18
 	sb.content_margin_right = 18
 	sb.content_margin_top = 8
@@ -127,7 +122,7 @@ func _build_top_bar():
 
 func _icon_button(icon_path: String) -> Button:
 	var b = Button.new()
-	b.icon = load(icon_path)
+	b.icon = ArtAssets.hud_icon(icon_path)  # U4: v3 pause / sound file, else this v2 path
 	b.expand_icon = true
 	b.custom_minimum_size = Vector2(64, 64)
 	b.focus_mode = Control.FOCUS_NONE
@@ -145,23 +140,36 @@ func _toggle_mute():
 
 func _update_mute_icon():
 	if Sfx.inst:
-		mute_btn.icon = load("res://art/v2/icons/audioOff.png" if Sfx.inst.muted else "res://art/v2/icons/audioOn.png")
+		mute_btn.icon = ArtAssets.hud_icon("res://art/v2/icons/audioOff.png" if Sfx.inst.muted else "res://art/v2/icons/audioOn.png")
 
 
 func _draw_bar():
 	var w = bar.size.x
 	var h = 14.0
 	var y = 14.0
-	bar.draw_rect(Rect2(0, y, w, h), Color(1, 1, 1, 0.15))
+	bar.draw_rect(Rect2(0, y, w, h), ArtPalette.SLATE)  # track
 	var f = float(_delivered) / _total
 	if f > 0:
-		bar.draw_rect(Rect2(0, y, w * f, h), Color("#3DDC97"))
+		bar.draw_rect(Rect2(0, y, w * f, h), ArtPalette.MINT)
+		bar.draw_rect(Rect2(0, y, w * f, 5), ArtPalette.MINT_HI)  # 5 px highlight
 	for m in [_goal, _s2, _total]:
 		var x = w * float(m) / _total
 		var reached = _delivered >= m
-		var sz = 26.0
+		var sz: float = _stars.size
 		var r = Rect2(clamp(x - sz * 0.5, 0, w - sz), y + h * 0.5 - sz * 0.5, sz, sz)
-		bar.draw_texture_rect(STAR_TEX, r, false, Color(1, 1, 1) if reached else Color(0.35, 0.4, 0.5, 1))
+		if not reached and _stars.off != null:
+			bar.draw_texture_rect(_stars.off, r, false)  # v3: own empty-star art, no tint
+		else:
+			bar.draw_texture_rect(_stars.on, r, false, Color(1, 1, 1) if reached else Color(0.35, 0.4, 0.5, 1))
+
+
+## U3 HUD star slot: v3 small star (star_on_s, else star_on) drawn at HUD_STAR_SIZE_V3,
+## else v2 star_gold at 26 px tinted for "not yet" (today). `off` null = tint the on star.
+static func hud_stars() -> Dictionary:
+	var on: Texture2D = ArtAssets.star_texture(true, true)
+	if on == null:
+		return {"on": STAR_TEX, "off": null, "size": ArtAssets.HUD_STAR_SIZE}
+	return {"on": on, "off": ArtAssets.star_texture(false, true), "size": ArtAssets.HUD_STAR_SIZE_V3}
 
 
 # ----------------------------------------------------------------- binding
@@ -211,7 +219,7 @@ func _on_queue(types: Array):
 	var n = 0
 	for t in types:
 		var tr = TextureRect.new()
-		tr.texture = CARGO_TEX[t]
+		tr.texture = Cargo.thumb_for(t)
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tr.custom_minimum_size = Vector2(26, 26) if n > 0 else Vector2(32, 32)
@@ -246,13 +254,13 @@ func show_banner(title: String, text: String, icon := "", hold := 3.2):
 	if banner and is_instance_valid(banner):
 		banner.queue_free()
 	banner = PanelContainer.new()
-	banner.add_theme_stylebox_override("panel", _panel_style(0.9, 22))
+	banner.add_theme_stylebox_override("panel", _panel_style(0.94, 22))
 	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var h = HBoxContainer.new()
 	h.add_theme_constant_override("separation", 16)
-	if icon in CARGO_TEX:
+	if icon in Cargo.TYPES:
 		var tr = TextureRect.new()
-		tr.texture = CARGO_TEX[icon]
+		tr.texture = Cargo.texture_for(icon)
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tr.custom_minimum_size = Vector2(60, 60)
