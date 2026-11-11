@@ -44,9 +44,12 @@ func sim_shapes(_f: int) -> Array:
 ## Bot: cargo of half height `hh` at p (falling, velocity v) that touches the belt top rides
 ## to the end and drops off. Returns {p, v, frames} to continue the flight from there, or {}.
 func sim_catch(p: Vector2, v: Vector2, hh: float, _f: int) -> Dictionary:
-	if v.y <= 0 or p.x < x0 or p.x > x1 or p.y + hh < y or p.y + hh > y + 14:
+	# catch from 14 px above the belt: the bot keeps spinning cargo a corner radius away from
+	# the belt's body (sim_shapes), so it has to land before that margin turns it away
+	if v.y <= 0 or p.x < x0 or p.x > x1 or p.y + hh < y - 14 or p.y + hh > y + 14:
 		return {}
-	var end_x = x1 + hh if speed > 0 else x0 - hh
+	# drop-off just past the end, clear of the margin the bot keeps around the belt's body
+	var end_x = x1 + hh * 1.5 if speed > 0 else x0 - hh * 1.5
 	var frames = int(abs(end_x - p.x) / abs(speed) * 60.0) + 1
 	return {"p": Vector2(end_x, y - hh), "v": Vector2(speed, 0), "frames": frames}
 

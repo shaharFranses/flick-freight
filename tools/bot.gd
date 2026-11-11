@@ -384,7 +384,8 @@ func solve_sim(g: Game) -> Vector2:
 			var pull = Vector2(cos(deg_to_rad(ang)), -sin(deg_to_rad(ang))) * ln
 			var s = sim.score(pull)
 			_candidates += 1
-			if sim.last_dist < BotSim.GOOD:
+			# a ride (belt, lift) always drops off at the same spot: landing at all is good
+			if sim.last_dist < BotSim.GOOD or (sim.last_caught and s < INF):
 				_good += 1
 			if s < best_score:
 				best_score = s
@@ -420,7 +421,7 @@ func _solve_timed(g: Game, sim: BotSim, period: int) -> Vector2:
 				var pull = Vector2(cos(deg_to_rad(ang)), -sin(deg_to_rad(ang))) * ln
 				var s = sim.score(pull, w)
 				_candidates += 1
-				if sim.last_dist < BotSim.GOOD:
+				if sim.last_dist < BotSim.GOOD or (sim.last_caught and s < INF):
 					_good += 1
 					if swing > 0:
 						good_at[(w % swing) * 4 / swing] = true
