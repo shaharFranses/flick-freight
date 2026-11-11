@@ -967,19 +967,19 @@
           -30.87
         ],
         [
-          70.23,
-          -143.96
+          61.12,
+          -151.24
         ]
       ],
       "total": 8
     },
     {
-      "broken": 2,
-      "delivered": 7,
+      "broken": 1,
+      "delivered": 8,
       "level": 25,
       "missed": 1,
       "pass": true,
-      "stars": 1,
+      "stars": 2,
       "throws": [
         [
           60.79,
@@ -1397,11 +1397,11 @@
     },
     {
       "broken": 0,
-      "delivered": 6,
+      "delivered": 8,
       "level": 38,
-      "missed": 4,
+      "missed": 2,
       "pass": true,
-      "stars": 1,
+      "stars": 2,
       "throws": [
         [
           42.76,
@@ -1440,8 +1440,8 @@
           -160.92
         ],
         [
-          80.43,
-          -130.79
+          71.11,
+          -136.08
         ]
       ],
       "total": 10
