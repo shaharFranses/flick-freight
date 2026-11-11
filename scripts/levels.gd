@@ -161,9 +161,8 @@ const DATA = [
 	{"world": 3, "cargo": "bcbfbcbbfb", "goal": 6, "s2": 8,
 		"truck": {"x": 1010, "amp": 0, "period": 4.0, "wall": 56,
 			"ferry": {"amp_y": 14, "amp_rot": 3.0, "period": 3.0}}, "guide": 0.4, "wind": 120,
-		"pads": [[560, 579, 4, 1.1]],
 		"water": [760, 1300],
-		"intro": {"title": "HARBOR RUN", "text": "Pads, wind and a ferry. Show the harbor how it's done!"}},
+		"intro": {"title": "HARBOR RUN", "text": "Wind and a ferry. Show the harbor how it's done!"}},
 	# ---------------- SNOW ----------------
 	{"world": 4, "cargo": "bibibibi", "goal": 4, "s2": 6,
 		"truck": {"x": 900, "amp": 0, "period": 4.0, "wall": 56}, "guide": 0.8,
