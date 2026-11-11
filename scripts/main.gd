@@ -1,5 +1,5 @@
 extends Node
-## Boot + flow: lands straight in gameplay (next unbeaten level), switches
+## Boot + flow: opens on the main menu (over the next unbeaten level), switches
 ## levels, pauses, and owns the shared UI theme.
 
 var game: Game = null
@@ -7,6 +7,7 @@ var hud: Hud = null
 var screens: Screens
 var sfx: Sfx
 var level_index := 0
+var in_menu := false
 
 
 func _ready():
@@ -18,18 +19,49 @@ func _ready():
 	screens.resume.connect(_resume)
 	screens.restart.connect(func(): start_level(level_index))
 	screens.next_level.connect(func(): start_level(Levels.next_of(level_index)))
-	screens.open_levels.connect(func(): screens.show_levels(game != null and not game.ended))
+	screens.open_levels.connect(func(): screens.show_levels(in_menu or (game != null and not game.ended)))
 	screens.play_level.connect(start_level)
 	screens.close_levels.connect(func():
-		if game and game.ended:
+		if in_menu:
+			screens.show_menu(level_index)
+		elif game and game.ended:
 			screens.close()
 		else:
 			_show_pause())
+	screens.play.connect(func(): start_level(SaveData.first_unbeaten()))
+	screens.open_menu.connect(show_menu)
 	var q = _query()
-	var start = SaveData.first_unbeaten()
 	if q.has("level") and _dev_jump_allowed():
-		start = Levels.id_of_number(int(q.level))  # the number players see
-	start_level(start)
+		start_level(Levels.id_of_number(int(q.level)))  # the number players see; skips the menu
+	else:
+		show_menu()
+
+
+## Main menu: the next unbeaten level is built (not started) as a live backdrop.
+func show_menu():
+	if game and not game.ended and not in_menu:
+		Portal.gameplay_stop()
+	in_menu = true
+	get_tree().paused = false
+	level_index = SaveData.first_unbeaten()
+	_clear_level()
+	game = Game.new()
+	game.setup(level_index)
+	add_child(game)
+	move_child(game, 0)
+	for t in game.slots.size():
+		game._new_truck(t)  # trucks drive in and park; no cargo is spawned until PLAY
+	Sfx.start_music(Levels.world_of(level_index).get("music", Sfx.MUSIC))
+	screens.show_menu(level_index)
+
+
+func _clear_level():
+	if game:
+		game.queue_free()
+		game = null
+	if hud:
+		hud.queue_free()
+		hud = null
 
 
 ## Level-jump (?level=N / --level=N) is a dev tool: allowed in debug builds,
@@ -62,12 +94,10 @@ func _query() -> Dictionary:
 
 func start_level(i: int):
 	level_index = clampi(i, 0, Levels.count() - 1)
+	in_menu = false
 	screens.close()
 	get_tree().paused = false
-	if game:
-		game.queue_free()
-	if hud:
-		hud.queue_free()
+	_clear_level()
 	game = Game.new()
 	game.setup(level_index)
 	add_child(game)
@@ -84,7 +114,7 @@ func start_level(i: int):
 
 ## `auto`: paused because the tab lost focus. CrazyGames handles that itself, so it's no game break.
 func _show_pause(auto := false):
-	if game == null or game.ended:
+	if in_menu or game == null or game.ended:
 		return
 	get_tree().paused = true
 	screens.show_pause()
@@ -109,12 +139,14 @@ func _on_finished(stars: int, delivered: int, total: int):
 func _notification(what: int):
 	# auto-pause when the tab/window loses focus (portal best practice)
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
-		if game and not game.ended and not screens.is_open():
+		if game and not in_menu and not game.ended and not screens.is_open():
 			_show_pause(true)
 
 
 func _unhandled_input(event: InputEvent):
 	if event is InputEventKey and event.pressed and not event.echo:
+		if in_menu:
+			return
 		if event.keycode == KEY_P:
 			if screens.is_open() and get_tree().paused:
 				_resume()

@@ -1,6 +1,6 @@
 class_name Screens
 extends CanvasLayer
-## Modal screens: pause, level results (stars), level select.
+## Modal screens: main menu, pause, level results (stars), level select.
 
 signal resume
 signal restart
@@ -8,6 +8,8 @@ signal next_level
 signal open_levels
 signal play_level(index: int)
 signal close_levels
+signal play
+signal open_menu
 
 const NAVY = Color("#1B2A41")
 const GOLD = Color("#FFD34E")
@@ -138,6 +140,130 @@ func _row(buttons: Array) -> HBoxContainer:
 	return h
 
 
+func _icon_button(icon_path: String, cb: Callable, sz := 70) -> Button:
+	var b = Button.new()
+	b.icon = load(icon_path)
+	b.expand_icon = true
+	b.custom_minimum_size = Vector2(sz, sz)
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_constant_override("icon_max_width", int(sz * 0.6))
+	b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	b.theme_type_variation = "IconButton"
+	b.pressed.connect(func():
+		Sfx.play("click")
+		cb.call())
+	return b
+
+
+## Back to the main menu: a light square button so it reads on the navy cards.
+func _home_button() -> Button:
+	var b = _icon_button("res://art/v2/icons/home.png", func(): open_menu.emit())
+	b.theme_type_variation = "SecondaryButton"
+	b.add_theme_constant_override("icon_max_width", 40)
+	for st in ["normal", "hover", "pressed", "disabled"]:
+		var sb: StyleBoxFlat = UiTheme.get_theme().get_stylebox(st, "SecondaryButton").duplicate()
+		sb.content_margin_left = 12
+		sb.content_margin_right = 12
+		b.add_theme_stylebox_override(st, sb)
+	for k in ["icon_normal_color", "icon_hover_color", "icon_pressed_color"]:
+		b.add_theme_color_override(k, NAVY)
+	return b
+
+
+# ------------------------------------------------------------------ main menu
+## Title screen over the (not yet started) next level, which stays visible behind it.
+func show_menu(next_level_index: int):
+	var d = _dim()
+	d.color = Color(NAVY, 0.5)
+	var v = VBoxContainer.new()
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 18)
+	v.set_anchors_preset(Control.PRESET_FULL_RECT)
+	v.offset_bottom = -40  # sit a little above centre
+	d.add_child(v)
+	# title: two stacked words that bob gently
+	var title_box = VBoxContainer.new()
+	title_box.add_theme_constant_override("separation", -34)
+	for word in ["FLICK", "FREIGHT"]:
+		var l = _title(word, 112)
+		l.add_theme_constant_override("outline_size", 22)
+		l.add_theme_color_override("font_outline_color", NAVY)
+		title_box.add_child(l)
+	v.add_child(title_box)
+	var tag = _title("Drag back, let go, load the truck!", 28, Color.WHITE)
+	tag.add_theme_constant_override("outline_size", 10)
+	tag.add_theme_color_override("font_outline_color", NAVY)
+	v.add_child(tag)
+	var play_btn = _button("PLAY", func(): play.emit(), "BigButton")
+	play_btn.custom_minimum_size = Vector2(320, 92)
+	play_btn.add_theme_font_size_override("font_size", 46)
+	v.add_child(_row([play_btn]))
+	var sub = _title("LEVEL %d  -  %s" % [Levels.number_of(next_level_index),
+		Levels.WORLDS[Levels.get_level(next_level_index).world].name], 24, Color.WHITE)
+	sub.add_theme_constant_override("outline_size", 8)
+	sub.add_theme_color_override("font_outline_color", NAVY)
+	v.add_child(sub)
+	var levels_btn = _button("LEVELS", func(): open_levels.emit(), "SecondaryButton")
+	levels_btn.custom_minimum_size = Vector2(240, 70)
+	var mute = _icon_button("res://art/v2/icons/audioOn.png", func(): pass)
+	var set_icon = func():
+		if Sfx.inst:
+			mute.icon = load("res://art/v2/icons/audioOff.png" if Sfx.inst.muted else "res://art/v2/icons/audioOn.png")
+	set_icon.call()
+	mute.pressed.connect(func():
+		if Sfx.inst:
+			Sfx.inst.toggle_mute()
+		set_icon.call())
+	v.add_child(_row([levels_btn, mute]))
+	# total stars, bottom right
+	var stars = HBoxContainer.new()
+	stars.add_theme_constant_override("separation", 8)
+	var total = _title("%d / %d" % [SaveData.total_stars(), Levels.order().size() * 3], 30)
+	stars.add_child(total)
+	var st = TextureRect.new()
+	st.texture = STAR_TEX
+	st.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	st.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	st.custom_minimum_size = Vector2(40, 40)
+	stars.add_child(st)
+	var sp = PanelContainer.new()
+	var sb = StyleBoxFlat.new()
+	sb.bg_color = Color(NAVY, 0.85)
+	sb.set_corner_radius_all(18)
+	sb.content_margin_left = 18
+	sb.content_margin_right = 14
+	sb.content_margin_top = 6
+	sb.content_margin_bottom = 6
+	sp.add_theme_stylebox_override("panel", sb)
+	sp.add_child(stars)
+	sp.position = Vector2(1280 - 16, 720 - 16)
+	sp.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	sp.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	d.add_child(sp)
+	_anchor_bottom_right.call_deferred(sp)
+	# gentle motion: the title bobs, PLAY breathes
+	title_box.pivot_offset = Vector2(640, 110)
+	var tb = title_box.create_tween().set_loops()
+	tb.tween_property(title_box, "rotation", deg_to_rad(1.2), 1.6).set_trans(Tween.TRANS_SINE)
+	tb.tween_property(title_box, "rotation", deg_to_rad(-1.2), 1.6).set_trans(Tween.TRANS_SINE)
+	_breathe.call_deferred(play_btn)
+
+
+func _anchor_bottom_right(c: Control):
+	if is_instance_valid(c):
+		c.reset_size()
+		c.position = Vector2(1280 - 16, 720 - 16) - c.size
+
+
+func _breathe(b: Control):
+	if not is_instance_valid(b):
+		return
+	b.pivot_offset = b.size * 0.5
+	var tw = b.create_tween().set_loops()
+	tw.tween_property(b, "scale", Vector2(1.05, 1.05), 0.7).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(b, "scale", Vector2.ONE, 0.7).set_trans(Tween.TRANS_SINE)
+
+
 # ------------------------------------------------------------------ pause
 func show_pause():
 	var d = _dim()
@@ -146,7 +272,8 @@ func show_pause():
 	v.add_child(_button("RESUME", func(): resume.emit(), "BigButton"))
 	v.add_child(_row([
 		_button("RESTART", func(): restart.emit(), "SecondaryButton"),
-		_button("LEVELS", func(): open_levels.emit(), "SecondaryButton")]))
+		_button("LEVELS", func(): open_levels.emit(), "SecondaryButton"),
+		_home_button()]))
 
 
 # ------------------------------------------------------------------ results
@@ -186,7 +313,7 @@ func show_results(level_index: int, stars: int, delivered: int, total: int):
 		var thrown = get_parent().game.thrown if get_parent().game else 0
 		sub = "%d loaded in %d throws  -  %d throws for 3 stars" % [delivered, thrown, ts[0]]
 	v.add_child(_title(sub, 28, Color.WHITE))
-	var buttons: Array = [_button("LEVELS", func(): open_levels.emit(), "SecondaryButton"),
+	var buttons: Array = [_home_button(), _button("LEVELS", func(): open_levels.emit(), "SecondaryButton"),
 		_button("RETRY", func(): restart.emit(), "SecondaryButton" if won else "BigButton")]
 	if won and Levels.next_of(level_index) >= 0 and Levels.unlocked(Levels.next_of(level_index)):
 		buttons.append(_button("NEXT", func(): next_level.emit(), "BigButton"))
