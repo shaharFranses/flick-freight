@@ -16,6 +16,15 @@ html, body {
 	height: 100%;
 }
 
+/* iPhone landscape: Safari scrolls the page to collapse its toolbars. A scrolled page shifts
+   touch points against the canvas, so taps miss the buttons. The page must never scroll. */
+html, body {
+	position: fixed;
+	inset: 0;
+	overflow: hidden;
+	overscroll-behavior: none;
+}
+
 #stage {
 	position: fixed;
 	inset: 0;
@@ -187,9 +196,26 @@ window.ffPortal = (function () {
 		if (canvas.width !== bw) canvas.width = bw;
 		if (canvas.height !== bh) canvas.height = bh;
 	}
-	fitCanvas();
-	window.addEventListener('resize', fitCanvas);
-	window.addEventListener('orientationchange', function () { setTimeout(fitCanvas, 50); });
+	// iOS Safari can scroll the page (toolbar collapse in landscape, rotation). Keep it at 0,0
+	// so touch coordinates line up with the canvas, then refit.
+	function unscroll() {
+		if (window.scrollX !== 0 || window.scrollY !== 0) window.scrollTo(0, 0);
+	}
+	function refit() {
+		unscroll();
+		fitCanvas();
+	}
+	refit();
+	window.addEventListener('resize', refit);
+	window.addEventListener('scroll', unscroll, { passive: true });
+	if (window.visualViewport) {
+		window.visualViewport.addEventListener('resize', refit);
+		window.visualViewport.addEventListener('scroll', unscroll, { passive: true });
+	}
+	// iOS reports the new size late after a rotation: refit a few times
+	window.addEventListener('orientationchange', function () {
+		[50, 250, 600, 1000].forEach(function (ms) { setTimeout(refit, ms); });
+	});
 	window.__ffFitCanvas = fitCanvas;
 }());
 
