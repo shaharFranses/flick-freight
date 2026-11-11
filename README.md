@@ -2,6 +2,7 @@
 
 A physics loading game for the web (Godot 4.3). Drag back and release to throw cargo
 from the loading dock into the truck. 96 levels across 9 worlds, 1–3 stars each.
+Full design write-up: [Game Design Document (PDF)](docs/Flick_Freight_GDD.pdf).
 
 ![cover](marketing/covers/cover_landscape_1920x1080.png)
 
@@ -75,9 +76,11 @@ tools/
   make_music.py  synthesizes the music loop
   make_sfx.py    synthesizes boing / splash / pop
   make_cargo_art.py  draws the ice / tire / plank / canister sprites
+  make_gdd.py    builds docs/Flick_Freight_GDD.pdf from scripts/levels.gd (rerun after level changes)
 art/v2/          Kenney CC0 art + Fredoka (OFL) — see art/v2/CREDITS.md
 marketing/covers 1920x1080, 800x1200, 800x800 covers for portal submission (Harbor scene)
 docs/EXPANSION_PLAN.md  the plan behind worlds 4-6 and the guardrails
+docs/Flick_Freight_GDD.pdf  game design document: goal, rules, worlds, full level list
 ```
 
 ## Build & test
