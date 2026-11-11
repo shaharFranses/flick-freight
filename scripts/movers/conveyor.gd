@@ -53,26 +53,23 @@ func sim_catch(p: Vector2, v: Vector2, hh: float, _f: int) -> Dictionary:
 
 func _draw():
 	var f = game.frame
-	var navy = Color("#1B2A41")
 	# legs
 	for lx in [x0 + 20, (x0 + x1) * 0.5, x1 - 20]:
-		draw_rect(Rect2(lx - 6, y + T, 12, Game.ROAD_Y - y - T), navy)
-		draw_rect(Rect2(lx - 3, y + T, 6, Game.ROAD_Y - y - T), Color("#7D8894"))
+		ArtDraw.ink_rect(self, Rect2(lx - 7, y + T - 2, 14, Game.ROAD_Y - y - T + 2), ArtPalette.STEEL_LIGHT, 3.0)
 	var r = Rect2(x0, y, x1 - x0, T)
-	draw_rect(r.grow(3), navy)
-	draw_rect(r, Color("#3E4A5C"))
+	ArtDraw.ink_rect(self, r.grow(3), ArtPalette.BELT, 3.0)
 	# moving belt stripes show the direction and speed
 	var off = fposmod(f * speed / 60.0, 30.0)
 	var sx = x0 + off - 30.0
 	while sx < x1:
 		if sx > x0:
-			draw_line(Vector2(sx, y + 3), Vector2(min(sx + 12, x1), y + 3), Color("#F2B134"), 3.0)
+			draw_line(Vector2(sx, y + 4), Vector2(min(sx + 12, x1), y + 4), ArtPalette.AMBER, 4.0)
 		sx += 30.0
 	for ex in [x0, x1]:
-		draw_circle(Vector2(ex, y + T * 0.5), T * 0.5 + 2, navy)
-		draw_circle(Vector2(ex, y + T * 0.5), T * 0.5 - 2, Color("#AAB4BF"))
+		ArtDraw.ink_circle(self, Vector2(ex, y + T * 0.5), T * 0.5 + 3, ArtPalette.CHROME, 3.0)
+		draw_circle(Vector2(ex, y + T * 0.5), 3, ArtPalette.INK)
 	# arrow
 	var ax = (x0 + x1) * 0.5
 	var d = sign(speed)
-	draw_colored_polygon(PackedVector2Array([Vector2(ax + 14 * d, y + T * 0.5), Vector2(ax - 6 * d, y + 3),
-		Vector2(ax - 6 * d, y + T - 3)]), Color("#FFD34E"))
+	draw_colored_polygon(PackedVector2Array([Vector2(ax + 14 * d, y + T * 0.5 + 2), Vector2(ax - 6 * d, y + 7),
+		Vector2(ax - 6 * d, y + T - 3)]), ArtPalette.GOLD)

@@ -15,7 +15,13 @@ The truck slot accepts 470x190 (origin 157,112) or 470x198 (origin 157,120), 1x 
 detected from the image height. The delivered `truck_v0.png` is 940x396 (the 198 slot)
 and has no baked rear post; Build draws the post in code at each level's `wall_h`.
 
-`art/v3/fx/fx_atlas.png` is reserved and unused; it is excluded from the web export.
+`art/v3/fx/fx_atlas.png` holds the four flat particles (spark, star, puff, ring) that
+`scripts/fx.gd` uses; it is part of the web export.
 
 Import settings for PNGs: lossless, no mipmaps, linear filter, no VRAM compression
 (see asset-plan.md §3).
+
+The four backgrounds `bg_harbor`, `bg_snow`, `bg_construction` and `bg_sky_port` and the
+`ui/home.png` icon are generated in this repo: `python tools/art/make_bg.py` and
+`python tools/art/make_ui.py` (needs Pillow). The full list of what is swapped is in
+`docs/ART_SWAP_MAP.md`.

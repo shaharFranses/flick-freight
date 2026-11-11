@@ -40,6 +40,15 @@ from the loading dock into the truck. 96 levels across 9 worlds, 1–3 stars eac
   `happytime` when a world's last level is beaten. Off CrazyGames every call is a no-op;
   add `?useLocalSdk=true` to the URL to test the calls (logged by the SDK) on GitHub Pages.
 
+## Art
+
+The game uses the "Morning Hybrid" look: flat side view, chunky shapes with navy outlines drawn
+inside the shape, bright morning light. PNG art is in `art/v3/` and is picked up by
+`scripts/art/assets.gd`; vehicles, moving obstacles and static obstacles are drawn in code with
+`scripts/art/draw_kit.gd` and the colours in `scripts/art/palette.gd`. `docs/ART_SWAP_MAP.md`
+lists every item and where it lives. Art changes are visual only: collision shapes and level
+data never change.
+
 ## Project layout
 
 ```

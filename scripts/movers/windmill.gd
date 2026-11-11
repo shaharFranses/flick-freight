@@ -56,16 +56,14 @@ func sim_shapes(f: int) -> Array:
 
 func _draw():
 	var f = game.frame + phase
-	var navy = Color("#1B2A41")
 	# tower (tapered)
-	draw_colored_polygon(PackedVector2Array([Vector2(hx - 30, Game.ROAD_Y), Vector2(hx + 30, Game.ROAD_Y),
-		Vector2(hx + 14, hy + 20), Vector2(hx - 14, hy + 20)]), navy)
-	draw_colored_polygon(PackedVector2Array([Vector2(hx - 25, Game.ROAD_Y), Vector2(hx + 25, Game.ROAD_Y),
-		Vector2(hx + 10, hy + 24), Vector2(hx - 10, hy + 24)]), Color("#D9C7A3"))
+	var tower = PackedVector2Array([Vector2(hx - 30, Game.ROAD_Y), Vector2(hx + 30, Game.ROAD_Y),
+		Vector2(hx + 14, hy + 20), Vector2(hx - 14, hy + 20)])
+	var inner = ArtDraw.ink_poly(self, tower, ArtPalette.CREAM, ArtDraw.PROP)
+	ArtDraw.clip_rect(self, inner, Rect2(hx + 2, hy, 40, Game.ROAD_Y - hy), ArtPalette.CREAM_SHADE)
 	var a0 = _angle(f)
 	for i in n:
 		var poly = _blade_poly(a0 + TAU * i / n, Vector2(hx, hy))
-		draw_colored_polygon(Geometry2D.offset_polygon(poly, 3)[0], navy)
-		draw_colored_polygon(poly, Color("#F4F1EA") if i % 2 == 0 else Color("#E4572E"))
-	draw_circle(Vector2(hx, hy), 22, navy)
-	draw_circle(Vector2(hx, hy), 17, Color("#AAB4BF"))
+		ArtDraw.ink_poly(self, poly, ArtPalette.CREAM if i % 2 == 0 else ArtPalette.CORAL, 3.5)
+	ArtDraw.ink_circle(self, Vector2(hx, hy), 22, ArtPalette.CHROME, ArtDraw.PROP)
+	draw_circle(Vector2(hx, hy), 5, ArtPalette.INK)

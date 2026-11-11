@@ -106,11 +106,15 @@ func sim_catch(p: Vector2, v: Vector2, hh: float, f: int) -> Dictionary:
 
 func _draw():
 	var f = game.frame + phase
-	var navy = Color("#1B2A41")
-	# towers + cables
+	var navy = ArtPalette.INK
+	# towers (scenery: nothing collides with them) + cables
 	for end in [a, b]:
-		draw_rect(Rect2(end.x - 8, end.y - RETURN_UP - 20, 16, Game.ROAD_Y - end.y + RETURN_UP + 20), Color(0.106, 0.165, 0.255, 0.5))
-		draw_rect(Rect2(end.x - 22, end.y - RETURN_UP - 26, 44, RETURN_UP + 34), Color(0.106, 0.165, 0.255, 0.7))
+		var pole = Rect2(end.x - 8, end.y - RETURN_UP - 20, 16, Game.ROAD_Y - end.y + RETURN_UP + 20)
+		draw_rect(pole, ArtPalette.BG_INK)
+		draw_rect(pole.grow_individual(-3, -3, -3, 0), ArtPalette.CURB_SHADE)
+		var head = Rect2(end.x - 22, end.y - RETURN_UP - 26, 44, RETURN_UP + 34)
+		draw_rect(head, ArtPalette.BG_INK)
+		draw_rect(head.grow(-3), ArtPalette.CURB)
 	draw_line(a, b, navy, 3.0)
 	draw_line(a - Vector2(0, RETURN_UP), b - Vector2(0, RETURN_UP), navy, 3.0)
 	for i in n:
@@ -120,5 +124,5 @@ func _draw():
 		var seat = PackedVector2Array([t * Vector2(-SEAT.x * 0.5, 0), t * Vector2(SEAT.x * 0.5, 0), t * Vector2(SEAT.x * 0.5, SEAT.y), t * Vector2(-SEAT.x * 0.5, SEAT.y)])
 		var back = PackedVector2Array([t * Vector2(-SEAT.x * 0.5, -BACK_H), t * Vector2(-SEAT.x * 0.5 + 8, -BACK_H), t * Vector2(-SEAT.x * 0.5 + 8, 0), t * Vector2(-SEAT.x * 0.5, 0)])
 		for poly in [seat, back]:
-			draw_colored_polygon(Geometry2D.offset_polygon(poly, 2)[0], navy)
-			draw_colored_polygon(poly, Color("#E4572E"))
+			draw_colored_polygon(Geometry2D.offset_polygon(poly, 2.5)[0], navy)
+			draw_colored_polygon(poly, ArtPalette.CORAL)

@@ -5,10 +5,10 @@ extends VehicleBase
 
 const RACK_W := 96.0
 ## A different courier each time: bike colour, jacket, helmet.
-const LOOKS = [[Color("#E4572E"), Color("#3D8BDB"), Color("#FFD34E")],
-	[Color("#3DDC97"), Color("#7A4EC2"), Color("#F2F2EE")],
-	[Color("#F2B134"), Color("#E4572E"), Color("#3D8BDB")],
-	[Color("#7A4EC2"), Color("#3DDC97"), Color("#E4572E")]]
+const LOOKS = [[ArtPalette.CORAL, ArtPalette.BLUE, ArtPalette.GOLD],
+	[ArtPalette.MINT, ArtPalette.SLATE_BLUE, ArtPalette.CREAM],
+	[ArtPalette.AMBER, ArtPalette.CORAL, ArtPalette.BLUE],
+	[ArtPalette.BLUE, ArtPalette.MINT, ArtPalette.CORAL]]
 
 
 func _init():
@@ -35,37 +35,30 @@ func _define(_cfg: Dictionary) -> Dictionary:
 
 func _draw_back(n: Node2D):
 	var half = RACK_W * 0.5
-	# frame and swing arm
-	n.draw_line(Vector2(-30, 48), Vector2(half + 20, 22), NAVY, 9.0)
-	n.draw_line(Vector2(-30, 48), Vector2(half + 20, 22), Color("#5B6574"), 5.0)
-	n.draw_line(Vector2(half + 112, 48), Vector2(half + 92, -38), NAVY, 8.0)
+	# frame, swing arm and front fork
+	ArtDraw.ink_line(n, Vector2(-30, 48), Vector2(half + 20, 22), ArtPalette.STEEL_LIGHT, 10.0, 2.6)
+	ArtDraw.ink_line(n, Vector2(half + 112, 48), Vector2(half + 92, -38), ArtPalette.CHROME, 9.0, 2.6)
 
 
 func _draw_front(n: Node2D):
 	var half = RACK_W * 0.5
 	var look: Array = LOOKS[posmod(palette, LOOKS.size())]
-	var red: Color = look[0]
-	# rack: steel tray with a low rear rail
-	n.draw_rect(Rect2(-half - 6, 0, RACK_W + 12, 10), NAVY)
-	n.draw_rect(Rect2(-half - 4, 2, RACK_W + 8, 6), Color("#AEB6C2"))
-	n.draw_rect(Rect2(-half - 6, -16, 6, 26), NAVY)
-	n.draw_rect(Rect2(half - 3, -46, 10, 56), NAVY)  # backrest bar
-	n.draw_rect(Rect2(half - 1, -44, 6, 52), Color("#AEB6C2"))
+	# rack: steel tray with a low rear rail and a backrest bar (the bed ends)
 	for x in [-half + 20, 0.0, half - 20]:
-		n.draw_line(Vector2(x, 10), Vector2(x * 0.3 + 10, 30), NAVY, 4.0)
+		n.draw_line(Vector2(x, 8), Vector2(x * 0.3 + 10, 30), NAVY, 4.0)
+	ArtDraw.ink_rect(n, Rect2(-half - 6, 0, RACK_W + 12, 10), ArtPalette.DECK_PLATE, 2.6)
+	ArtDraw.ink_rect(n, Rect2(-half - 6, -16, 6, 26), ArtPalette.CHROME, 2.0)
+	ArtDraw.ink_rect(n, Rect2(half - 2, -44, 8, 54), ArtPalette.CHROME, 2.0)
 	# body: seat, tank, front fairing
 	var body = PackedVector2Array([Vector2(half, 18), Vector2(half, -8), Vector2(half + 60, -14),
 		Vector2(half + 96, -40), Vector2(half + 124, -28), Vector2(half + 128, 18)])
-	n.draw_colored_polygon(body, NAVY)
-	n.draw_colored_polygon(Geometry2D.offset_polygon(body, -3)[0], red)
-	n.draw_rect(Rect2(half + 2, -14, 56, 9), Color("#2E3440"))  # seat
-	n.draw_circle(Vector2(half + 124, -22), 7, Color("#FFE27A"))  # headlight
-	# rider: helmet, torso, arm to the bars
+	var inner = ArtDraw.ink_poly(n, body, look[0], ArtDraw.PROP)
+	ArtDraw.clip_rect(n, inner, Rect2(half, 6, 130, 12), look[0].darkened(0.22))
+	ArtDraw.ink_rect(n, Rect2(half + 2, -17, 56, 11), ArtPalette.TYRE, 2.6, 4.0)  # seat
+	ArtDraw.ink_circle(n, Vector2(half + 122, -22), 8, ArtPalette.HEADLIGHT, 3.0)
+	# rider: torso, arm to the bars, helmet with a visor (no face)
 	var torso = PackedVector2Array([Vector2(half + 8, -10), Vector2(half + 22, -66), Vector2(half + 46, -66), Vector2(half + 52, -10)])
-	n.draw_colored_polygon(torso, NAVY)
-	n.draw_colored_polygon(Geometry2D.offset_polygon(torso, -3)[0], look[1])
-	n.draw_line(Vector2(half + 40, -56), Vector2(half + 86, -40), NAVY, 9.0)
-	n.draw_line(Vector2(half + 40, -56), Vector2(half + 86, -40), look[1], 5.0)
-	n.draw_circle(Vector2(half + 36, -80), 17, NAVY)
-	n.draw_circle(Vector2(half + 36, -80), 14, look[2])
-	n.draw_rect(Rect2(half + 38, -84, 14, 8), Color("#BFE7F7"))  # visor
+	ArtDraw.ink_poly(n, torso, look[1], ArtDraw.PROP)
+	ArtDraw.ink_line(n, Vector2(half + 40, -56), Vector2(half + 86, -40), look[1], 10.0, 3.0)
+	ArtDraw.ink_circle(n, Vector2(half + 36, -80), 17, look[2], ArtDraw.PROP)
+	ArtDraw.ink_rect(n, Rect2(half + 37, -86, 16, 11), ArtPalette.GLASS, 2.6)

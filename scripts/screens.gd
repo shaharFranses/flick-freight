@@ -142,7 +142,7 @@ func _row(buttons: Array) -> HBoxContainer:
 
 func _icon_button(icon_path: String, cb: Callable, sz := 70) -> Button:
 	var b = Button.new()
-	b.icon = load(icon_path)
+	b.icon = ArtAssets.hud_icon(icon_path)  # v3 file if present, else this v2 path
 	b.expand_icon = true
 	b.custom_minimum_size = Vector2(sz, sz)
 	b.focus_mode = Control.FOCUS_NONE
@@ -185,7 +185,7 @@ func show_menu(next_level_index: int):
 	var title_box = VBoxContainer.new()
 	title_box.add_theme_constant_override("separation", -34)
 	for word in ["FLICK", "FREIGHT"]:
-		var l = _title(word, 112)
+		var l = _title(word, 112, GOLD, ArtAssets.title_font())  # Lilita One wordmark
 		l.add_theme_constant_override("outline_size", 22)
 		l.add_theme_color_override("font_outline_color", NAVY)
 		title_box.add_child(l)
@@ -208,7 +208,7 @@ func show_menu(next_level_index: int):
 	var mute = _icon_button("res://art/v2/icons/audioOn.png", func(): pass)
 	var set_icon = func():
 		if Sfx.inst:
-			mute.icon = load("res://art/v2/icons/audioOff.png" if Sfx.inst.muted else "res://art/v2/icons/audioOn.png")
+			mute.icon = ArtAssets.hud_icon("res://art/v2/icons/audioOff.png" if Sfx.inst.muted else "res://art/v2/icons/audioOn.png")
 	set_icon.call()
 	mute.pressed.connect(func():
 		if Sfx.inst:
@@ -221,15 +221,17 @@ func show_menu(next_level_index: int):
 	var total = _title("%d / %d" % [SaveData.total_stars(), Levels.order().size() * 3], 30)
 	stars.add_child(total)
 	var st = TextureRect.new()
-	st.texture = STAR_TEX
+	st.texture = star_on()
 	st.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	st.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	st.custom_minimum_size = Vector2(40, 40)
 	stars.add_child(st)
 	var sp = PanelContainer.new()
 	var sb = StyleBoxFlat.new()
-	sb.bg_color = Color(NAVY, 0.85)
+	sb.bg_color = Color(NAVY, 0.94)
 	sb.set_corner_radius_all(18)
+	sb.border_width_bottom = 4
+	sb.border_color = ArtPalette.HUD_LIP
 	sb.content_margin_left = 18
 	sb.content_margin_right = 14
 	sb.content_margin_top = 6

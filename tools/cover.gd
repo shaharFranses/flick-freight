@@ -47,6 +47,16 @@ func _build(shot):
 	g.setup(24)  # harbor finale: water, bounce pad, wind
 	g.set_process(false)
 	world.add_child(g)
+	# v3 backgrounds are exactly 1280x720: carry the sky's top colour above y = 0 for the
+	# frames that look higher than the game view
+	var bgtex := ArtAssets.world_background(Levels.world_of(24).get("name", ""))
+	if bgtex:
+		var sky = ColorRect.new()
+		sky.color = bgtex.get_image().get_pixel(4, 0)
+		sky.position = Vector2(-400, -800)
+		sky.size = Vector2(2100, 802)
+		sky.z_index = -21
+		world.add_child(sky)
 	# a truck on its ferry, loaded with old and new cargo
 	var t = Truck.new()
 	t.setup({"x": 1010, "amp": 0, "ferry": {"amp_y": 0, "amp_rot": 0}}, 1, 56)

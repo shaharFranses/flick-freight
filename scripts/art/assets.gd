@@ -60,6 +60,7 @@ const ICON_ARROW_LEFT := "res://art/v3/ui/arrow_left.png"
 const ICON_PAUSE := "res://art/v3/ui/pause.png"
 const ICON_SOUND_ON := "res://art/v3/ui/sound_on.png"
 const ICON_SOUND_OFF := "res://art/v3/ui/sound_off.png"
+const ICON_HOME := "res://art/v3/ui/home.png"  # tools/art/make_ui.py
 ## V8 world icons (level select, 96x56 box, file 96x56 or 2x 192x112). Per-world file
 ## (world name lower-case, spaces -> _) wins, then the shared truck.png, then the
 ## code-drawn vehicle (today).
@@ -73,10 +74,11 @@ const WORLD_ICON_SIZE_V3 := Vector2(120, 70)
 # ---- Phase 3: skies ------------------------------------------------------------
 ## Full-frame world background, 1280x720 (or 2x), top-left at (0, 0), z -20, under the
 ## clouds: art/v3/bg/bg_<world>.png. S1 town, S2 woods, S3 desert, S6 freight_yard,
-## S7 downtown. For a code-drawn backdrop world (Freight Yard, Downtown) the file
+## S7 downtown, plus harbor, snow, construction and sky_port (tools/art/make_bg.py).
+## For a code-drawn backdrop world (Freight Yard, Downtown) the file
 ## replaces the whole backdrop. Missing = v2 Kenney sprite / code backdrop (today).
 const BG_DIR := "res://art/v3/bg/"
-const PHASE3_BG_WORLDS := ["WOODS", "DESERT", "FREIGHT YARD", "DOWNTOWN"]
+const PHASE3_BG_WORLDS := ["WOODS", "DESERT", "FREIGHT YARD", "DOWNTOWN", "HARBOR", "SNOW", "CONSTRUCTION", "SKY PORT"]
 
 ## Truck sprite slots at 720p (or 2x):
 ##   470 x 190, origin (157, 112) — crop from the cab roof
@@ -226,11 +228,12 @@ static func arrow_icon(left: bool) -> Texture2D:
 	return try_texture(ICON_ARROW_LEFT if left else ICON_ARROW_RIGHT)
 
 
-## v2 HUD icon path -> v3 file if dropped (pause, sound on/off).
+## v2 icon path -> v3 file if dropped (pause, sound on/off, home).
 const V2_ICON_TO_V3 := {
 	"res://art/v2/icons/pause.png": ICON_PAUSE,
 	"res://art/v2/icons/audioOn.png": ICON_SOUND_ON,
 	"res://art/v2/icons/audioOff.png": ICON_SOUND_OFF,
+	"res://art/v2/icons/home.png": ICON_HOME,
 }
 
 

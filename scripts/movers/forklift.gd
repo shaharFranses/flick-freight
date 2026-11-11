@@ -115,38 +115,34 @@ func sim_shapes(f: int) -> Array:
 
 func _draw():
 	var f = game.frame + phase
-	var navy = Color("#1B2A41")
+	var navy = ArtPalette.INK
 	var cx = _cx(f)
 	var d = _dir(f)
 	var y0 = Game.ROAD_Y
-	var yellow = Color("#F2B134")
-	draw_rect(Rect2(cx - 58, y0 - 55, 116, 48), navy)
-	draw_rect(Rect2(cx - 55, y0 - 52, 110, 42), yellow)
-	# cab cage
+	var amber = [ArtPalette.AMBER, ArtPalette.AMBER_SHADE, ArtPalette.AMBER_HI]
+	# cab cage (behind the body)
 	draw_line(Vector2(cx - 50 * d, y0 - 52), Vector2(cx - 50 * d, y0 - 120), navy, 5.0)
 	draw_line(Vector2(cx - 10 * d, y0 - 52), Vector2(cx - 10 * d, y0 - 120), navy, 5.0)
 	draw_line(Vector2(cx - 54 * d, y0 - 120), Vector2(cx - 6 * d, y0 - 120), navy, 7.0)
+	ArtDraw.panel(self, Rect2(cx - 58, y0 - 55, 116, 48), amber, ArtDraw.PROP, 5.0, 8.0)
 	# mast + forks
-	draw_rect(Rect2(min(cx + 55 * d, cx + 65 * d), y0 - forks - 40, 10, forks + 30), navy)
+	ArtDraw.ink_rect(self, Rect2(min(cx + 55 * d, cx + 65 * d), y0 - forks - 40, 10, forks + 30), ArtPalette.STEEL, 2.5)
 	var r = _raise(f)
 	if lift > 0:
 		# inner mast slides up out of the outer one, carrying the pallet
 		var fy = y0 - forks - r
-		draw_rect(Rect2(min(cx + 56 * d, cx + 64 * d), fy - 50, 8, r + 20), Color("#3A4658"))
-		draw_line(Vector2(cx + 60 * d, fy - 50), Vector2(cx + 60 * d, y0 - forks - 40), Color("#C9CED6"), 2.0)
+		ArtDraw.ink_rect(self, Rect2(min(cx + 56 * d, cx + 64 * d), fy - 50, 8, r + 20), ArtPalette.STEEL_LIGHT, 2.0)
 		var lx = min(cx + 65 * d, cx + 125 * d)
-		draw_rect(Rect2(lx, fy - 8, 60, 8), Color("#5B6574"))
-		draw_rect(Rect2(lx + 2, fy - 16, 56, 8), Color("#8A5A32"))  # pallet
+		ArtDraw.ink_rect(self, Rect2(lx, fy - 8, 60, 8), ArtPalette.CHROME, 2.0)
+		ArtDraw.ink_rect(self, Rect2(lx + 2, fy - 16, 56, 9), ArtPalette.PLANK, 2.0)  # pallet
 		for k in 2:
-			var cr = Rect2(lx + 5, fy - 16 - 24 * (k + 1), 50, 24)
-			draw_rect(cr.grow(2), navy)
-			draw_rect(cr, Color("#C98E4A"))
-			draw_line(cr.position + Vector2(0, 12), cr.position + Vector2(50, 12), Color("#A26B33"), 2.0)
+			var cr = Rect2(lx + 3, fy - 16 - 24 * (k + 1) - 2, 54, 27)
+			ArtDraw.ink_rect(self, cr, ArtPalette.KRAFT, 3.0)
+			draw_rect(Rect2(cr.position.x + 23, cr.position.y + 3, 8, cr.size.y - 6), ArtPalette.KRAFT_SHADE)
 	else:
-		draw_rect(Rect2(min(cx + 65 * d, cx + 125 * d), y0 - forks - 8, 60, 8), Color("#5B6574"))
+		ArtDraw.ink_rect(self, Rect2(min(cx + 65 * d, cx + 125 * d), y0 - forks - 8, 60, 8), ArtPalette.CHROME, 2.0)
 	# wheels + beacon
 	for wx in [cx - 34, cx + 34]:
-		draw_circle(Vector2(wx, y0 - 10), 14, Color("#2E3440"))
-		draw_circle(Vector2(wx, y0 - 10), 6, Color("#C9CED6"))
+		ArtDraw.wheel(self, Vector2(wx, y0 - 12), 15.0)
 	if (f / 10) % 2 == 0:
-		draw_circle(Vector2(cx - 30 * d, y0 - 128), 6, Color("#FF9F1C"))
+		ArtDraw.ink_circle(self, Vector2(cx - 30 * d, y0 - 128), 7, ArtPalette.AMBER_HI, 2.0)

@@ -41,10 +41,13 @@ func _ready():
 	_build_top_bar()
 
 
-func _panel_style(alpha := 0.82, radius := 18) -> StyleBoxFlat:
+## HUD plate (style guide page 15): navy 94 %, r 18, 4 px lip #0F1A2B.
+func _panel_style(alpha := 0.94, radius := 18) -> StyleBoxFlat:
 	var sb = StyleBoxFlat.new()
 	sb.bg_color = Color(NAVY, alpha)
 	sb.set_corner_radius_all(radius)
+	sb.border_width_bottom = 4
+	sb.border_color = ArtPalette.HUD_LIP
 	sb.content_margin_left = 18
 	sb.content_margin_right = 18
 	sb.content_margin_top = 8
@@ -144,10 +147,11 @@ func _draw_bar():
 	var w = bar.size.x
 	var h = 14.0
 	var y = 14.0
-	bar.draw_rect(Rect2(0, y, w, h), Color(1, 1, 1, 0.15))
+	bar.draw_rect(Rect2(0, y, w, h), ArtPalette.SLATE)  # track
 	var f = float(_delivered) / _total
 	if f > 0:
-		bar.draw_rect(Rect2(0, y, w * f, h), Color("#3DDC97"))
+		bar.draw_rect(Rect2(0, y, w * f, h), ArtPalette.MINT)
+		bar.draw_rect(Rect2(0, y, w * f, 5), ArtPalette.MINT_HI)  # 5 px highlight
 	for m in [_goal, _s2, _total]:
 		var x = w * float(m) / _total
 		var reached = _delivered >= m
@@ -250,7 +254,7 @@ func show_banner(title: String, text: String, icon := "", hold := 3.2):
 	if banner and is_instance_valid(banner):
 		banner.queue_free()
 	banner = PanelContainer.new()
-	banner.add_theme_stylebox_override("panel", _panel_style(0.9, 22))
+	banner.add_theme_stylebox_override("panel", _panel_style(0.94, 22))
 	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var h = HBoxContainer.new()
 	h.add_theme_constant_override("separation", 16)

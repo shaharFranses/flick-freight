@@ -275,7 +275,7 @@ func _draw_front():
 		# Sprite replaces the body; keep only the overlays that are level state.
 		# Rear post is on back_layer (_draw_rear_post_v3), under the sprite.
 		if icy:
-			front_layer.draw_rect(Rect2(L - WALL_T, -3, BED_W + WALL_T * 2, 9), Color("#BFE7F7"))
+			front_layer.draw_rect(Rect2(L - WALL_T, -3, BED_W + WALL_T * 2, 9), ArtPalette.ICE)
 			for gx in [L + 30, L + 120, L + 210]:
 				front_layer.draw_line(Vector2(gx, 0), Vector2(gx + 22, 0), Color.WHITE, 3.0)
 		if height_limit > 0:
@@ -311,7 +311,7 @@ func _draw_front():
 	for w in wheels:
 		front_layer.draw_arc(w.position, WHEEL_R + 6, PI, TAU, 16, dark, 6.0)
 	if icy:
-		front_layer.draw_rect(Rect2(L - WALL_T, -3, BED_W + WALL_T * 2, 9), Color("#BFE7F7"))
+		front_layer.draw_rect(Rect2(L - WALL_T, -3, BED_W + WALL_T * 2, 9), ArtPalette.ICE)
 		for gx in [L + 30, L + 120, L + 210]:
 			front_layer.draw_line(Vector2(gx, 0), Vector2(gx + 22, 0), Color.WHITE, 3.0)
 	if height_limit > 0:
@@ -335,12 +335,12 @@ func _draw_ferry_hull():
 	var deck = FLOOR_T + 18 + WHEEL_R
 	var hull = PackedVector2Array([Vector2(x0 - 20, deck), Vector2(x1 + 20, deck),
 		Vector2(x1 - 10, deck + 56), Vector2(x0 + 10, deck + 56)])
-	back_layer.draw_colored_polygon(hull, Color("#2E4A6B"))
-	back_layer.draw_rect(Rect2(x0 - 20, deck, x1 - x0 + 40, 10), Color("#C9CED6"))
-	back_layer.draw_rect(Rect2(x0, deck + 22, x1 - x0, 8), Color("#FF6B57"))
+	ArtDraw.ink_poly(back_layer, hull, ArtPalette.SLATE_BLUE_SHADE, ArtDraw.PROP)
+	back_layer.draw_rect(Rect2(x0, deck + 24, x1 - x0, 8), ArtPalette.CORAL)
 	for px in [x0 + 10, x1 - 10]:
-		back_layer.draw_rect(Rect2(px - 5, deck - 34, 10, 34), Color("#C9CED6"))
-		back_layer.draw_circle(Vector2(px, deck - 34), 7, Color("#FF6B57"))
+		ArtDraw.ink_rect(back_layer, Rect2(px - 6, deck - 34, 12, 38), ArtPalette.CHROME, 2.6)
+		ArtDraw.ink_circle(back_layer, Vector2(px, deck - 34), 8, ArtPalette.CORAL, 2.6)
+	ArtDraw.ink_rect(back_layer, Rect2(x0 - 22, deck - 1, x1 - x0 + 44, 12), ArtPalette.CHROME, 2.6)
 
 
 func _draw_wheel(w: Node2D):
