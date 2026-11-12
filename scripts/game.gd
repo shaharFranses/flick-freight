@@ -91,6 +91,7 @@ func setup(index: int):
 	if level.has("water"):
 		_build_water()
 	_build_dock()
+	_build_worker()
 	_build_blocks()
 	if level.has("pads"):
 		_build_pads()
@@ -292,6 +293,13 @@ func _build_dock():
 	cs.position = Vector2(DOCK_RIGHT * 0.5, (DOCK_TOP + ROAD_Y) * 0.5)
 	body.add_child(cs)
 	add_child(body)
+
+
+## Freddy, the dock worker (scripts/worker.gd): reacts to aiming, hits and misses.
+func _build_worker():
+	var w := Worker.new()
+	add_child(w)
+	w.setup(self)
 
 
 func _place_dock_sprite(parent: Node2D, tex: Texture2D, top_left: Vector2):
