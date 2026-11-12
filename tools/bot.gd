@@ -115,7 +115,9 @@ func _process(delta: float) -> bool:
 		return true
 	if main.game == null:
 		return false
-	if main.level_index != levels[li]:
+	# the game boots into the main menu with the next unbeaten level built as a backdrop
+	# (not started): start the level ourselves even when it is the same one
+	if main.in_menu or main.level_index != levels[li]:
 		main.start_level(levels[li])
 		return false
 	var g: Game = main.game
