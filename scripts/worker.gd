@@ -10,14 +10,14 @@ extends Node2D
 const INK := ArtPalette.INK
 const SKIN := Color("#F6C9A0")
 const SKIN_SHADE := Color("#E3A97C")
-const HAT := ArtPalette.GOLD
-const HAT_SHADE := Color("#E0A92B")
-const VEST := Color("#FF7F32")
-const VEST_SHADE := Color("#D9621C")
+const HAT := ArtPalette.MINT
+const HAT_SHADE := Color("#2BB07A")
+const VEST := ArtPalette.CORAL
+const VEST_SHADE := Color("#B83F1F")
 const SHIRT := Color("#5C7BA6")
 const PANTS := Color("#3A4F73")
 const BOOT := Color("#4A3A33")
-const REFLECT := ArtPalette.CREAM
+const REFLECT := Color("#F2F6FA")
 const CHEEK := Color("#FF9AA2")
 const SWEAT := Color("#8FD0F5")
 
@@ -173,7 +173,7 @@ func _draw_head():
 		var a := PI + PI * i / 12.0
 		dome.append(c + Vector2(cos(a) * (r + 1.5), sin(a) * (r + 1.0) + 2.0))
 	ArtDraw.ink_poly(self, dome, HAT, 4.0)
-	draw_rect(Rect2(c.x - 14, c.y - r - 4, 22, 5), Color("#FFE88A"))  # highlight
+	draw_rect(Rect2(c.x - 14, c.y - r - 4, 22, 5), Color("#A8F2D0"))  # highlight
 	ArtDraw.ink_rect(self, Rect2(c.x - r - 4, c.y - 3, 2.0 * r + 14, 6.0), HAT_SHADE, 3.0)  # brim
 	ArtDraw.ink_rect(self, Rect2(c.x - 3, c.y - r - 7, 9, 8), HAT_SHADE, 2.6)  # top ridge
 	_draw_face(c)
