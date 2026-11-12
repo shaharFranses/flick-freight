@@ -3,7 +3,9 @@ extends Mover
 ## the throw path; the trolley can also slide along the gantry. The cable creaks at the top
 ## of each swing.
 ## cfg: x (trolley centre), y (gantry beam), length (cable), swing (deg), period,
-##      slide (trolley travel, px), slide_period, phase
+##      slide (trolley travel, px), slide_period, phase,
+##      hoist (cable reel in/out, px; 0 = fixed cable), hoist_period (default slide_period).
+##      The hoist starts reeled in (load at its highest) and is longest half a period later.
 
 const BOX := Vector2(140, 64)
 var load_size := BOX  # what hangs on the hook (the tower crane hangs a steel beam)
@@ -16,6 +18,8 @@ var swing := 30.0
 var per := 200
 var slide := 0.0
 var slide_per := 400
+var hoist := 0.0
+var hoist_per := 400
 
 
 func _build():
@@ -26,11 +30,21 @@ func _build():
 	per = int(cfg.get("period", 200))
 	slide = cfg.get("slide", 0.0)
 	slide_per = int(cfg.get("slide_period", per * 2))
+	hoist = cfg.get("hoist", 0.0)
+	hoist_per = int(cfg.get("hoist_period", slide_per))
 	box = make_body("block", [Rect2(-load_size * 0.5, load_size)], 0.15)
 
 
 func period_frames() -> int:
-	return per if slide == 0.0 else Game._lcm(per, slide_per)
+	var p = per if slide == 0.0 else Game._lcm(per, slide_per)
+	return p if hoist == 0.0 else Game._lcm(p, hoist_per)
+
+
+## Cable length at frame f (the hoist reels it in and out around `cable`).
+func _cable(f: int) -> float:
+	if hoist == 0.0:
+		return cable
+	return cable - hoist * cos(TAU * f / float(hoist_per))
 
 
 func _pivot(f: int) -> Vector2:
@@ -43,7 +57,7 @@ func _angle(f: int) -> float:
 
 func _box_xf(f: int) -> Transform2D:
 	var a = _angle(f)
-	var c = _pivot(f) + Vector2(sin(a), cos(a)) * (cable + load_size.y * 0.5)
+	var c = _pivot(f) + Vector2(sin(a), cos(a)) * (_cable(f) + load_size.y * 0.5)
 	return Transform2D(-a, c)
 
 

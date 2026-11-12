@@ -424,7 +424,7 @@ const DATA = [
 		"movers": [{"type": "conveyor", "x0": 420, "x1": 900, "y": 440, "speed": 150}]},
 	{"world": 8, "cargo": "bbbbbbb", "goal": 4, "s2": 6,
 		"truck": {"x": 960, "amp": 0, "period": 4.0, "vehicle": "flatbed"}, "guide": 0.5,
-		"movers": [{"type": "tower_crane", "x": 680, "y": 125, "length": 125, "swing": 16, "period": 220, "slide": 110, "slide_period": 440}]},
+		"movers": [{"type": "tower_crane", "x": 680, "y": 125, "length": 160, "swing": 10, "period": 220, "slide": 90, "slide_period": 440, "hoist": 105, "hoist_period": 440}]},
 	{"world": 8, "cargo": "bbcbbcb", "goal": 4, "s2": 6,
 		"truck": {"x": 1060, "amp": 0, "period": 4.0, "wall": 56}, "guide": 0.5,
 		"pads": [[520, 579, 4, 1.1]],
