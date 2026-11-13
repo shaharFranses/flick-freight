@@ -1,8 +1,8 @@
 class_name Worker
 extends Node2D
 ## Freddy, the dock worker. He stands on the low step under the loading spot, so the cargo
-## that comes off the conveyor sits right above his head, and he handles it:
-##   - catches each piece off the belt and holds it up with both hands
+## from the pile behind him sits right above his head, and he handles it:
+##   - takes each piece from the pile and holds it up with both hands
 ##   - winds up (stressed face, squats / sways with the cargo) while the player pulls back
 ##   - swings his arms through when the cargo is thrown
 ##   - happy when it lands in the truck, sad when it misses, relaxed otherwise
@@ -22,21 +22,20 @@ const PANTS := Color("#3A4F73")
 const BOOT := Color("#4A3A33")
 const REFLECT := Color("#F2F6FA")
 const GLOVE := Color("#F2F0EA")
-const CHEEK := Color("#FF9AA2")
 const SWEAT := Color("#8FD0F5")
-const MOUTH := Color("#7A2E3A")
+const TEETH := Color("#F2F6FA")
 
 const MOOD_HOLD := 1.4    # s a happy / sad face stays after a cargo resolves
 const THROW_TIME := 0.38  # s of follow-through after a throw
 const HEIGHT := 115.0     # feet to the top of the hard hat (= Game.STEP_Y - Game.DOCK_TOP)
 const HIP := Vector2(0, -30)
-const SH_FRONT := Vector2(13, -60)  # shoulders (before the body moves)
-const SH_BACK := Vector2(-13, -60)
-const ARM := 33.0    # upper arm = forearm
+const SH_FRONT := Vector2(18, -60)  # shoulders (before the body moves)
+const SH_BACK := Vector2(-18, -60)
+const ARM := 30.0    # upper arm = forearm
 const LEG := 14.0    # thigh = shin
-const HIP_X := 8.0
-const ANKLE := Vector2(9, -6)
-const REACH_FROM := -75.0  # he reaches for the cargo once it has slid this close (local x)
+const HIP_X := 9.0
+const ANKLE := Vector2(10, -6)
+const REACH_FROM := -75.0  # he reaches for the cargo once it is this close (local x)
 
 ## The worker's name, in case a screen ever wants to show it.
 const WORKER_NAME := "Freddy"
@@ -117,7 +116,7 @@ func _process(delta: float):
 	if holding:
 		var d := under - Vector2(0, -HEIGHT)
 		if game.current_ready:
-			want = Vector2(clamp(d.x * 0.8, -22.0, 8.0), clamp(d.y, -3.0, 15.0))
+			want = Vector2(clamp(d.x * 0.8, -22.0, 8.0), clamp(d.y, -5.0, 15.0))
 		else:
 			want = Vector2(clamp(d.x * 0.25, -12.0, 0.0), 0.0)  # leans toward the incoming cargo
 	match mood:
@@ -146,19 +145,19 @@ func _process(delta: float):
 	var tf := Vector2.ZERO
 	var tb := Vector2.ZERO
 	if holding:
-		var grip: float = clamp(float(box.info.size.x) * 0.5 - 7.0, 8.0, 17.0)
-		tf = under + Vector2(grip, 0.0)
-		tb = under + Vector2(-grip, 0.0)
+		var grip: float = clamp(float(box.info.size.x) * 0.5 - 9.0, 9.0, 20.0)
+		tf = under + Vector2(grip, 3.0)
+		tb = under + Vector2(-grip, 3.0)
 	elif mood == "throw":
-		tf = sf + _throw_dir * 56.0
-		tb = sb + _throw_dir.rotated(-0.25) * 54.0
+		tf = sf + _throw_dir * 52.0
+		tb = sb + _throw_dir.rotated(-0.25) * 50.0
 	elif mood == "happy":
 		var w := sin(_t * 18.0) * 4.0
-		tf = sf + Vector2(20.0 + w, -40.0 + w)
-		tb = sb + Vector2(-20.0 + w, -40.0 - w)
+		tf = sf + Vector2(18.0 + w, -38.0 + w)
+		tb = sb + Vector2(-18.0 + w, -38.0 - w)
 	elif mood == "sad":
-		tf = sf + Vector2(3.0, 52.0)
-		tb = sb + Vector2(-3.0, 52.0)
+		tf = sf + Vector2(2.0, 50.0)
+		tb = sb + Vector2(-2.0, 50.0)
 	else:
 		var sway := sin(_t * 2.2) * 1.5
 		tf = sf + Vector2(7.0, 46.0 + sway)
@@ -211,8 +210,8 @@ func _draw():
 	_draw_head()
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	# arms last: the gloves sit on the cargo
-	_draw_arm(_upper(SH_BACK), _hand_b, SHIRT, Vector2(-1.0, 0.35))
-	_draw_arm(_upper(SH_FRONT), _hand_f, VEST, Vector2(1.0, 0.35))
+	_draw_arm(_upper(SH_BACK), _hand_b, Vector2(-1.0, 0.35))
+	_draw_arm(_upper(SH_FRONT), _hand_f, Vector2(1.0, 0.35))
 
 
 # ---------------------------------------------------------------- anti-aliased shapes
@@ -263,121 +262,112 @@ func _draw_legs():
 		var hip := _upper(HIP + Vector2(s * HIP_X, 0))
 		var ankle := Vector2(s * ANKLE.x, ANKLE.y)
 		var knee := _joint(hip, ankle, LEG, Vector2(s, 0))
-		_stroke(self, hip, knee, INK, 14.0)
-		_stroke(self, knee, ankle, INK, 13.0)
-		_stroke(self, hip, knee, PANTS, 8.0)
-		_stroke(self, knee, ankle, PANTS, 7.0)
-		# boot
-		ArtDraw.ink_rect(self, Rect2(ankle.x - 8.0 + s * 2.0, -10, 17, 10), BOOT, 3.0, 4.0)
+		_stroke(self, hip, knee, INK, 15.0)
+		_stroke(self, knee, ankle, INK, 15.0)
+		_stroke(self, hip, knee, PANTS, 9.0)
+		_stroke(self, knee, ankle, PANTS, 9.0)
+		ArtDraw.ink_rect(self, Rect2(ankle.x - 8.0 + s * 1.5, -10, 17, 10), BOOT, 3.0, 4.0)
 
 
 func _draw_torso():
-	ArtDraw.ink_rect(self, Rect2(-18, -66, 36, 40), SHIRT, 3.5, 7.0)
-	# hi-vis vest: two panels, the shirt shows in the middle
-	_ink_poly(self, PackedVector2Array([Vector2(-18, -64), Vector2(-16, -66), Vector2(-5, -66), Vector2(-3, -26), Vector2(-18, -26)]), VEST, 3.0)
-	_ink_poly(self, PackedVector2Array([Vector2(18, -64), Vector2(16, -66), Vector2(5, -66), Vector2(3, -26), Vector2(18, -26)]), VEST, 3.0)
-	# reflective stripes, hem shade
-	draw_rect(Rect2(-15, -47, 11, 5), REFLECT)
-	draw_rect(Rect2(4, -47, 11, 5), REFLECT)
-	draw_rect(Rect2(-15, -33, 12, 4), VEST_SHADE)
-	draw_rect(Rect2(3, -33, 12, 4), VEST_SHADE)
-	# name tag
-	ArtDraw.ink_rect(self, Rect2(5, -61, 10, 8), REFLECT, 1.6, 2.0)
-	draw_line(Vector2(7.5, -57), Vector2(12.5, -57), INK, 1.2, true)
+	# hi-vis vest, wide at the shoulders
+	_ink_poly(self, PackedVector2Array([Vector2(-20, -66), Vector2(20, -66), Vector2(16, -26), Vector2(-16, -26)]), VEST, 3.5)
+	draw_rect(Rect2(-15.5, -33, 31, 3.5), VEST_SHADE)
+	# reflective band, zip, shirt collar
+	draw_colored_polygon(PackedVector2Array([Vector2(-17.6, -46), Vector2(17.6, -46), Vector2(17.1, -41), Vector2(-17.1, -41)]), REFLECT)
+	draw_line(Vector2(0, -52), Vector2(0, -29.5), INK, 2.0, true)
+	_ink_poly(self, PackedVector2Array([Vector2(-7, -64.5), Vector2(7, -64.5), Vector2(0, -49)]), SHIRT, 2.0)
+	# neck
+	ArtDraw.ink_rect(self, Rect2(-6, -75, 12, 12), SKIN_SHADE, 3.0)
 
 
-## Two-bone arm (shoulder, elbow, glove); the elbow bends toward `prefer`.
-func _draw_arm(sh: Vector2, hand: Vector2, sleeve: Color, prefer: Vector2):
+## Two-bone bare arm (shoulder, elbow, work glove); the elbow bends toward `prefer`.
+func _draw_arm(sh: Vector2, hand: Vector2, prefer: Vector2):
 	var elbow := _joint(sh, hand, ARM, prefer)
-	_stroke(self, sh, elbow, INK, 12.0)
-	_stroke(self, elbow, hand, INK, 11.0)
-	_stroke(self, sh, elbow, sleeve, 6.0)
-	_stroke(self, elbow, hand, sleeve, 5.0)
-	_ink_disc(self, hand, 7.0, GLOVE, 2.6)
+	_stroke(self, sh, elbow, INK, 16.0)
+	_stroke(self, elbow, hand, INK, 14.0)
+	_stroke(self, sh, elbow, SKIN, 10.0)
+	_stroke(self, elbow, hand, SKIN, 8.0)
+	# glove with a cuff
+	var g := Rect2(hand.x - 9.0, hand.y - 6.5, 18, 13)
+	ArtDraw.ink_rect(self, g, GLOVE, 2.8, 5.0)
+	draw_line(Vector2(g.position.x + 3, g.end.y - 4), Vector2(g.end.x - 3, g.end.y - 4), INK, 1.6, true)
 
 
 func _draw_head():
-	var c := Vector2(1.0, -88.0)
-	var r := 21.0
-	# ears, face
-	_ink_disc(self, c + Vector2(-17, 5), 5.5, SKIN_SHADE, 2.6)
-	_ink_disc(self, c, r, SKIN, 3.5)
-	# hard hat: dome, brim, ridge, highlight (its top is exactly HEIGHT above his feet)
-	var dome := PackedVector2Array()
-	for i in 25:
-		var a := PI + PI * i / 24.0
-		dome.append(c + Vector2(cos(a) * (r + 1.5), sin(a) * (r + 2.0) + 1.0))
-	_ink_poly(self, dome, HAT, 3.5)
-	draw_arc(c + Vector2(0, 1), r - 5.0, PI + 0.5, PI + 1.25, 8, HAT_LIGHT, 3.0, true)
-	ArtDraw.ink_rect(self, Rect2(c.x - 5, c.y - r - 6, 10, 9), HAT_SHADE, 2.4, 3.0)
-	ArtDraw.ink_rect(self, Rect2(c.x - r - 4, c.y - 3, 2.0 * r + 14, 7.0), HAT_SHADE, 2.6, 3.0)
-	_draw_face(c)
+	# square-jawed head
+	ArtDraw.ink_rect(self, Rect2(-16, -103, 33, 32), SKIN, 3.5, 9.0)
+	draw_arc(Vector2(0.5, -88), 13.0, 0.5, PI - 0.5, 12, Color(SKIN_SHADE, 0.75), 3.0, true)  # jaw shade
+	# hard hat with a front brim; its top is exactly HEIGHT above his feet
+	var hat := PackedVector2Array([Vector2(-19, -93.5)])
+	for i in 17:
+		var a := PI + PI * i / 16.0
+		hat.append(Vector2(cos(a) * 19.0, -103.0 + sin(a) * 12.0))
+	hat.append_array(PackedVector2Array([Vector2(19, -99), Vector2(29, -97), Vector2(29, -93.5)]))
+	_ink_poly(self, hat, HAT, 3.5)
+	draw_line(Vector2(-14.5, -100), Vector2(17.5, -100), HAT_SHADE, 3.0, true)
+	draw_arc(Vector2(0, -103), 13.0, PI + 0.55, PI + 1.2, 8, HAT_LIGHT, 2.6, true)
+	_draw_face(Vector2(1.0, -84.0))
 
 
+## c = the point between his eyes.
 func _draw_face(c: Vector2):
-	# he looks toward the trucks: the features sit a little right of the head centre
-	var fx := c.x + 4.0
-	var le := Vector2(fx - 8.0, c.y + 9.0)
-	var re := Vector2(fx + 8.0, c.y + 9.0)
-	var mouth := Vector2(fx + 1.0, c.y + 17.0)
+	var le := c + Vector2(-4.0, 0)
+	var re := c + Vector2(10.0, 0)
+	var m := c + Vector2(3.0, 8.5)  # mouth
 	match mood:
 		"normal":
 			if _blink > 0.0:
-				draw_line(le + Vector2(-4, 0), le + Vector2(4, 0), INK, 2.6, true)
-				draw_line(re + Vector2(-4, 0), re + Vector2(4, 0), INK, 2.6, true)
+				draw_line(le + Vector2(-3, 0), le + Vector2(3, 0), INK, 2.2, true)
+				draw_line(re + Vector2(-3, 0), re + Vector2(3, 0), INK, 2.2, true)
 			else:
-				for e in [le, re]:
-					_disc(self, e, 4.0, INK)
-					_disc(self, e + Vector2(1.3, -1.4), 1.4, Color.WHITE)
-			draw_arc(mouth + Vector2(0, -4), 6.5, 0.4, PI - 0.4, 12, INK, 2.6, true)
+				_disc(self, le, 2.5, INK)
+				_disc(self, re, 2.5, INK)
+			draw_line(le + Vector2(-3.5, -5.5), le + Vector2(3, -6), INK, 2.0, true)
+			draw_line(re + Vector2(-3, -6), re + Vector2(3.5, -5.5), INK, 2.0, true)
+			draw_arc(m + Vector2(0, -3.5), 5.5, 0.55, PI - 0.55, 10, INK, 2.2, true)
 		"stress":
-			# big worried eyes, small pupils, furrowed brows, gritted teeth, sweat
+			# wide eyes, furrowed brows, gritted teeth, one sweat drop
 			for e in [le, re]:
-				_ink_disc(self, e, 6.6, Color.WHITE, 1.8)
-				_disc(self, e + Vector2(1.6 + 0.8 * _strength, 0.4), 2.1, INK)
-			draw_line(le + Vector2(-7, -10), le + Vector2(6, -6), INK, 3.2, true)
-			draw_line(re + Vector2(7, -10), re + Vector2(-6, -6), INK, 3.2, true)
-			var mr := Rect2(mouth.x - 8, mouth.y - 5, 16, 9)
-			ArtDraw.ink_rect(self, mr, Color.WHITE, 2.0, 3.0)
-			draw_line(Vector2(mr.position.x + 5.5, mr.position.y + 1), Vector2(mr.position.x + 5.5, mr.end.y - 1), INK, 1.4, true)
-			draw_line(Vector2(mr.position.x + 10.5, mr.position.y + 1), Vector2(mr.position.x + 10.5, mr.end.y - 1), INK, 1.4, true)
-			draw_line(Vector2(mr.position.x + 1, mr.position.y + 4.5), Vector2(mr.end.x - 1, mr.position.y + 4.5), INK, 1.4, true)
-			# sweat drops flying off the head
-			var k := fmod(_t * 2.4, 1.0)
-			_drop(Vector2(c.x - 26 - 6 * k, c.y + 2 + 20 * k), 1.0 - k * 0.6)
-			_drop(Vector2(c.x + 28, c.y + 2 + 18 * fmod(_t * 2.4 + 0.5, 1.0)), 0.8)
+				_ink_disc(self, e, 4.4, Color.WHITE, 1.6)
+				_disc(self, e + Vector2(0.8 + 0.6 * _strength, 0.3), 1.5, INK)
+			draw_line(le + Vector2(-4.5, -7.5), le + Vector2(4, -5), INK, 2.5, true)
+			draw_line(re + Vector2(4.5, -7.5), re + Vector2(-4, -5), INK, 2.5, true)
+			var mr := Rect2(m.x - 5.5, m.y - 2.5, 11, 6)
+			ArtDraw.ink_rect(self, mr, TEETH, 1.8, 2.0)
+			draw_line(Vector2(mr.position.x + 1.5, m.y + 0.5), Vector2(mr.end.x - 1.5, m.y + 0.5), INK, 1.1, true)
+			var k := fmod(_t * 1.8, 1.0)
+			_drop(Vector2(c.x + 23, c.y - 6 + 16 * k), 1.0 - k * 0.7)
 		"throw":
-			# eyes squeezed shut (> <), mouth open: "hup!"
-			draw_polyline(PackedVector2Array([le + Vector2(-4, -4), le + Vector2(3, 0), le + Vector2(-4, 4)]), INK, 2.6, true)
-			draw_polyline(PackedVector2Array([re + Vector2(4, -4), re + Vector2(-3, 0), re + Vector2(4, 4)]), INK, 2.6, true)
-			_ink_disc(self, mouth + Vector2(0, -1), 5.5, MOUTH, 2.2)
+			# set jaw: brows down, small open mouth
+			_disc(self, le, 2.5, INK)
+			_disc(self, re, 2.5, INK)
+			draw_line(le + Vector2(-4, -6.5), le + Vector2(3.5, -4.5), INK, 2.4, true)
+			draw_line(re + Vector2(4, -6.5), re + Vector2(-3.5, -4.5), INK, 2.4, true)
+			_disc(self, m, 3.2, INK)
 		"happy":
-			# closed smiling eyes (^ ^), big open smile, rosy cheeks
-			for e in [le, re]:
-				draw_arc(e + Vector2(0, 3), 5.0, PI + 0.25, TAU - 0.25, 12, INK, 2.8, true)
-			_disc(self, le + Vector2(-5, 8), 3.6, Color(CHEEK, 0.85))
-			_disc(self, re + Vector2(5, 8), 3.6, Color(CHEEK, 0.85))
-			var smile := PackedVector2Array()
-			for i in 13:
-				var a := PI * i / 12.0
-				smile.append(mouth + Vector2(cos(a) * 8.5, sin(a) * 8.0 - 4.0))
-			_ink_poly(self, smile, MOUTH, 2.2)
-			_disc(self, mouth + Vector2(0, 1.0), 2.6, Color("#FF8A8A"))
+			# raised brows and a grin
+			_disc(self, le, 2.5, INK)
+			_disc(self, re, 2.5, INK)
+			draw_line(le + Vector2(-3.5, -7), le + Vector2(3, -8), INK, 2.0, true)
+			draw_line(re + Vector2(-3, -8), re + Vector2(3.5, -7), INK, 2.0, true)
+			var grin := PackedVector2Array()
+			for i in 11:
+				var a := PI * i / 10.0
+				grin.append(m + Vector2(cos(a) * 6.5, sin(a) * 5.5 - 2.0))
+			_ink_poly(self, grin, TEETH, 1.8)
 		"sad":
-			# droopy brows, eyes looking down, a tear, small frown
-			for e in [le, re]:
-				_disc(self, e + Vector2(0, 1), 3.8, INK)
-				_disc(self, e + Vector2(1.0, -0.4), 1.3, Color.WHITE)
-			draw_line(le + Vector2(-6, -5), le + Vector2(5, -10), INK, 2.8, true)
-			draw_line(re + Vector2(6, -5), re + Vector2(-5, -10), INK, 2.8, true)
-			draw_arc(mouth + Vector2(0, 5), 6.0, PI + 0.4, TAU - 0.4, 12, INK, 2.6, true)
-			var k2 := fmod(_t * 1.1, 1.0)
-			_drop(re + Vector2(5, 6 + 14 * k2), 1.0 - k2 * 0.5)
+			# brows tilted up in the middle, eyes down, small frown
+			_disc(self, le + Vector2(0, 1), 2.4, INK)
+			_disc(self, re + Vector2(0, 1), 2.4, INK)
+			draw_line(le + Vector2(-4, -4.5), le + Vector2(3.5, -7), INK, 2.2, true)
+			draw_line(re + Vector2(4, -4.5), re + Vector2(-3.5, -7), INK, 2.2, true)
+			draw_arc(m + Vector2(0, 5.5), 5.5, PI + 0.55, TAU - 0.55, 10, INK, 2.2, true)
 
 
-## A teardrop (sweat / tear).
+## A sweat drop.
 func _drop(p: Vector2, a: float):
-	var tip := PackedVector2Array([p + Vector2(0, -6.5), p + Vector2(3.4, 0), p + Vector2(-3.4, 0)])
+	var tip := PackedVector2Array([p + Vector2(0, -5.5), p + Vector2(2.8, 0), p + Vector2(-2.8, 0)])
 	_fill(self, tip, Color(INK, a))
-	_disc(self, p + Vector2(0, 1.2), 3.8, Color(INK, a))
-	_disc(self, p + Vector2(0, 1.2), 2.3, Color(SWEAT, a))
+	_disc(self, p + Vector2(0, 1.0), 3.2, Color(INK, a))
+	_disc(self, p + Vector2(0, 1.0), 1.9, Color(SWEAT, a))
