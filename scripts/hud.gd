@@ -15,8 +15,7 @@ var level_label: Label
 var world_label: Label
 var progress_label: Label
 var bar: Control
-var queue_box: HBoxContainer
-var need_row: HBoxContainer  # "1 OF EACH:" + a chip per required cargo kind
+var need_row: HBoxContainer  # right of the counter: "1 OF EACH:" + a chip per required cargo kind
 var _need_chips := {}        # kind -> {tr, mark}
 ## U3 HUD stars, resolved once in _ready (never load() inside a draw callback).
 var _stars: Dictionary
@@ -93,16 +92,13 @@ func _build_top_bar():
 	progress_label = _label("LOADED 0 / 5", 26)
 	progress_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(progress_label)
-	queue_box = HBoxContainer.new()
-	queue_box.add_theme_constant_override("separation", 4)
-	queue_box.alignment = BoxContainer.ALIGNMENT_END
-	row.add_child(queue_box)
-	cv.add_child(row)
 	need_row = HBoxContainer.new()
 	need_row.add_theme_constant_override("separation", 6)
+	need_row.alignment = BoxContainer.ALIGNMENT_END
 	need_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	need_row.visible = false
-	cv.add_child(need_row)
+	row.add_child(need_row)
+	cv.add_child(row)
 	bar = Control.new()
 	bar.custom_minimum_size = Vector2(400, 30)
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -263,23 +259,9 @@ func _build_need_row(kinds: Array):
 		_need_chips[k] = {"tr": tr, "mark": mark}
 
 
-func _on_queue(types: Array):
-	for c in queue_box.get_children():
-		c.queue_free()
-	var n = 0
-	for t in types:
-		var tr = TextureRect.new()
-		tr.texture = Cargo.thumb_for(t)
-		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		tr.custom_minimum_size = Vector2(26, 26) if n > 0 else Vector2(32, 32)
-		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		queue_box.add_child(tr)
-		n += 1
-		if n >= 7:
-			if types.size() > 7:
-				queue_box.add_child(_label("+%d" % (types.size() - 7), 20))
-			break
+## The waiting cargo is the pile behind Freddy now; the top bar no longer lists it.
+func _on_queue(_types: Array):
+	pass
 
 
 # ----------------------------------------------------------------- pop-ups
