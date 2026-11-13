@@ -21,6 +21,7 @@ var _need_chips := {}        # kind -> {tr, mark}
 var _stars: Dictionary
 var mute_btn: Button
 var banner: PanelContainer
+var bubble: PanelContainer  # Freddy's speech bubble
 var tutorial: Node2D
 var tutorial_label: Label
 var _goal := 1
@@ -195,11 +196,14 @@ func bind(g: Game):
 	g.queue_changed.connect(_on_queue)
 	g.popup.connect(show_popup)
 	g.first_throw.connect(_hide_tutorial)
+	g.say.connect(show_bubble)
 	_on_progress(0, _total)
+	# mixed levels: every banner also says that one of each cargo type is needed
+	var note = "Load at least 1 of each type to pass!" if not _need_chips.is_empty() else ""
 	if lv.has("intro"):
-		show_banner(lv.intro.title, lv.intro.text, lv.intro.get("icon", ""))
+		show_banner(lv.intro.title, lv.intro.text, lv.intro.get("icon", ""), 4.2 if note != "" else 3.2, note)
 	elif lv.get("wind", 0) != 0:
-		show_banner("WIND", "Tailwind! Throw softer than the line." if lv.wind > 0 else "Headwind! Throw harder than the line.", "wind")
+		show_banner("WIND", "Tailwind! Throw softer than the line." if lv.wind > 0 else "Headwind! Throw harder than the line.", "wind", 4.2 if note != "" else 3.2, note)
 	else:
 		var how = "Load %d of %d to pass" % [_goal, _total]
 		if not _need_chips.is_empty():
@@ -282,7 +286,7 @@ func show_popup(text: String, pos: Vector2, color: Color, size: int):
 	tw.tween_callback(l.queue_free)
 
 
-func show_banner(title: String, text: String, icon := "", hold := 3.2):
+func show_banner(title: String, text: String, icon := "", hold := 3.2, note := ""):
 	if banner and is_instance_valid(banner):
 		banner.queue_free()
 	banner = PanelContainer.new()
@@ -303,6 +307,8 @@ func show_banner(title: String, text: String, icon := "", hold := 3.2):
 	v.add_child(t)
 	if text != "":
 		v.add_child(_label(text, 24))
+	if note != "":
+		v.add_child(_label(note, 22, ArtPalette.MINT))
 	h.add_child(v)
 	banner.add_child(h)
 	root.add_child(banner)
@@ -314,6 +320,44 @@ func show_banner(title: String, text: String, icon := "", hold := 3.2):
 	tw.tween_interval(hold)
 	tw.tween_property(banner, "modulate:a", 0.0, 0.4)
 	tw.tween_callback(banner.queue_free)
+
+
+# ----------------------------------------------------------------- Freddy's speech bubble
+## A short line next to Freddy's head (e.g. what is special about a new cargo kind).
+func show_bubble(text: String):
+	if bubble and is_instance_valid(bubble):
+		bubble.queue_free()
+	bubble = PanelContainer.new()
+	var sb = StyleBoxFlat.new()
+	sb.bg_color = ArtPalette.CREAM
+	sb.set_corner_radius_all(14)
+	sb.set_border_width_all(3)
+	sb.border_color = NAVY
+	sb.content_margin_left = 14
+	sb.content_margin_right = 14
+	sb.content_margin_top = 8
+	sb.content_margin_bottom = 8
+	bubble.add_theme_stylebox_override("panel", sb)
+	bubble.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# tail pointing at his head
+	var tail_edge = Polygon2D.new()
+	tail_edge.polygon = PackedVector2Array([Vector2(3, 12), Vector2(-17, 24), Vector2(3, 33)])
+	tail_edge.color = NAVY
+	bubble.add_child(tail_edge)
+	var tail = Polygon2D.new()
+	tail.polygon = PackedVector2Array([Vector2(4, 16), Vector2(-11, 24), Vector2(4, 29)])
+	tail.color = ArtPalette.CREAM
+	bubble.add_child(tail)
+	bubble.add_child(_label(text, 20, NAVY))
+	root.add_child(bubble)
+	bubble.reset_size()
+	bubble.position = Vector2(Game.FLICK_X + 52, Game.DOCK_TOP + 10)
+	bubble.modulate.a = 0.0
+	var tw = bubble.create_tween()
+	tw.tween_property(bubble, "modulate:a", 1.0, 0.2)
+	tw.tween_interval(3.2)
+	tw.tween_property(bubble, "modulate:a", 0.0, 0.4)
+	tw.tween_callback(bubble.queue_free)
 
 
 # ----------------------------------------------------------------- tutorial

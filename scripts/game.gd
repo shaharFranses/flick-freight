@@ -7,6 +7,7 @@ signal progress_changed(delivered: int, remaining: int)
 signal queue_changed(types: Array)
 signal popup(text: String, pos: Vector2, color: Color, size: int)
 signal first_throw
+signal say(text: String)  # Freddy's speech bubble (a cargo kind he has not handled before)
 signal finished(stars: int, delivered: int, total: int)
 signal cargo_resolved(kind: String, delivered: bool, reason: String)  # for the QA bot
 
@@ -54,6 +55,18 @@ const LAYER_FLIGHT := 4  # physics layer 3
 var pads: Array = []  # M8: [{node, n, power, squash}]
 var truck_count := 0
 var delivered := 0
+## What Freddy says the first time he picks up each special cargo kind.
+const CARGO_NOTES := {
+	"crate": "Heavy one!\nPull back harder.",
+	"barrel": "A barrel!\nTall and tippy, land it gently.",
+	"fragile": "Fragile!\nEvery bump cracks it.",
+	"ice": "Ice block!\nIt slides, careful.",
+	"tire": "A tire!\nIt bounces, drop it in softly.",
+	"plank": "A plank!\nIt spins as it flies.",
+	"canister": "Gas can!\nLand it softly or it pops.",
+	"parcel": "A parcel!\nSmall and light.",
+}
+var _told := {}  # kinds he has already talked about in this level
 var delivered_kinds := {}  # kind -> how many are in a truck right now
 var required: Array = []   # kinds that need at least one loaded (Levels.required_kinds)
 var _air_kinds := {}       # kind -> how many are in the air
@@ -366,6 +379,18 @@ func _clear_pile():
 		if is_instance_valid(pic):
 			pic.queue_free()
 	pile.clear()
+
+
+## Freddy says a line about a special cargo kind: the first time the player ever meets it,
+## and always on the level that introduces it. Once per level at most.
+func _note_kind(kind: String):
+	if not CARGO_NOTES.has(kind) or _told.has(kind):
+		return
+	_told[kind] = true
+	var introduced: bool = level.get("intro", {}).get("icon", "") == kind
+	if introduced or not SaveData.get_flag("met_" + kind, false):
+		SaveData.set_flag("met_" + kind, true)
+		say.emit(CARGO_NOTES[kind])
 
 
 ## The next cargo hops from the pile into Freddy's hands (same 0.5 s as before).
@@ -790,6 +815,7 @@ func spawn_next():
 	if ended or current != null or queue.is_empty():
 		return
 	var kind: String = queue.pop_front()
+	_note_kind(kind)
 	var c = Cargo.new()
 	c.setup(kind, self)
 	cargo_root.add_child(c)

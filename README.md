@@ -43,6 +43,8 @@ Full design write-up: [Game Design Document (PDF)](docs/Flick_Freight_GDD.pdf).
   next piece hops from the pile into his hands, right above his head. He squats and sways with it while you pull
   back (stressed), swings through on the throw, and is happy when it lands in the truck, sad when it misses.
   The cargo's launch point, timing and the dock's collision box are unchanged.
+- Freddy says a short line in a speech bubble the first time he picks up each special cargo type
+  (and always on the level that introduces it); intro banners on mixed levels add the one-of-each note.
 - Progress (stars, mute, tutorial) is saved locally.
 - **CrazyGames SDK v3:** `custom_html/custom_shell.html` loads it and reports loading start/stop;
   `scripts/portal.gd` reports gameplay start/stop (level start, pause, resume, level end) and
