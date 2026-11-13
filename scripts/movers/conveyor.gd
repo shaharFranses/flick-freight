@@ -2,6 +2,8 @@ extends Mover
 ## M23: conveyor belt on legs. Cargo that lands on it is carried at a fixed speed toward one
 ## end (toward the vehicle, or away from it) and drops off there.
 ## cfg: x0, x1 (belt ends), y (belt top), speed (px/s, + = to the right)
+##      hang (optional, y): the belt hangs on rods from a ceiling at that height instead of
+##      standing on legs, so vehicles can pass underneath it
 
 var belt: StaticBody2D
 var x0 := 400.0
@@ -56,9 +58,13 @@ func sim_catch(p: Vector2, v: Vector2, hh: float, _f: int) -> Dictionary:
 
 func _draw():
 	var f = game.frame
-	# legs
+	# legs down to the road, or rods up to the ceiling it hangs from
 	for lx in [x0 + 20, (x0 + x1) * 0.5, x1 - 20]:
-		ArtDraw.ink_rect(self, Rect2(lx - 7, y + T - 2, 14, Game.ROAD_Y - y - T + 2), ArtPalette.STEEL_LIGHT, 3.0)
+		if cfg.has("hang"):
+			var top: float = cfg.hang
+			ArtDraw.ink_rect(self, Rect2(lx - 4, top, 8, y - top + 2), ArtPalette.STEEL_LIGHT, 3.0)
+		else:
+			ArtDraw.ink_rect(self, Rect2(lx - 7, y + T - 2, 14, Game.ROAD_Y - y - T + 2), ArtPalette.STEEL_LIGHT, 3.0)
 	var r = Rect2(x0, y, x1 - x0, T)
 	ArtDraw.ink_rect(self, r.grow(3), ArtPalette.BELT, 3.0)
 	# moving belt stripes show the direction and speed
