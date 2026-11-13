@@ -337,11 +337,9 @@ func _draw_tutorial():
 	if game == null or game.current == null or not game.current_ready:
 		return
 	# a finger presses the cargo, drags down-left, lets go; dotted arc shows the result
-	# Freddy holds the cargo over his head (picture only): the hint starts at the picture
-	var lift: Vector2 = game.worker.lift if game.worker else Vector2.ZERO
-	var start = game.rest_pos + lift
+	var start = game.rest_pos
 	var cyc = fmod(_tut_t, 2.2) / 2.2
-	var drag = _tutorial_drag(game.rest_pos)
+	var drag = _tutorial_drag(start)
 	var k = clamp((cyc - 0.15) / 0.5, 0.0, 1.0)
 	k = k * k * (3 - 2 * k)
 	var finger = start + drag * k
@@ -352,14 +350,13 @@ func _draw_tutorial():
 	# arc preview
 	if pressed and k > 0.05:
 		var v = game.launch_velocity(-drag * k)
-		var p = game.rest_pos
+		var p = start
 		for i in 24:
 			v += Vector2(0, Game.GRAVITY) / 60.0 * 3
 			p += v / 60.0 * 3
 			if i % 2 == 0:
-				var dp = p + lift * Worker.join((i + 1) * 0.05)
-				tutorial.draw_circle(dp, 6.5, Color(NAVY, 0.6 * a))
-				tutorial.draw_circle(dp, 4.5, Color(1, 1, 1, 0.8 * a))
+				tutorial.draw_circle(p, 6.5, Color(NAVY, 0.6 * a))
+				tutorial.draw_circle(p, 4.5, Color(1, 1, 1, 0.8 * a))
 	# finger: ring + dot
 	tutorial.draw_circle(finger, 30 if pressed else 36, Color(1, 1, 1, 0.25 * a))
 	tutorial.draw_arc(finger, 30 if pressed else 36, 0, TAU, 32, Color(1, 1, 1, 0.95 * a), 5.0)
