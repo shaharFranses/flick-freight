@@ -9,7 +9,7 @@ extends SceneTree
 ##   --error=E             aim error (0 = perfect, 0.5 = human-like)
 ##   --seed=N              base seed; each level gets its own RNG seeded from (N, level)
 ##   --solver=auto|analytic|sim
-##                         auto = analytic for the frozen levels 1-15, sim for everything after
+##                         auto = sim for every level (analytic only when asked for)
 ##   --json=res://...      write per-level results as JSON
 ##   --compare=res://...   fail (exit 1) if any level in that JSON gives a different result
 ##                         on a mismatch, also prints PARITY_ACTUAL e0|e05 L<n> {json}
@@ -199,7 +199,9 @@ func _use_analytic(g: Game) -> bool:
 		return true
 	if solver == "sim":
 		return false
-	return g.level_index < FROZEN_LEVELS
+	# auto: the search solver everywhere. The analytic one only knows the plain truck and
+	# misses heavy cargo under beams, which fails levels on the one-of-each rule.
+	return false
 
 
 func _record(g: Game):

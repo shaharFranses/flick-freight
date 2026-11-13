@@ -15,6 +15,7 @@ const SCRIPTS = {
 	"balloon": "res://scripts/vehicle_balloon.gd",  # V9
 	"mailvan": "res://scripts/vehicle_mailvan.gd",  # V4
 	"foodtruck": "res://scripts/vehicle_foodtruck.gd",  # V10
+	"barge": "res://scripts/vehicle_barge.gd",  # V11
 }
 
 

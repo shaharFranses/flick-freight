@@ -27,6 +27,10 @@ Full design write-up: [Game Design Document (PDF)](docs/Flick_Freight_GDD.pdf).
 - **Freight Yard (world 6):** gas canisters: land them softly, or they pop in a puff of smoke and knock
   nearby cargo out of the truck (knocked-out cargo stops counting until it lands again; fragile
   neighbours break). Level 40 has one of everything.
+- **Playtest pass:** ice blocks melt in Freddy's hands (a ring shows the time left); mail van express levels run
+  on a clock; the conveyor is a ramp or a timed drop onto a moving target; dump trucks tip their bed on a ram;
+  the steel girder (heavy plank) arrives in Construction; the Harbor has a barge (open deck on the waves) and
+  introduces tires; fragile cargo is introduced in the Desert; the courier motorcycle shows up in more worlds.
 - **Act II (Plan 2, `docs/EXPANSION_PLAN_2.md`):** each world gets 5 more levels after its Act I,
   unlocked once Act I is done. The next world opens once every level of this one (Act I and
   Act II) has been won at least once. Town: a courier motorcycle (3 boxes on a tiny rack: 1 is easy, 3 is

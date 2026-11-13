@@ -63,6 +63,7 @@ const CARGO_NOTES := {
 	"ice": "Ice block!\nThrow it before it melts.",
 	"tire": "A tire!\nIt bounces, drop it in softly.",
 	"plank": "A plank!\nIt spins as it flies.",
+	"girder": "Steel girder!\nHeavy. Pull back harder.",
 	"canister": "Gas can!\nLand it softly or it pops.",
 	"parcel": "A parcel!\nSmall and light.",
 }

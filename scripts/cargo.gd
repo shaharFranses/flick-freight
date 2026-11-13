@@ -22,6 +22,10 @@ const TYPES = {
 	"plank": {"tex": "res://art/v2/cargo/plank.png", "size": Vector2(150, 24), "mass": 1.5,
 		"bounce": 0.04, "friction": 1.0, "power": 0.95, "snd": "hit_wood", "name": "PLANK",
 		"spin": 2.4},
+	# heavy plank: long like a plank, heavy like a crate, slow spin. Strong enough to stack on.
+	"girder": {"tex": "res://art/v2/cargo/girder.png", "size": Vector2(170, 26), "mass": 3.2,
+		"bounce": 0.02, "friction": 1.0, "power": 0.84, "snd": "hit_metal", "name": "STEEL GIRDER",
+		"spin": 1.2},
 	"canister": {"tex": "res://art/v2/cargo/canister.png", "size": Vector2(44, 58), "mass": 1.2,
 		"bounce": 0.05, "friction": 0.9, "power": 1.0, "snd": "hit_metal", "name": "GAS CAN",
 		"pop_speed": 950.0, "pop_force": 520.0},
