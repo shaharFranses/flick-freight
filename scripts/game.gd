@@ -80,6 +80,12 @@ var melt_total := MELT_TIME
 var melt_ring: Node2D
 var _drip_t := 0.0
 var in_flight := 0
+## Express runs (level.time_limit): the clock starts on the first throw; at zero the vehicle
+## has to leave, and whatever was not thrown is left behind.
+var time_limit := 0.0
+var time_left := 0.0
+var clock_running := false
+var timed_out := false
 var ended := false
 var wind := 0.0
 var cap := 99
@@ -113,6 +119,8 @@ func setup(index: int):
 	level = Levels.get_level(index)
 	queue = Levels.cargo_list(index)
 	required = Levels.required_kinds(index)
+	time_limit = level.get("time_limit", 0.0)
+	time_left = time_limit
 	wind = level.get("wind", 0.0)
 	cap = level.get("cap", 99)
 	slots = level.trucks if level.has("trucks") else [level.truck]
@@ -1008,6 +1016,7 @@ func _throw():
 	Sfx.play("whoosh", -6.0, randf_range(0.95, 1.1))
 	if thrown == 1:
 		first_throw.emit()
+		clock_running = time_limit > 0.0
 	queue_changed.emit(remaining_types())
 	get_tree().create_timer(NEXT_DELAY, false).timeout.connect(spawn_next)
 
@@ -1169,6 +1178,28 @@ func _check_end():
 			_score())
 
 
+## Express run: time is up. Nothing more can be thrown; cargo already in the air still counts.
+func _time_up():
+	time_left = 0.0
+	clock_running = false
+	timed_out = true
+	queue.clear()
+	_clear_pile()
+	if current:
+		current.queue_free()
+		current = null
+	current_ready = false
+	melt_left = -1.0
+	aiming = false
+	pull = Vector2.ZERO
+	aim.queue_redraw()
+	popup.emit("TIME'S UP!", Vector2(640, 240), C_BAD, 60)
+	Sfx.play("fail", -4.0)
+	queue_changed.emit(remaining_types())
+	progress_changed.emit(delivered, work_left())
+	_check_end()
+
+
 ## Required kinds that are not in a truck right now.
 func missing_kinds() -> Array:
 	var out: Array = []
@@ -1204,6 +1235,10 @@ func _physics_process(delta: float):
 	frame += 1
 	if not ended:
 		_melt_tick(delta)
+		if clock_running:
+			time_left -= delta
+			if time_left <= 0.0:
+				_time_up()
 	for t in live_trucks():
 		if t.state != "parked":
 			continue

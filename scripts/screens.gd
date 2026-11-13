@@ -318,6 +318,8 @@ func show_results(level_index: int, stars: int, delivered: int, total: int):
 				sub = "Loaded %d of %d  -  load at least 1 %s" % [delivered, total, kind]
 			else:
 				sub = "Loaded %d of %d  -  you need %d, with at least 1 %s" % [delivered, total, lv.goal, kind]
+		if game_now and game_now.timed_out and delivered < lv.goal:
+			sub = "Time ran out  -  loaded %d, you need %d" % [delivered, lv.goal]
 	if lv.has("need"):
 		var ts: Array = lv.get("throw_stars", [lv.need, lv.need + 1])
 		var thrown = get_parent().game.thrown if get_parent().game else 0

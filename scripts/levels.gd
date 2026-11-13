@@ -24,6 +24,8 @@ extends RefCounted
 ##          g = gas canister (M15, pops on a hard landing and knocks nearby cargo out)
 ## plank  : M13 {length, spin} override for this level's planks (default 150 px, 2.4 rad/s)
 ## melt   : seconds an ice block lasts in Freddy's hands before it melts away (default 7)
+## time_limit : seconds from the first throw until the vehicle has to leave (mail van express
+##          runs). Cargo not thrown by then is left behind; what is loaded is scored as usual
 ## fragile_hits : fragile cargo breaks on this bump (default 3); every bump before it shows a crack
 ## height_limit : M14 px above the bed floor; cargo sticking up past it is knocked off (a miss)
 ## canister : M15 {pop_speed, pop_force} override (default 950 px/s, 520)
@@ -393,19 +395,21 @@ const DATA = [
 	{"world": 7, "cargo": "bbb", "goal": 2, "s2": 3,
 		"truck": {"x": 860, "amp": 0, "period": 4.0, "vehicle": "foodtruck"}, "guide": 0.7,
 		"intro": {"title": "FOOD TRUCK", "text": "In through the serving window: under the awning, over the counter."}},
-	{"world": 7, "cargo": "mmmmmm", "goal": 3, "s2": 5,
-		"truck": {"x": 880, "amp": 0, "period": 4.0, "vehicle": "mailvan"}, "guide": 0.6},
+	{"world": 7, "cargo": "mmmmmm", "goal": 3, "s2": 5, "time_limit": 16,
+		"truck": {"x": 880, "amp": 0, "period": 4.0, "vehicle": "mailvan"}, "guide": 0.6,
+		"intro": {"title": "EXPRESS MAIL", "text": "The van leaves 16 seconds after your first throw. Get the parcels in before it goes!", "icon": "parcel"}},
 	{"world": 7, "cargo": "bbbb", "goal": 2, "s2": 3,
 		"truck": {"x": 860, "amp": 0, "period": 4.0, "vehicle": "foodtruck"}, "guide": 0.5},
-	{"world": 7, "cargo": "mmmmmm", "goal": 3, "s2": 5,
+	{"world": 7, "cargo": "mmmmmm", "goal": 3, "s2": 5, "time_limit": 20,
 		"truck": {"x": 860, "amp": 90, "period": 5.0, "vehicle": "mailvan"}, "guide": 0.5,
-		"intro": {"title": "ON THE ROUND", "text": "The mail van won't stop for you. Lead your throw."}},
+		"intro": {"title": "ON THE ROUND", "text": "The mail van won't stop for you, and it leaves in 20 seconds. Lead your throw."}},
 	{"world": 7, "cargo": "bbbbbbb", "goal": 4, "s2": 6,
 		"truck": {"x": 900, "amp": 80, "period": 5.0, "vehicle": "garbage"}, "guide": 0.5, "wind": -60},
 	{"world": 7, "cargo": "bbbbb", "goal": 2, "s2": 3,
 		"truck": {"x": 860, "amp": 0, "period": 4.0, "vehicle": "foodtruck"}, "guide": 0.4, "wind": -50},
-	{"world": 7, "cargo": "mmmmmmm", "goal": 4, "s2": 6,
-		"truck": {"x": 860, "amp": 0, "period": 4.0, "vehicle": "mailvan"}, "guide": 0.4, "wind": 50},
+	{"world": 7, "cargo": "mmmmmmm", "goal": 4, "s2": 6, "time_limit": 18,
+		"truck": {"x": 860, "amp": 0, "period": 4.0, "vehicle": "mailvan"}, "guide": 0.4, "wind": 130,
+		"intro": {"title": "WINDY ROUND", "text": "A strong tailwind and 18 seconds. Throw shorter than the dotted line!", "icon": "wind"}},
 	{"world": 7, "cargo": "mbmbmbm", "goal": 3, "s2": 4,
 		"trucks": [{"x": 645, "amp": 40, "period": 5.0, "vehicle": "mailvan", "accepts": "m"},
 			{"x": 1080, "amp": 30, "period": 7.0, "vehicle": "foodtruck", "accepts": "b"}],

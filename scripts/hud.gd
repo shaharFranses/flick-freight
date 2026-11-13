@@ -10,6 +10,7 @@ const GOLD = Color("#FFD34E")
 const STAR_TEX = preload("res://art/v2/fx/star_gold.png")
 
 var game: Game
+var _clock: Label  # express-run countdown (levels with a time_limit)
 var root: Control
 var level_label: Label
 var world_label: Label
@@ -198,6 +199,15 @@ func bind(g: Game):
 	g.first_throw.connect(_hide_tutorial)
 	g.say.connect(show_bubble)
 	_on_progress(0, _total)
+	if g.time_limit > 0.0:
+		# express run: a countdown under the top bar
+		_clock = _label("", 44)
+		_clock.add_theme_constant_override("outline_size", 12)
+		_clock.add_theme_color_override("font_outline_color", ArtPalette.INK)
+		_clock.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_clock.position = Vector2(540, 96)
+		_clock.size = Vector2(200, 56)
+		add_child(_clock)
 	# mixed levels: every banner also says that one of each cargo type is needed
 	var note = "Load at least 1 of each type to pass!" if not _need_chips.is_empty() else ""
 	if lv.has("intro"):
@@ -384,6 +394,10 @@ func _hide_tutorial():
 
 
 func _process(delta: float):
+	if _clock and is_instance_valid(game):
+		var s: float = max(game.time_left, 0.0)
+		_clock.text = "%d:%02d" % [int(ceil(s)) / 60, int(ceil(s)) % 60]
+		_clock.add_theme_color_override("font_color", ArtPalette.CORAL if s <= 5.0 else Color.WHITE)
 	if tutorial:
 		_tut_t += delta
 		tutorial.queue_redraw()
