@@ -71,6 +71,9 @@ var fx_root: Node2D
 var aim: Node2D
 var beacon: Sprite2D
 var worker: Worker
+## Pictures of the cargo still to throw, piled on the dock behind Freddy. Same order as
+## `queue`: pile[0] is the next one (always on top of the pile).
+var pile: Array = []
 var clouds: Array[Sprite2D] = []
 var flag: Node2D
 var wind_fx: Node2D
@@ -97,6 +100,7 @@ func setup(index: int):
 		_build_water()
 	_build_dock()
 	_build_worker()
+	_build_pile()
 	_build_blocks()
 	if level.has("pads"):
 		_build_pads()
@@ -309,6 +313,61 @@ func _build_dock():
 	cs.position = Vector2(DOCK_RIGHT * 0.5, (DOCK_TOP + ROAD_Y) * 0.5)
 	body.add_child(cs)
 	add_child(body)
+
+
+## The level's cargo is tossed out of the warehouse and piled up on the dock behind Freddy.
+## Pictures only (no physics). Stacked last-to-throw first, so the next one is always on top.
+func _build_pile():
+	var root = _static_node()
+	var cols := [150.0, 90.0, 30.0]
+	var heights := [0.0, 0.0, 0.0]
+	pile.resize(queue.size())
+	var order := 0
+	for i in range(queue.size() - 1, -1, -1):
+		var kind: String = queue[i]
+		var size: Vector2 = Cargo.size_of(kind, level)
+		var pos := Vector2.ZERO
+		if size.x > 70.0:
+			# long cargo (planks) lies across the whole pile
+			var h: float = max(heights[0], max(heights[1], heights[2]))
+			pos = Vector2(90.0, DOCK_TOP - h - size.y * 0.5)
+			for j in 3:
+				heights[j] = h + size.y
+		else:
+			var c := 0
+			for j in 3:
+				if heights[j] < heights[c] - 0.5:
+					c = j
+			pos = Vector2(cols[c], DOCK_TOP - heights[c] - size.y * 0.5)
+			heights[c] += size.y
+		var pic: Node2D = Cargo.make_picture(kind, size)
+		pic.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+		root.add_child(pic)
+		var from := Vector2(-60.0, DOOR.get_center().y)
+		pic.position = from
+		pile[i] = pic
+		var tw = create_tween()
+		tw.tween_interval(0.02 + 0.04 * order)
+		tw.tween_method(_toss.bind(pic, from, pos), 0.0, 1.0, 0.3)
+		order += 1
+
+
+func _toss(k: float, pic: Node2D, from: Vector2, to: Vector2):
+	if is_instance_valid(pic):
+		pic.position = from.lerp(to, k) + Vector2(0, -50.0 * sin(k * PI))
+
+
+func _clear_pile():
+	for pic in pile:
+		if is_instance_valid(pic):
+			pic.queue_free()
+	pile.clear()
+
+
+## The next cargo hops from the pile into Freddy's hands (same 0.5 s as before).
+func _carry(k: float, c: Cargo, from: Vector2, hop: float):
+	if is_instance_valid(c):
+		c.global_position = from.lerp(rest_pos, k) + Vector2(0, -hop * sin(k * PI))
 
 
 ## Freddy, the dock worker (scripts/worker.gd): reacts to aiming, hits and misses.
@@ -665,6 +724,7 @@ func _on_truck_departed(slot: int):
 		# level is over (cargo not thrown yet counts as missed)
 		if live_trucks().is_empty() and not ended:
 			queue.clear()
+			_clear_pile()
 			if current:
 				current.queue_free()
 				current = null
@@ -730,13 +790,20 @@ func spawn_next():
 	c.setup(kind, self)
 	cargo_root.add_child(c)
 	rest_pos = Vector2(FLICK_X, DOCK_TOP - c.half_height())
-	c.global_position = Vector2(-50, rest_pos.y)
+	var from := Vector2(-50, rest_pos.y)
+	if not pile.is_empty():
+		var pic = pile.pop_front()
+		if is_instance_valid(pic):
+			from = pic.global_position
+			pic.queue_free()
+	c.global_position = from
 	c.reset_physics_interpolation()
 	current = c
 	current_ready = false
 	Sfx.play("conveyor", -8.0)
 	var tw = create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
-	tw.tween_property(c, "global_position", rest_pos, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	var hop := 24.0 + 0.1 * from.distance_to(rest_pos)
+	tw.tween_method(_carry.bind(c, from, hop), 0.0, 1.0, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func(): current_ready = true)
 	queue_changed.emit(remaining_types())
 

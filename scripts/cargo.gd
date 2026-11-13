@@ -48,6 +48,29 @@ static func thumb_for(kind: String) -> Texture2D:
 	return texture_for(kind)
 
 
+## Size of a cargo kind in a level (planks can have a per-level length).
+static func size_of(k: String, lv: Dictionary) -> Vector2:
+	var size: Vector2 = TYPES[k].size
+	if k == "plank" and lv.has("plank"):
+		size = Vector2(lv.plank.get("length", size.x), size.y)
+	return size
+
+
+## A picture of a cargo (no physics): the pile of waiting cargo on the dock.
+static func make_picture(k: String, size: Vector2) -> Node2D:
+	var n := Node2D.new()
+	var skin: NinePatchRect = ArtAssets.plank_skin(size.x, size.y) if k == "plank" else null
+	if skin:
+		n.add_child(skin)
+	else:
+		var s := Sprite2D.new()
+		var tex: Texture2D = texture_for(k)
+		s.texture = tex
+		s.scale = size / tex.get_size()
+		n.add_child(s)
+	return n
+
+
 const SETTLE_SPEED := 14.0
 const SETTLE_TIME := 0.3
 const MAX_AIR_TIME := 7.0

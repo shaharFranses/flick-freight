@@ -198,6 +198,8 @@ func bind(g: Game):
 		show_banner("WIND", "Tailwind! Throw softer than the line." if lv.wind > 0 else "Headwind! Throw harder than the line.", "wind")
 	else:
 		var how = "Load %d of %d to pass" % [_goal, _total]
+		if lv.get("tutorial", false):
+			how = "Help Freddy load %d of %d" % [_goal, _total]
 		if lv.has("need"):
 			how = "Load %d, in as few throws as you can" % lv.need
 		show_banner("LEVEL %d" % Levels.number_of(g.level_index), how, "", 1.6)
@@ -289,7 +291,7 @@ func _show_tutorial():
 	tutorial = Node2D.new()
 	tutorial.draw.connect(_draw_tutorial)
 	root.add_child(tutorial)
-	tutorial_label = _label("DRAG BACK & RELEASE TO THROW", 30, Color.WHITE)
+	tutorial_label = _label("HELP FREDDY AIM: DRAG BACK & RELEASE", 30, Color.WHITE)
 	tutorial_label.add_theme_color_override("font_outline_color", NAVY)
 	tutorial_label.add_theme_constant_override("outline_size", 10)
 	root.add_child(tutorial_label)
