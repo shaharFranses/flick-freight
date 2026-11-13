@@ -54,6 +54,9 @@ const LAYER_FLIGHT := 4  # physics layer 3
 var pads: Array = []  # M8: [{node, n, power, squash}]
 var truck_count := 0
 var delivered := 0
+var delivered_kinds := {}  # kind -> how many are in a truck right now
+var required: Array = []   # kinds that need at least one loaded (Levels.required_kinds)
+var _air_kinds := {}       # kind -> how many are in the air
 var thrown := 0
 var in_flight := 0
 var ended := false
@@ -88,6 +91,7 @@ func setup(index: int):
 	level_index = index
 	level = Levels.get_level(index)
 	queue = Levels.cargo_list(index)
+	required = Levels.required_kinds(index)
 	wind = level.get("wind", 0.0)
 	cap = level.get("cap", 99)
 	slots = level.trucks if level.has("trucks") else [level.truck]
@@ -884,6 +888,7 @@ func _throw():
 	c.launch(vel, wind)
 	thrown += 1
 	in_flight += 1
+	_air_kinds[c.kind] = _air_kinds.get(c.kind, 0) + 1
 	Sfx.play("whoosh", -6.0, randf_range(0.95, 1.1))
 	if thrown == 1:
 		first_throw.emit()
@@ -902,6 +907,7 @@ func throw_with_pull(p: Vector2) -> bool:
 
 func _on_resolved(c: Cargo, ok: bool, reason: String):
 	in_flight -= 1
+	_air_kinds[c.kind] = _air_kinds.get(c.kind, 0) - 1
 	cargo_resolved.emit(c.kind, ok, reason)
 	if verbose:
 		print("  cargo %s -> %s (%s) at %s" % [c.kind, "IN" if ok else "out", reason, c.global_position.round()])
@@ -916,6 +922,7 @@ func _on_resolved(c: Cargo, ok: bool, reason: String):
 		c.fade_out(0.3)
 	elif t:
 		delivered += 1
+		delivered_kinds[c.kind] = delivered_kinds.get(c.kind, 0) + 1
 		t.add_load(c)
 		var top = c.global_position + Vector2(0, -50)
 		if not c.touched_wall:
@@ -973,6 +980,7 @@ func _pop(at: Vector2, force: float):
 				continue
 			if t.remove_load(d):
 				delivered -= 1
+				delivered_kinds[d.kind] = delivered_kinds.get(d.kind, 0) - 1
 				progress_changed.emit(delivered, work_left())
 			var dir = (d.global_position - at).normalized()
 			if dir == Vector2.ZERO:
@@ -987,6 +995,7 @@ func _pop(at: Vector2, force: float):
 			d.linear_velocity = dir * force * (0.5 + k) + Vector2(0, -force * 0.6)
 			d.angular_velocity = randf_range(-4.0, 4.0)
 			in_flight += 1
+			_air_kinds[d.kind] = _air_kinds.get(d.kind, 0) + 1
 	for d in get_tree().get_nodes_in_group("cargo"):
 		if is_instance_valid(d) and d.flying and not d.done and d.global_position.distance_to(at) < POP_RADIUS:
 			d.linear_velocity += (d.global_position - at).normalized() * force * 0.5
@@ -1028,6 +1037,10 @@ func _check_end():
 		return
 	var left = work_left()
 	var lost_cause = delivered + left < level.goal
+	# a required kind with none loaded and none left to throw: the level can't be passed
+	for k in missing_kinds():
+		if queue.count(k) + (1 if current and current.kind == k else 0) + _air_kinds.get(k, 0) <= 0:
+			lost_cause = true
 	var done_early = level.has("need") and delivered >= level.need and in_flight == 0
 	if left == 0 or done_early or (lost_cause and in_flight == 0):
 		ended = true
@@ -1040,8 +1053,22 @@ func _check_end():
 			_score())
 
 
+## Required kinds that are not in a truck right now.
+func missing_kinds() -> Array:
+	var out: Array = []
+	for k in required:
+		if delivered_kinds.get(k, 0) <= 0:
+			out.append(k)
+	return out
+
+
 func _score():
 	var stars = Levels.stars_for(level_index, delivered, thrown)
+	var missing = missing_kinds()
+	if stars > 0 and not missing.is_empty():
+		# enough cargo, but a kind is missing: no pass
+		stars = 0
+		popup.emit("NO %s LOADED!" % str(missing[0]).to_upper(), Vector2(640, 300), C_BAD, 56)
 	SaveData.set_stars(level_index, stars)
 	if stars > 0:
 		# showcase: every loaded vehicle honks and drives off (the helicopter lifts off) under confetti
@@ -1077,6 +1104,7 @@ func _physics_process(delta: float):
 					print("  cargo %s fell out of the truck at %s" % [c.kind, c.global_position.round()])
 				if t.remove_load(c):
 					delivered -= 1
+					delivered_kinds[c.kind] = delivered_kinds.get(c.kind, 0) - 1
 					popup.emit("FELL OUT!", Vector2(clamp(c.global_position.x, 80, 1200), clamp(c.global_position.y - 40, 160, ROAD_Y - 40)), C_BAD, 38)
 					Sfx.play("thud", -4.0)
 					progress_changed.emit(delivered, work_left())

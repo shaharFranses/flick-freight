@@ -205,6 +205,8 @@ func _use_analytic(g: Game) -> bool:
 func _record(g: Game):
 	var total: int = Levels.cargo_list(g.level_index).size()
 	var stars = Levels.stars_for(g.level_index, g.delivered, g.thrown)
+	if not g.missing_kinds().is_empty():
+		stars = 0  # a level only passes with at least one of each required cargo kind
 	var r = {"level": g.level_index + 1, "pass": stars > 0, "stars": stars, "delivered": g.delivered,
 		"missed": total - g.delivered - _broken, "broken": _broken, "total": total, "throws": _throws.duplicate()}
 	results.append(r)

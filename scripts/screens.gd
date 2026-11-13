@@ -310,6 +310,9 @@ func show_results(level_index: int, stars: int, delivered: int, total: int):
 	var sub = "Loaded %d of %d" % [delivered, total]
 	if not won:
 		sub += "  -  you need %d" % lv.goal
+		var game_now = get_parent().game
+		if delivered >= lv.goal and game_now and not game_now.missing_kinds().is_empty():
+			sub = "Loaded %d of %d  -  load at least 1 %s" % [delivered, total, str(game_now.missing_kinds()[0])]
 	if lv.has("need"):
 		var ts: Array = lv.get("throw_stars", [lv.need, lv.need + 1])
 		var thrown = get_parent().game.thrown if get_parent().game else 0
