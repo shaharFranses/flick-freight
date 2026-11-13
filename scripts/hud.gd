@@ -16,6 +16,8 @@ var world_label: Label
 var progress_label: Label
 var bar: Control
 var queue_box: HBoxContainer
+var need_row: HBoxContainer  # "1 OF EACH:" + a chip per required cargo kind
+var _need_chips := {}        # kind -> {tr, mark}
 ## U3 HUD stars, resolved once in _ready (never load() inside a draw callback).
 var _stars: Dictionary
 var mute_btn: Button
@@ -96,6 +98,11 @@ func _build_top_bar():
 	queue_box.alignment = BoxContainer.ALIGNMENT_END
 	row.add_child(queue_box)
 	cv.add_child(row)
+	need_row = HBoxContainer.new()
+	need_row.add_theme_constant_override("separation", 6)
+	need_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	need_row.visible = false
+	cv.add_child(need_row)
 	bar = Control.new()
 	bar.custom_minimum_size = Vector2(400, 30)
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -185,6 +192,7 @@ func bind(g: Game):
 		_s2 = lv.need
 		_total = lv.need
 	_delivered = 0
+	_build_need_row(Levels.required_kinds(g.level_index))
 	level_label.text = "LEVEL %d" % Levels.number_of(g.level_index)
 	world_label.text = Levels.world_of(g.level_index).name
 	g.progress_changed.connect(_on_progress)
@@ -198,6 +206,8 @@ func bind(g: Game):
 		show_banner("WIND", "Tailwind! Throw softer than the line." if lv.wind > 0 else "Headwind! Throw harder than the line.", "wind")
 	else:
 		var how = "Load %d of %d to pass" % [_goal, _total]
+		if not _need_chips.is_empty():
+			how = "Load %d of %d, at least 1 of each type" % [_goal, _total]
 		if lv.get("tutorial", false):
 			how = "Help Freddy load %d of %d" % [_goal, _total]
 		if lv.has("need"):
@@ -210,9 +220,47 @@ func bind(g: Game):
 func _on_progress(d: int, _left: int):
 	_delivered = d
 	progress_label.text = "LOADED %d / %d" % [d, _total]
-	if d >= _goal:
+	var missing: Array = game.missing_kinds() if game else []
+	for k in _need_chips:
+		var got = not missing.has(k)
+		_need_chips[k].tr.modulate = Color.WHITE if got else Color(1, 1, 1, 0.4)
+		_need_chips[k].mark.color = ArtPalette.MINT if got else ArtPalette.SLATE
+	if d >= _goal and missing.is_empty():
 		progress_label.add_theme_color_override("font_color", Color("#3DDC97"))
+	else:
+		progress_label.add_theme_color_override("font_color", Color.WHITE)
 	bar.queue_redraw()
+
+
+## Mixed levels: one chip per cargo kind that must be loaded at least once. A chip is dim
+## until one of its kind is in a truck.
+func _build_need_row(kinds: Array):
+	for c in need_row.get_children():
+		c.queue_free()
+	_need_chips.clear()
+	need_row.visible = not kinds.is_empty()
+	if kinds.is_empty():
+		return
+	need_row.add_child(_label("1 OF EACH:", 18))
+	for k in kinds:
+		var chip = Control.new()
+		chip.custom_minimum_size = Vector2(28, 32)
+		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var tr = TextureRect.new()
+		tr.texture = Cargo.thumb_for(k)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.size = Vector2(26, 26)
+		tr.position = Vector2(1, 0)
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var mark = ColorRect.new()
+		mark.size = Vector2(22, 4)
+		mark.position = Vector2(3, 28)
+		mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.add_child(tr)
+		chip.add_child(mark)
+		need_row.add_child(chip)
+		_need_chips[k] = {"tr": tr, "mark": mark}
 
 
 func _on_queue(types: Array):

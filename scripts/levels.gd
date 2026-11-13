@@ -468,6 +468,20 @@ static func cargo_list(i: int) -> Array:
 	return out
 
 
+## Cargo kinds the player must load at least one of: a mixed level only passes when every
+## kind is in a truck (the total needed stays `goal`). Not for few-throws ("need") levels,
+## and not where there are more kinds than the goal (e.g. the one-of-everything level).
+static func required_kinds(i: int) -> Array:
+	var lv = get_level(i)
+	var kinds: Array = []
+	for k in cargo_list(i):
+		if not kinds.has(k):
+			kinds.append(k)
+	if lv.has("need") or kinds.size() < 2 or kinds.size() > lv.goal:
+		return []
+	return kinds
+
+
 static func stars_for(i: int, delivered: int, thrown := -1) -> int:
 	var lv = get_level(i)
 	if lv.has("need"):
