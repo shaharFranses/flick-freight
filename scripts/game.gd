@@ -15,6 +15,10 @@ const DOCK_TOP := 430.0
 const DOCK_RIGHT := 266.0  # flush with the cargo's front edge: low throws don't scrape a lip
 const BELT_RIGHT := 189.0
 const FLICK_X := 235.0
+## Freddy's step: the dock is cut lower under the loading spot so he stands below the cargo
+## and holds it up at belt height. Picture only: the dock's collision box is unchanged.
+const STEP_LEFT := 192.0
+const STEP_Y := DOCK_TOP + 115.0
 const MAX_PULL := 170.0
 const POWER := 6.6
 const GRAVITY := 1200.0
@@ -275,7 +279,18 @@ func _build_dock():
 	dock.z_index = 1
 	var face_tex := ArtAssets.dock_face_texture()
 	if face_tex:
-		_place_dock_sprite(dock, face_tex, Vector2(-10, DOCK_TOP))
+		# the PNG is drawn in pieces so the step under the loading spot is cut out of it
+		var ts := face_tex.get_size()
+		var cut := STEP_LEFT + 10.0
+		var drop := STEP_Y - DOCK_TOP
+		_place_dock_sprite(dock, face_tex, Vector2(-10, DOCK_TOP), Rect2(0, 0, cut, ts.y))
+		_place_dock_sprite(dock, face_tex, Vector2(STEP_LEFT, STEP_Y), Rect2(cut, drop, ts.x - cut, ts.y - drop))
+		# the deck lip with its hazard nose moves down onto the step
+		_place_dock_sprite(dock, face_tex, Vector2(STEP_LEFT, STEP_Y), Rect2(cut, 0, DOCK_RIGHT + 11.0 - cut, 36))
+		var edge = _static_node()
+		edge.z_index = 1
+		edge.draw.connect(func():
+			edge.draw_rect(Rect2(STEP_LEFT - 4, DOCK_TOP, 4, drop + 4), ArtPalette.INK))
 	else:
 		dock.draw.connect(_draw_dock_face.bind(dock))
 	# conveyor belt set into the deck (Kenney industrial belt tiles, or v3 drop-ins)
@@ -303,10 +318,13 @@ func _build_worker():
 	worker.setup(self)
 
 
-func _place_dock_sprite(parent: Node2D, tex: Texture2D, top_left: Vector2):
+func _place_dock_sprite(parent: Node2D, tex: Texture2D, top_left: Vector2, region := Rect2()):
 	var s = Sprite2D.new()
 	s.texture = tex
 	s.centered = false
+	if region.size.x > 0 and region.size.y > 0:
+		s.region_enabled = true
+		s.region_rect = region
 	s.position = top_left
 	s.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	parent.add_child(s)
@@ -349,16 +367,19 @@ func _draw_dock_face(n: Node2D):
 	var lip = Color("#5B6574")
 	var top = DOCK_TOP
 	var R = DOCK_RIGHT
+	var L = STEP_LEFT  # right of this the dock is cut down to STEP_Y (Freddy's step)
 	# concrete body
-	n.draw_rect(Rect2(-10, top, R + 10, ROAD_Y - top + 4), concrete)
+	n.draw_rect(Rect2(-10, top, L + 10, ROAD_Y - top + 4), concrete)
+	n.draw_rect(Rect2(L, STEP_Y, R - L, ROAD_Y - STEP_Y + 4), concrete)
 	n.draw_rect(Rect2(-10, ROAD_Y - 10, R + 10, 14), seam)  # footing
 	for px in [62.0, 126.0, 190.0, 254.0]:
-		n.draw_line(Vector2(px, top + 40), Vector2(px, ROAD_Y - 10), seam, 3.0)
-	n.draw_line(Vector2(-10, top + 112), Vector2(R, top + 112), seam, 3.0)
-	# steel deck lip (right of the belt) with a hazard nose at the edge
-	n.draw_rect(Rect2(BELT_RIGHT, top, R - BELT_RIGHT, 14), lip)
-	n.draw_rect(Rect2(BELT_RIGHT, top, R - BELT_RIGHT, 3), lip.lightened(0.3))
-	var hz = Rect2(R - 56, top + 14, 56, 16)
+		n.draw_line(Vector2(px, (top if px < L else STEP_Y) + 40), Vector2(px, ROAD_Y - 10), seam, 3.0)
+	n.draw_line(Vector2(-10, top + 112), Vector2(L, top + 112), seam, 3.0)
+	# steel deck lip on the step, with a hazard nose at the edge
+	n.draw_rect(Rect2(BELT_RIGHT, top, L - BELT_RIGHT, 14), lip)
+	n.draw_rect(Rect2(L, STEP_Y, R - L, 14), lip)
+	n.draw_rect(Rect2(L, STEP_Y, R - L, 3), lip.lightened(0.3))
+	var hz = Rect2(R - 56, STEP_Y + 14, 56, 16)
 	n.draw_rect(hz, Color("#2E3440"))
 	var sx = hz.position.x - 16
 	while sx < hz.end.x:
@@ -372,11 +393,12 @@ func _draw_dock_face(n: Node2D):
 	# belt frame under the rollers
 	n.draw_rect(Rect2(-10, top + 27, BELT_RIGHT + 10, 13), lip)
 	# shadow of the deck lip on the wall
-	n.draw_rect(Rect2(-10, top + 40, R + 10, 6), Color(0, 0, 0, 0.08))
-	# rubber dock bumpers on the face
-	for by in [top + 58.0, top + 128.0]:
-		n.draw_rect(Rect2(R - 4, by, 14, 40), Color("#2E3440"))
-		n.draw_rect(Rect2(R + 6, by + 4, 4, 32), Color("#454C59"))
+	n.draw_rect(Rect2(-10, top + 40, L + 10, 6), Color(0, 0, 0, 0.08))
+	# wall of the step
+	n.draw_rect(Rect2(L - 4, top, 4, STEP_Y - top), lip)
+	# rubber dock bumper on the face
+	n.draw_rect(Rect2(R - 4, top + 128.0, 14, 40), Color("#2E3440"))
+	n.draw_rect(Rect2(R + 6, top + 132.0, 4, 32), Color("#454C59"))
 
 
 func _build_blocks():
@@ -1043,9 +1065,6 @@ func _draw_aim():
 	for b in level.get("blocks", []):
 		blocks.append(Rect2(b[0], b[1], b[2], b[3]))
 	var pad_hit := {}
-	# Freddy holds the cargo over his head (picture only): the guide leaves from the picture
-	# and joins the true path within Worker.JOIN_TIME, exactly like the thrown cargo does.
-	var lift := worker.lift if worker else Vector2.ZERO
 	while t < t_max:
 		v += acc * dt
 		p += v * dt
@@ -1067,10 +1086,9 @@ func _draw_aim():
 			var k = t / t_max
 			var r = lerp(8.0, 4.0, k)
 			var a = lerp(1.0, 0.25, k)
-			var dp = p + lift * Worker.join(t)
-			aim.draw_circle(dp, r + 2.5, Color(0.106, 0.165, 0.255, a))
-			aim.draw_circle(dp, r, Color(1, 1, 1, a))
+			aim.draw_circle(p, r + 2.5, Color(0.106, 0.165, 0.255, a))
+			aim.draw_circle(p, r, Color(1, 1, 1, a))
 	# pull band from the rest spot to the cargo
-	aim.draw_line(rest_pos + lift, p0 + lift, Color(0.106, 0.165, 0.255, 0.6), 4.0)
+	aim.draw_line(rest_pos, p0, Color(0.106, 0.165, 0.255, 0.6), 4.0)
 	var strength = pull.length() / MAX_PULL
-	aim.draw_arc(p0 + lift, 46, -PI / 2, -PI / 2 + TAU * strength, 32, C_GOLD.lerp(C_BAD, strength * strength), 6.0)
+	aim.draw_arc(p0, 46, -PI / 2, -PI / 2 + TAU * strength, 32, C_GOLD.lerp(C_BAD, strength * strength), 6.0)

@@ -134,18 +134,6 @@ func setup(k: String, g):
 	add_to_group("cargo")
 
 
-## Visual-only offset in world space (Freddy holding the cargo over his head). The body, its
-## collision shape and the launch point never move; only the picture does.
-func set_lift(offset: Vector2):
-	var l := offset.rotated(-global_rotation)
-	if sprite:
-		sprite.position = l
-	if plank_skin:
-		plank_skin.position = l - info.size * 0.5
-	if cracks:
-		cracks.position = l
-
-
 func half_height() -> float:
 	return info.size.y * 0.5
 
