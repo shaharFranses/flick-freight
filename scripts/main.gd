@@ -31,6 +31,9 @@ func _ready():
 	screens.play.connect(func(): start_level(SaveData.first_unbeaten()))
 	screens.open_menu.connect(show_menu)
 	var q = _query()
+	# ?unlock=1 / --unlock=1: every level is open for play-testing (same gate as the level
+	# jump). Nothing is written to the save.
+	Levels.dev_unlock = q.get("unlock", "0") == "1" and _dev_jump_allowed()
 	if q.has("level") and _dev_jump_allowed():
 		start_level(Levels.id_of_number(int(q.level)))  # the number players see; skips the menu
 	else:

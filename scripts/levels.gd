@@ -560,7 +560,13 @@ static func levels_in_world_ordered(w: int) -> Array:
 	return out
 
 
+## Play-testing: every level open (set by main.gd from ?unlock=1 / --unlock=1, dev builds only).
+static var dev_unlock := false
+
+
 static func unlocked(i: int) -> bool:
+	if dev_unlock:
+		return true
 	if SaveData.stars(i) > 0:
 		return true  # a level you've won never locks again
 	var w: int = DATA[i].world
