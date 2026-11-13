@@ -35,8 +35,9 @@ Full design write-up: [Game Design Document (PDF)](docs/Flick_Freight_GDD.pdf).
   drives in and parks). PLAY starts that level; LEVELS opens level select; there is a mute toggle
   and the total star count. Pause and results screens have a home button back to the menu.
   `?level=N` (dev builds / localhost / GitHub Pages) still skips the menu.
-- **Freddy the dock worker** (`scripts/worker.gd`, code-drawn, decoration only) stands on the conveyor:
-  stressed while you pull the cargo back, happy when it lands in the truck, sad when it misses, relaxed otherwise.
+- **Freddy the dock worker** (`scripts/worker.gd`, code-drawn, decoration only) stands behind the loading spot:
+  he grabs each piece off the conveyor, winds up (stressed) while you pull back, swings through on the throw,
+  and is happy when it lands in the truck, sad when it misses.
 - Progress (stars, mute, tutorial) is saved locally.
 - **CrazyGames SDK v3:** `custom_html/custom_shell.html` loads it and reports loading start/stop;
   `scripts/portal.gd` reports gameplay start/stop (level start, pause, resume, level end) and
