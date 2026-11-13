@@ -66,6 +66,7 @@ var cargo_root: Node2D
 var fx_root: Node2D
 var aim: Node2D
 var beacon: Sprite2D
+var worker: Worker
 var clouds: Array[Sprite2D] = []
 var flag: Node2D
 var wind_fx: Node2D
@@ -297,9 +298,9 @@ func _build_dock():
 
 ## Freddy, the dock worker (scripts/worker.gd): reacts to aiming, hits and misses.
 func _build_worker():
-	var w := Worker.new()
-	add_child(w)
-	w.setup(self)
+	worker = Worker.new()
+	add_child(worker)
+	worker.setup(self)
 
 
 func _place_dock_sprite(parent: Node2D, tex: Texture2D, top_left: Vector2):
@@ -1042,6 +1043,9 @@ func _draw_aim():
 	for b in level.get("blocks", []):
 		blocks.append(Rect2(b[0], b[1], b[2], b[3]))
 	var pad_hit := {}
+	# Freddy holds the cargo over his head (picture only): the guide leaves from the picture
+	# and joins the true path within Worker.JOIN_TIME, exactly like the thrown cargo does.
+	var lift := worker.lift if worker else Vector2.ZERO
 	while t < t_max:
 		v += acc * dt
 		p += v * dt
@@ -1063,9 +1067,10 @@ func _draw_aim():
 			var k = t / t_max
 			var r = lerp(8.0, 4.0, k)
 			var a = lerp(1.0, 0.25, k)
-			aim.draw_circle(p, r + 2.5, Color(0.106, 0.165, 0.255, a))
-			aim.draw_circle(p, r, Color(1, 1, 1, a))
+			var dp = p + lift * Worker.join(t)
+			aim.draw_circle(dp, r + 2.5, Color(0.106, 0.165, 0.255, a))
+			aim.draw_circle(dp, r, Color(1, 1, 1, a))
 	# pull band from the rest spot to the cargo
-	aim.draw_line(rest_pos, p0, Color(0.106, 0.165, 0.255, 0.6), 4.0)
+	aim.draw_line(rest_pos + lift, p0 + lift, Color(0.106, 0.165, 0.255, 0.6), 4.0)
 	var strength = pull.length() / MAX_PULL
-	aim.draw_arc(p0, 46, -PI / 2, -PI / 2 + TAU * strength, 32, C_GOLD.lerp(C_BAD, strength * strength), 6.0)
+	aim.draw_arc(p0 + lift, 46, -PI / 2, -PI / 2 + TAU * strength, 32, C_GOLD.lerp(C_BAD, strength * strength), 6.0)

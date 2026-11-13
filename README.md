@@ -36,7 +36,7 @@ Full design write-up: [Game Design Document (PDF)](docs/Flick_Freight_GDD.pdf).
   and the total star count. Pause and results screens have a home button back to the menu.
   `?level=N` (dev builds / localhost / GitHub Pages) still skips the menu.
 - **Freddy the dock worker** (`scripts/worker.gd`, code-drawn, decoration only) stands behind the loading spot:
-  he grabs each piece off the conveyor, winds up (stressed) while you pull back, swings through on the throw,
+  he lifts each piece off the conveyor over his head (picture only: the launch point never moves), winds up (stressed) while you pull back, swings through on the throw,
   and is happy when it lands in the truck, sad when it misses.
 - Progress (stars, mute, tutorial) is saved locally.
 - **CrazyGames SDK v3:** `custom_html/custom_shell.html` loads it and reports loading start/stop;
