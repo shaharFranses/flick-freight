@@ -1,11 +1,13 @@
 class_name Worker
 extends Node2D
 ## Freddy, the dock worker. He stands right behind the loading spot and handles the cargo:
-##   - grabs each piece as it comes off the conveyor and holds it
+##   - grabs each piece as it comes off the conveyor and lifts it over his head
 ##   - winds up (stressed face) while the player pulls back
-##   - swings his arms through when the cargo is thrown
+##   - throws it from up there, arms swinging through
 ##   - happy when it lands in the truck, sad when it misses, relaxed otherwise
-## Pure decoration: no physics, the cargo's position and timing are untouched.
+## Pure decoration: the lift is a picture-only offset (Cargo.set_lift). The cargo's body, its
+## launch point and timing are untouched, so no level changes. A thrown cargo's picture joins
+## its true path within JOIN_TIME; the aim guide is drawn with the same offset.
 ## Drawn in code with anti-aliased edges (navy outline, flat colours).
 
 const INK := ArtPalette.INK
@@ -30,8 +32,11 @@ const THROW_TIME := 0.38  # s of follow-through after a throw
 const HIP := Vector2(0, -26)
 const SH_FRONT := Vector2(11, -58)  # shoulders (before the lean)
 const SH_BACK := Vector2(-5, -58)
-const ARM_UPPER := 23.0
-const ARM_LOWER := 25.0
+const ARM_UPPER := 28.0
+const ARM_LOWER := 29.0
+const OVERHEAD_Y := -110.0  # bottom of the cargo when it is held up (just above the hat)
+const LIFT_TIME := 0.28     # s to hoist the cargo up
+const JOIN_TIME := 0.22     # s for a thrown cargo's picture to join its true path
 const REACH_FROM := -45.0  # he grabs the cargo once it has slid this close (local x)
 
 ## The worker's name, in case a screen ever wants to show it.
@@ -41,6 +46,8 @@ var game: Game
 var mood := "normal"  # normal | stress | throw | happy | sad
 var holding := false
 var arms: Node2D  # drawn above the cargo, so his gloves sit on the box
+## Picture offset of the cargo he holds right now (world space; zero when not holding).
+var lift := Vector2.ZERO
 
 var _hold_mood := ""
 var _hold := 0.0
@@ -57,12 +64,23 @@ var _lean := 0.0
 var _shake := 0.0
 var _hand_f := SH_FRONT + Vector2(2, 44)
 var _hand_b := SH_BACK + Vector2(-2, 44)
+var _box_prev: Cargo = null
+var _lift_k := 0.0
+var _fly: Cargo = null  # thrown cargo whose picture is still joining its path
+var _fly_off := Vector2.ZERO
+var _fly_t := 0.0
+
+
+## 1 -> 0 over JOIN_TIME: how much of the lift a thrown cargo (or a guide dot) still shows.
+static func join(t: float) -> float:
+	var k: float = clamp(1.0 - t / JOIN_TIME, 0.0, 1.0)
+	return k * k
 
 
 func setup(g: Game):
 	game = g
 	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
-	position = Vector2(172, Game.DOCK_TOP)
+	position = Vector2(200, Game.DOCK_TOP)
 	arms = Node2D.new()
 	arms.z_index = 2
 	arms.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
@@ -87,13 +105,29 @@ func _process(delta: float):
 	_strength = clamp(game.pull.length() / Game.MAX_PULL, 0.0, 1.0) if aiming else 0.0
 	if aiming:
 		_last_dir = game.pull.normalized()
+	var box: Cargo = game.current
+	if box != null and not is_instance_valid(box):
+		box = null
 	if game.thrown != _seen_thrown:
 		_seen_thrown = game.thrown
 		_throw_t = THROW_TIME
 		_throw_dir = _last_dir
-	var box: Cargo = game.current
-	if box != null and not is_instance_valid(box):
-		box = null
+		# the cargo he was holding is now in the air: its picture leaves from overhead
+		_fly = _box_prev
+		_fly_off = lift
+		_fly_t = 0.0
+	if box != _box_prev:
+		_lift_k = 0.0
+	_box_prev = box
+	if _fly != null:
+		_fly_t += delta
+		if not is_instance_valid(_fly):
+			_fly = null
+		elif _fly_t >= JOIN_TIME:
+			_fly.set_lift(Vector2.ZERO)
+			_fly = null
+		else:
+			_fly.set_lift(_fly_off * join(_fly_t))
 	var box_at := Vector2.ZERO
 	if box != null:
 		box_at = to_local(box.global_position)
@@ -129,16 +163,30 @@ func _process(delta: float):
 			_bob = 3.0 + sin(_t * 1.6) * 0.8
 			_lean = 0.06
 
-	# hands: on the cargo while he holds it, otherwise posed by the mood
+	# the cargo's picture: hoisted from the belt to over his head (the body stays put)
+	lift = Vector2.ZERO
+	var vis := box_at
+	if holding:
+		_lift_k = min(1.0, _lift_k + delta / LIFT_TIME)
+		var e := _lift_k * _lift_k * (3.0 - 2.0 * _lift_k)
+		var over := _upper(Vector2(3.0, OVERHEAD_Y - box.half_height()))
+		if game.current_ready:
+			over += box_at - to_local(game.rest_pos)  # follows the pull-back
+		vis = box_at.lerp(over, e)
+		lift = vis - box_at
+	if box != null:
+		box.set_lift(lift)
+
+	# hands: under the cargo while he holds it, otherwise posed by the mood
 	var sf := _upper(SH_FRONT)
 	var sb := _upper(SH_BACK)
 	var tf := Vector2.ZERO
 	var tb := Vector2.ZERO
 	if holding:
-		var hw: float = min(float(box.info.size.x) * 0.5, 30.0)
+		var hw: float = min(float(box.info.size.x) * 0.5 - 6.0, 20.0)
 		var hh: float = box.half_height()
-		tf = box_at + Vector2(-hw + 6.0, -hh + 5.0)  # front glove on the top edge
-		tb = box_at + Vector2(-hw + 3.0, hh - 9.0)   # back glove low on the side
+		tf = vis + Vector2(hw, hh - 2.0)
+		tb = vis + Vector2(-hw, hh - 2.0)
 	elif mood == "throw":
 		tf = sf + _throw_dir * 46.0
 		tb = sb + _throw_dir.rotated(0.4) * 42.0
@@ -278,8 +326,9 @@ func _draw_arm(n: CanvasItem, sh: Vector2, hand: Vector2, sleeve: Color):
 	var perp := Vector2(-dir.y, dir.x)
 	var e1 := sh + dir * a + perp * h
 	var e2 := sh + dir * a - perp * h
-	# the elbow bends down and back
-	var elbow := e1 if (e1.y - e1.x * 0.6) > (e2.y - e2.x * 0.6) else e2
+	# the elbow bends down and away from the body
+	var out := 1.0 if sh.x > 0.0 else -1.0
+	var elbow := e1 if (e1.y + e1.x * out * 0.8) > (e2.y + e2.x * out * 0.8) else e2
 	_stroke(n, sh, elbow, INK, 12.0)
 	_stroke(n, elbow, hand, INK, 11.0)
 	_stroke(n, sh, elbow, sleeve, 6.0)
