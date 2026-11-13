@@ -23,6 +23,7 @@ extends RefCounted
 ##          t = tire (M12, bouncy), p = plank (M13, long, spins at a fixed rate; counts at any angle),
 ##          g = gas canister (M15, pops on a hard landing and knocks nearby cargo out)
 ## plank  : M13 {length, spin} override for this level's planks (default 150 px, 2.4 rad/s)
+## melt   : seconds an ice block lasts in Freddy's hands before it melts away (default 7)
 ## fragile_hits : fragile cargo breaks on this bump (default 3); every bump before it shows a crack
 ## height_limit : M14 px above the bed floor; cargo sticking up past it is knocked off (a miss)
 ## canister : M15 {pop_speed, pop_force} override (default 950 px/s, 520)
@@ -166,7 +167,7 @@ const DATA = [
 	# ---------------- SNOW ----------------
 	{"world": 4, "cargo": "bibibibi", "goal": 4, "s2": 6,
 		"truck": {"x": 900, "amp": 0, "period": 4.0, "wall": 56}, "guide": 0.8,
-		"intro": {"title": "ICE BLOCK", "text": "Slippery! It slides until something stops it.", "icon": "ice"}},
+		"intro": {"title": "ICE BLOCK", "text": "Slippery, and it melts! Throw it before the ring runs out.", "icon": "ice"}},
 	{"world": 4, "cargo": "bbibcbib", "goal": 4, "s2": 6,
 		"truck": {"x": 880, "amp": 110, "period": 4.6, "wall": 84, "icy": true}, "guide": 0.55,
 		"intro": {"title": "ICY TRUCK", "text": "The whole bed is slippery. Good thing it has a tall tailgate!"}},

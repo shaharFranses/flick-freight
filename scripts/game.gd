@@ -60,7 +60,7 @@ const CARGO_NOTES := {
 	"crate": "Heavy one!\nPull back harder.",
 	"barrel": "A barrel!\nTall and tippy, land it gently.",
 	"fragile": "Fragile!\nEvery bump cracks it.",
-	"ice": "Ice block!\nIt slides, careful.",
+	"ice": "Ice block!\nThrow it before it melts.",
 	"tire": "A tire!\nIt bounces, drop it in softly.",
 	"plank": "A plank!\nIt spins as it flies.",
 	"canister": "Gas can!\nLand it softly or it pops.",
@@ -71,6 +71,14 @@ var delivered_kinds := {}  # kind -> how many are in a truck right now
 var required: Array = []   # kinds that need at least one loaded (Levels.required_kinds)
 var _air_kinds := {}       # kind -> how many are in the air
 var thrown := 0
+## Ice melts in Freddy's hands: seconds left for the ice block he is holding (-1 = not ice).
+## It only runs while a throw is possible; a thrown block stops melting.
+const MELT_TIME := 7.0
+const MELT_WARN := 2.5  # the block blinks for the last seconds
+var melt_left := -1.0
+var melt_total := MELT_TIME
+var melt_ring: Node2D
+var _drip_t := 0.0
 var in_flight := 0
 var ended := false
 var wind := 0.0
@@ -847,6 +855,11 @@ func spawn_next():
 	var hop := 24.0 + 0.1 * from.distance_to(rest_pos)
 	tw.tween_method(_carry.bind(c, from, hop), 0.0, 1.0, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func(): current_ready = true)
+	melt_left = -1.0
+	if kind == "ice":
+		melt_total = level.get("melt", MELT_TIME)
+		melt_left = melt_total
+		_build_melt_ring()
 	queue_changed.emit(remaining_types())
 
 
@@ -915,9 +928,74 @@ func _cancel_aim():
 	aim.queue_redraw()
 
 
+# ======================================================================= melting ice
+func _build_melt_ring():
+	if melt_ring == null:
+		melt_ring = _static_node()
+		melt_ring.z_index = 25
+		melt_ring.draw.connect(_draw_melt_ring)
+
+
+## A ring above the ice block Freddy holds: it empties as the block melts.
+func _draw_melt_ring():
+	if melt_left <= 0.0 or current == null or not current_ready:
+		return
+	var k: float = clamp(melt_left / melt_total, 0.0, 1.0)
+	var c: Vector2 = current.global_position + Vector2(0, -current.half_height() - 30.0)
+	var col: Color = ArtPalette.CORAL if melt_left < MELT_WARN else ArtPalette.BLUE
+	melt_ring.draw_circle(c, 17.0, ArtPalette.INK)
+	melt_ring.draw_circle(c, 13.5, Color.WHITE)
+	melt_ring.draw_arc(c, 9.0, -PI * 0.5, -PI * 0.5 + TAU * k, 32, col, 8.0)
+
+
+func _melt_tick(delta: float):
+	if melt_left <= 0.0 or current == null or current.kind != "ice":
+		return
+	if can_aim():
+		melt_left -= delta
+	melt_ring.queue_redraw()
+	# drips, faster as it runs out; the block blinks for the last seconds
+	_drip_t -= delta
+	if _drip_t <= 0.0:
+		_drip_t = lerp(0.12, 0.5, clamp(melt_left / melt_total, 0.0, 1.0))
+		var at: Vector2 = current.global_position + Vector2(randf_range(-20, 20), current.half_height())
+		Fx.burst(fx_root, at, Fx.tex(Fx.RING), ArtPalette.WATER_HI, 2, 50.0, 0.5, 0.1, 900.0, 20.0, Vector2.DOWN)
+	if melt_left < MELT_WARN:
+		current.modulate.a = 0.55 + 0.45 * abs(sin(melt_left * 9.0))
+	if melt_left <= 0.0:
+		_melted()
+
+
+## The block melted before it was thrown: it is gone (a miss), the next cargo comes.
+func _melted():
+	var c = current
+	current = null
+	current_ready = false
+	melt_left = -1.0
+	aiming = false
+	pull = Vector2.ZERO
+	aim.queue_redraw()
+	melt_ring.queue_redraw()
+	popup.emit("MELTED!", c.global_position + Vector2(40, -70), C_BAD, 42)
+	Fx.splash(fx_root, c.global_position + Vector2(0, c.half_height()))
+	Sfx.play("splash", -6.0)
+	cargo_resolved.emit(c.kind, false, "melted")
+	if verbose:
+		print("  cargo ice melted in hand")
+	c.queue_free()
+	queue_changed.emit(remaining_types())
+	progress_changed.emit(delivered, work_left())
+	_check_end()
+	get_tree().create_timer(NEXT_DELAY, false).timeout.connect(spawn_next)
+
+
 func _throw():
 	var c = current
 	var vel = launch_velocity(pull)
+	c.modulate.a = 1.0
+	melt_left = -1.0
+	if melt_ring:
+		melt_ring.queue_redraw()
 	current = null
 	current_ready = false
 	pull = Vector2.ZERO
@@ -1124,6 +1202,8 @@ func _score():
 ## Delivered loads: anything that has left the bed for a moment (or hit the road) has fallen out.
 func _physics_process(delta: float):
 	frame += 1
+	if not ended:
+		_melt_tick(delta)
 	for t in live_trucks():
 		if t.state != "parked":
 			continue
