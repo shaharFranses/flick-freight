@@ -216,7 +216,6 @@ const DATA = [
 	{"world": 5, "cargo": "bcrfitpg", "goal": 4, "s2": 6,
 		"truck": {"x": 1000, "amp": 0, "period": 4.0, "wall": 64,
 			"ferry": {"amp_y": 12, "amp_rot": 2.5, "period": 3.2}}, "guide": 0.4, "wind": -80,
-		"pads": [[560, 579, 4, 1.1]],
 		"water": [760, 1300],
 		"intro": {"title": "GRAND FINALE", "text": "One of everything. You've got this, driver!"}},
 	# ================= Plan 2 =================
@@ -259,7 +258,7 @@ const DATA = [
 			"ferry": {"amp_y": 14, "amp_rot": 3.0, "period": 3.0}}, "guide": 0.4,
 		"water": [760, 1300],
 		"movers": [{"type": "crane", "x": 700, "y": 100, "length": 190, "swing": 24, "period": 260}],
-		"intro": {"title": "DOCK BOSS", "text": "A ferry behind a swinging container. Timing is everything."}},
+		"intro": {"title": "FERRY CROSSING", "text": "A ferry behind a swinging container. Timing is everything."}},
 	# ---------------- WOODS, Act II (IDs 51-55) ----------------
 	{"world": 1, "act": 2, "cargo": "bbbbbb", "goal": 3, "s2": 5,
 		"truck": {"x": 940, "amp": 0, "period": 4.0, "wall": 52}, "guide": 0.8,
@@ -279,7 +278,7 @@ const DATA = [
 		"truck": {"x": 920, "amp": 0, "period": 4.0, "vehicle": "pickup"}, "guide": 0.4, "wind": 50,
 		"movers": [{"type": "tree", "x": 520, "height": 280, "crown": 80, "sway": 8, "period": 220},
 			{"type": "tree", "x": 700, "height": 300, "crown": 75, "sway": 8, "period": 220, "phase": 110}],
-		"intro": {"title": "WOODS BOSS", "text": "A pickup behind two swaying trees, in a tailwind. Stay soft."}},
+		"intro": {"title": "DEEP WOODS", "text": "A pickup behind two swaying trees, in a tailwind. Stay soft."}},
 	# ---------------- DESERT, Act II (IDs 56-60) ----------------
 	{"world": 2, "act": 2, "cargo": "bbbbbb", "goal": 3, "s2": 5,
 		"truck": {"x": 960, "amp": 0, "period": 4.0, "wall": 52}, "guide": 0.8,
@@ -299,7 +298,7 @@ const DATA = [
 		"truck": {"x": 900, "amp": 0, "period": 4.0, "vehicle": "dump", "tilt": 8}, "guide": 0.4,
 		"movers": [{"type": "windmill", "x": 600, "y": 300, "blade": 130, "period": 360, "blades": 3},
 			{"type": "tumbleweed", "x0": 300, "x1": 740, "period": 720, "hop": 200, "hops": 3, "radius": 34}],
-		"intro": {"title": "DESERT BOSS", "text": "Dump truck behind a windmill. Crates first, then the rest."}},
+		"intro": {"title": "HIGH NOON", "text": "Dump truck behind a windmill. Crates first, then the rest."}},
 	# ---------------- SNOW, Act II (IDs 61-65) ----------------
 	{"world": 4, "act": 2, "cargo": "bbbbbb", "goal": 3, "s2": 5,
 		"truck": {"x": 960, "amp": 0, "period": 4.0, "wall": 52}, "guide": 0.8,
@@ -317,7 +316,7 @@ const DATA = [
 	{"world": 4, "act": 2, "cargo": "bibbibib", "goal": 5, "s2": 7,
 		"truck": {"x": 1010, "amp": 0, "period": 4.0, "wall": 56, "icy": true}, "guide": 0.4,
 		"movers": [{"type": "ski_lift", "ax": 380, "ay": 170, "bx": 880, "by": 270, "chairs": 3, "speed": 100}],
-		"intro": {"title": "SNOW BOSS", "text": "Bank off the chairs into an icy truck."}},
+		"intro": {"title": "CHAIRLIFT", "text": "Bank off the chairs into an icy truck."}},
 	# ---------------- FREIGHT YARD, Act II (IDs 66-70) ----------------
 	{"world": 5, "act": 2, "cargo": "bbbbbb", "goal": 3, "s2": 5,
 		"truck": {"x": 1000, "amp": 0, "period": 4.0, "wall": 52}, "guide": 0.8,
@@ -341,7 +340,7 @@ const DATA = [
 			{"x": 0, "vehicle": "flatcar", "start": 1350, "speed": -40, "exit": 420, "once": true},
 			{"x": 0, "vehicle": "flatcar", "start": 1600, "speed": -40, "exit": 420, "once": true}],
 		"guide": 0.4,
-		"intro": {"title": "YARD BOSS", "text": "Three flatcars roll by, and they won't come back. Fill them all!"}},
+		"intro": {"title": "LAST TRAIN", "text": "Three flatcars roll by, and they won't come back. Fill them all!"}},
 	# ---------------- SKY PORT (IDs 71-80) ----------------
 	{"world": 6, "cargo": "bbbbb", "goal": 2, "need": 2, "throw_stars": [2, 3],
 		"truck": {"x": 880, "vehicle": "heli", "y": 165, "cable": 300, "swing": 8}, "guide": 0.8,
@@ -377,7 +376,7 @@ const DATA = [
 	{"world": 6, "cargo": "bbcbbcbbb", "goal": 4, "need": 4, "throw_stars": [5, 7],
 		"truck": {"x": 900, "vehicle": "heli", "y": 165, "cable": 300, "swing": 14,
 			"drift": 100, "drift_period": 720, "bob": 20, "bob_period": 360}, "guide": 0.4, "wind": -70,
-		"intro": {"title": "SKY BOSS", "text": "Drifting, swinging, bobbing, in a crosswind. Every throw counts."}},
+		"intro": {"title": "CROSSWIND", "text": "Drifting, swinging, bobbing, in a crosswind. Every throw counts."}},
 	# ---------------- DOWNTOWN (IDs 81-90) ----------------
 	{"world": 7, "cargo": "mmmmm", "goal": 3, "s2": 4,
 		"truck": {"x": 820, "amp": 0, "period": 4.0, "vehicle": "mailvan"}, "guide": 0.8,
@@ -404,7 +403,7 @@ const DATA = [
 		"trucks": [{"x": 645, "amp": 40, "period": 5.0, "vehicle": "mailvan", "accepts": "m"},
 			{"x": 1080, "amp": 30, "period": 7.0, "vehicle": "foodtruck", "accepts": "b"}],
 		"guide": 0.4,
-		"intro": {"title": "DOWNTOWN BOSS", "text": "Parcels only count in the van, boxes only in the food truck. And neither will stop for you!"}},
+		"intro": {"title": "TWO STOPS", "text": "Parcels only count in the van, boxes only in the food truck. And neither will stop for you!"}},
 	# ---------------- CONSTRUCTION (IDs 91-100) ----------------
 	{"world": 8, "cargo": "bbbbbb", "goal": 3, "s2": 5,
 		"truck": {"x": 980, "amp": 0, "period": 4.0, "wall": 52}, "guide": 0.8,
@@ -446,7 +445,7 @@ const DATA = [
 		"pads": [[560, 579, 4, 1.1]],
 		"movers": [{"type": "forklift", "x0": 330, "x1": 480, "period": 480, "forks": 80},
 			{"type": "tower_crane", "x": 720, "y": 125, "length": 105, "swing": 8, "period": 240, "slide": 80, "slide_period": 480, "phase": 60}],
-		"intro": {"title": "SITE BOSS", "text": "Stack the flatbed while the forklift patrols and the beam swings."}},
+		"intro": {"title": "BUSY SITE", "text": "Stack the flatbed while the forklift patrols and the beam swings."}},
 ]
 
 const LETTER = {"b": "box", "c": "crate", "r": "barrel", "f": "fragile",
@@ -519,7 +518,8 @@ static var _order: Array = []
 ## data, since saves are keyed by ID and levels 1-40 are frozen.
 ## 32-34: Snow height-limit + truck-swap levels (LOW BRIDGE, WHITEOUT), not fun.
 ## 95: BOUNCE AND RIDE, the truck can't be far enough on one screen to need the spring + belt.
-const RETIRED := [32, 33, 34, 95]
+## 40: Town Act II opener, a plain parked truck again (nothing new after Act I).
+const RETIRED := [32, 33, 34, 95, 40]
 
 
 ## Level IDs in play order.

@@ -1,7 +1,7 @@
 # Flick Freight
 
 A physics loading game for the web (Godot 4.3). Drag back and release to throw cargo
-from the loading dock into the truck. 96 levels across 9 worlds, 1–3 stars each.
+from the loading dock into the truck. 95 levels across 9 worlds, 1–3 stars each.
 Full design write-up: [Game Design Document (PDF)](docs/Flick_Freight_GDD.pdf).
 
 ![cover](marketing/covers/cover_landscape_1920x1080.png)
@@ -12,7 +12,7 @@ Full design write-up: [Game Design Document (PDF)](docs/Flick_Freight_GDD.pdf).
   `P` pauses, `R` restarts. Touch works the same way.
 - **Goal:** load enough cargo to pass (1★); load more for 2★; load everything for 3★.
 - **One of each:** on levels with several cargo types, the level only passes with at least one of every type
-  loaded (the total needed is unchanged). The top bar shows a chip per type (it no longer lists the waiting cargo: that is the pile behind Freddy). Few-throws levels and the
+  loaded (the total needed is unchanged). A level lost on this rule says which type was missing. The top bar shows a chip per type (it no longer lists the waiting cargo: that is the pile behind Freddy). Few-throws levels and the
   one-of-everything level are exempt.
 - **One truck per level:** stack it full (a few later levels have several vehicles at once,
   like a train of flatcars or two helicopters).

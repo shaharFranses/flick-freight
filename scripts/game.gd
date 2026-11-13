@@ -338,26 +338,38 @@ func _build_pile():
 	var root = _static_node()
 	var cols := [150.0, 90.0, 30.0]
 	var heights := [0.0, 0.0, 0.0]
+	# long cargo (planks) stands on end at the back of the dock, leaning on the warehouse
+	# wall; the rest of the pile then keeps to the two columns next to Freddy
+	var long_n := 0
+	for kind in queue:
+		if Cargo.size_of(kind, level).x > 70.0:
+			long_n += 1
+	if long_n > 0:
+		cols = [150.0, 96.0]
+		heights = [0.0, 0.0]
+	var stood := 0
 	pile.resize(queue.size())
 	var order := 0
 	for i in range(queue.size() - 1, -1, -1):
 		var kind: String = queue[i]
 		var size: Vector2 = Cargo.size_of(kind, level)
 		var pos := Vector2.ZERO
+		var lean := 0.0
 		if size.x > 70.0:
-			# long cargo (planks) lies across the whole pile
-			var h: float = max(heights[0], max(heights[1], heights[2]))
-			pos = Vector2(90.0, DOCK_TOP - h - size.y * 0.5)
-			for j in 3:
-				heights[j] = h + size.y
+			# the next plank to throw is the one nearest Freddy
+			var slot := long_n - 1 - stood
+			stood += 1
+			lean = -PI * 0.5 + 0.09
+			pos = Vector2(16.0 + 15.0 * slot, DOCK_TOP - size.x * 0.5 + 2.0)
 		else:
 			var c := 0
-			for j in 3:
+			for j in cols.size():
 				if heights[j] < heights[c] - 0.5:
 					c = j
 			pos = Vector2(cols[c], DOCK_TOP - heights[c] - size.y * 0.5)
 			heights[c] += size.y
 		var pic: Node2D = Cargo.make_picture(kind, size)
+		pic.rotation = lean
 		pic.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 		root.add_child(pic)
 		var from := Vector2(-60.0, DOOR.get_center().y)
@@ -1091,18 +1103,20 @@ func missing_kinds() -> Array:
 func _score():
 	var stars = Levels.stars_for(level_index, delivered, thrown)
 	var missing = missing_kinds()
-	if stars > 0 and not missing.is_empty():
-		# enough cargo, but a kind is missing: no pass
+	if not missing.is_empty():
+		# a kind is missing: no pass, however much was loaded. Say so either way: the level
+		# also ends early (short of the goal) once a required kind can't be loaded any more
 		stars = 0
 		popup.emit("NO %s LOADED!" % str(missing[0]).to_upper(), Vector2(640, 300), C_BAD, 56)
 	SaveData.set_stars(level_index, stars)
 	if stars > 0:
-		# showcase: every loaded vehicle honks and drives off (the helicopter lifts off) under confetti
+		# showcase: every loaded vehicle honks and drives off (the helicopter lifts off)
 		for t in live_trucks():
 			if t.is_parked():
 				t.leave()
 		popup.emit(["", "LEVEL CLEAR!", "GREAT!", "PERFECT!"][stars], Vector2(640, 300), C_GOLD, 72)
-		Fx.confetti(fx_root, stars)
+		if stars == 3:
+			Fx.confetti(fx_root, stars)  # only a perfect load gets confetti
 	get_tree().create_timer(1.3 if stars > 0 else 0.9, false).timeout.connect(func():
 		finished.emit(stars, delivered, level.cargo.length()))
 

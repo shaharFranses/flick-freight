@@ -26,6 +26,23 @@ func _build():
 		# seat plate + backrest (behind the direction of travel, i.e. on the A side)
 		chairs.append(make_body("block", [Rect2(-SEAT.x * 0.5, 0, SEAT.x, SEAT.y),
 			Rect2(-SEAT.x * 0.5, -BACK_H, 8, BACK_H)], 0.25, 0.9))
+	# the towers are scenery standing behind the road: drawn on their own node, behind the
+	# vehicles (a truck parked under tower B hides its foot), while cables and chairs stay in front
+	var towers = Node2D.new()
+	towers.z_index = -5
+	towers.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	towers.draw.connect(_draw_towers.bind(towers))
+	add_child(towers)
+
+
+func _draw_towers(n: Node2D):
+	for end in [a, b]:
+		var pole = Rect2(end.x - 8, end.y - RETURN_UP - 20, 16, Game.ROAD_Y - end.y + RETURN_UP + 20)
+		n.draw_rect(pole, ArtPalette.BG_INK)
+		n.draw_rect(pole.grow_individual(-3, -3, -3, 0), ArtPalette.CURB_SHADE)
+		var head = Rect2(end.x - 22, end.y - RETURN_UP - 26, 44, RETURN_UP + 34)
+		n.draw_rect(head, ArtPalette.BG_INK)
+		n.draw_rect(head.grow(-3), ArtPalette.CURB)
 
 
 func _seg() -> float:
@@ -107,14 +124,7 @@ func sim_catch(p: Vector2, v: Vector2, hh: float, f: int) -> Dictionary:
 func _draw():
 	var f = game.frame + phase
 	var navy = ArtPalette.INK
-	# towers (scenery: nothing collides with them) + cables
-	for end in [a, b]:
-		var pole = Rect2(end.x - 8, end.y - RETURN_UP - 20, 16, Game.ROAD_Y - end.y + RETURN_UP + 20)
-		draw_rect(pole, ArtPalette.BG_INK)
-		draw_rect(pole.grow_individual(-3, -3, -3, 0), ArtPalette.CURB_SHADE)
-		var head = Rect2(end.x - 22, end.y - RETURN_UP - 26, 44, RETURN_UP + 34)
-		draw_rect(head, ArtPalette.BG_INK)
-		draw_rect(head.grow(-3), ArtPalette.CURB)
+	# cables (the towers are drawn by _draw_towers, behind the vehicles)
 	draw_line(a, b, navy, 3.0)
 	draw_line(a - Vector2(0, RETURN_UP), b - Vector2(0, RETURN_UP), navy, 3.0)
 	for i in n:
