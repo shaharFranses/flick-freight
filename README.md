@@ -12,7 +12,7 @@ Full design write-up: [Game Design Document (PDF)](docs/Flick_Freight_GDD.pdf).
   `P` pauses, `R` restarts. Touch works the same way.
 - **Goal:** load enough cargo to pass (1★); load more for 2★; load everything for 3★.
 - **One of each:** on levels with several cargo types, the level only passes with at least one of every type
-  loaded (the total needed is unchanged). The HUD shows a chip per type. Few-throws levels and the
+  loaded (the total needed is unchanged). The top bar shows a chip per type (it no longer lists the waiting cargo: that is the pile behind Freddy). Few-throws levels and the
   one-of-everything level are exempt.
 - **One truck per level:** stack it full (a few later levels have several vehicles at once,
   like a train of flatcars or two helicopters).
