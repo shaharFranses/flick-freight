@@ -1279,7 +1279,7 @@ func _score():
 		if stars == 3:
 			Fx.confetti(fx_root, stars)  # only a perfect load gets confetti
 	get_tree().create_timer(1.3 if stars > 0 else 0.9, false).timeout.connect(func():
-		finished.emit(stars, delivered, level.cargo.length()))
+		finished.emit(stars, delivered, level.get("s3", level.cargo.length())))
 
 
 ## Delivered loads: anything that has left the bed for a moment (or hit the road) has fallen out.

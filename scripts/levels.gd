@@ -16,6 +16,7 @@ extends RefCounted
 ## pads   : M8 bounce pads [x, y, angle_deg, power]. (x, y) = middle of the spring face,
 ##          angle 0 = facing up, 90 = facing right; power = restitution (1 = elastic, >1 = boost)
 ##          rocking pad: [x, y, angle_deg, power, swing_deg, period_frames, phase_frames]
+## s3     : loads needed for 3 stars when that is fewer than all the cargo (spare pieces)
 ## slot   : where a level added later sits in its world's play order: a 0-based DATA index,
 ##          e.g. 43.5 = between the levels at index 43 and 44 (IDs never move, so saves hold)
 ## trucks : several trucks at once, instead of "truck": [{x, amp, period, wall, ferry, accepts}]
@@ -234,7 +235,7 @@ const DATA = [
 	{"world": 0, "act": 2, "cargo": "bbbbbb", "goal": 3, "s2": 5,
 		"truck": {"x": 900, "amp": 0, "period": 4.0, "vehicle": "garbage"}, "guide": 0.7,
 		"intro": {"title": "GARBAGE TRUCK", "text": "Drop it through the hopper: throw high and steep."}},
-	{"world": 0, "act": 2, "cargo": "cbcb", "goal": 2, "s2": 3,
+	{"world": 0, "act": 2, "cargo": "cbcbb", "goal": 2, "s2": 2, "s3": 3,
 		"truck": {"x": 780, "amp": 0, "period": 4.0, "vehicle": "moto"}, "guide": 0.5,
 		"intro": {"title": "LAST DELIVERY", "text": "Last stop for the courier: boxes and heavy crates. Crates first, they make a steady base."}},
 	# ---------------- HARBOR, Act II (IDs 46-50) ----------------
@@ -463,7 +464,7 @@ const DATA = [
 	{"world": 0, "act": 2, "slot": 43.5, "cargo": "ccc", "goal": 1, "s2": 2,
 		"truck": {"x": 860, "amp": 0, "period": 4.0, "vehicle": "moto"}, "guide": 0.6,
 		"intro": {"title": "HEAVY DELIVERY", "text": "Crates for the courier. They fly shorter, so pull back further."}},
-	{"world": 2, "act": 2, "slot": 57.5, "cargo": "fbfbf", "goal": 2, "s2": 3, "fragile_hits": 4,
+	{"world": 2, "act": 2, "slot": 57.5, "cargo": "fbfbf", "goal": 2, "s2": 2, "s3": 3, "fragile_hits": 4,
 		"truck": {"x": 900, "amp": 0, "period": 4.0, "vehicle": "moto"}, "guide": 0.6,
 		"movers": [{"type": "tumbleweed", "x0": 300, "x1": 700, "period": 420, "hop": 220, "hops": 2, "radius": 36}],
 		"intro": {"title": "HANDLE WITH CARE", "text": "Fragile parcels and boxes for the courier. Land them softly, and mind the tumbleweed.", "icon": "fragile"}},
@@ -537,7 +538,7 @@ static func stars_for(i: int, delivered: int, thrown := -1) -> int:
 		if thrown >= 0 and thrown <= ts[1]:
 			return 2
 		return 1
-	var total = lv.cargo.length()
+	var total = lv.get("s3", lv.cargo.length())
 	if delivered >= total:
 		return 3
 	if delivered >= lv.get("s2", total):

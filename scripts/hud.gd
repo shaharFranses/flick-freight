@@ -183,7 +183,7 @@ func bind(g: Game):
 	var lv = g.level
 	_goal = lv.goal
 	_s2 = lv.get("s2", lv.cargo.length())
-	_total = lv.cargo.length()
+	_total = lv.get("s3", lv.cargo.length())
 	if lv.has("need"):
 		# few-throws level: the bar fills to `need`; stars come from the throw count
 		_goal = lv.need
