@@ -1451,6 +1451,9 @@ func _process(delta: float):
 			c.position.x -= 2 * 1024 * 1.3
 	if updraft_fx:
 		updraft_fx.queue_redraw()
+	# the dotted aim line follows a rocking pad or a moving fan while the player holds the aim
+	if aiming and (not updrafts.is_empty() or pads.any(func(pd): return pd.swing != 0.0)):
+		aim.queue_redraw()
 	if wind_fx:
 		for s in streaks:
 			s.x += wind * 2.2 * s.speed * delta
