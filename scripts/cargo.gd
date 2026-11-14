@@ -92,6 +92,7 @@ var touched_wall := false
 var touched_pad := false
 var wind := 0.0
 var _settle := 0.0
+var _free := false  # in the air and has not touched anything yet (updrafts lift it)
 var _air := 0.0
 var _prev_vel := Vector2.ZERO
 var _sound_cd := 0.0
@@ -180,6 +181,7 @@ func launch(vel: Vector2, wind_accel: float):
 		_through_dock = true
 	freeze = false
 	flying = true
+	_free = true
 	linear_velocity = vel
 	angular_velocity = clamp(vel.x * 0.004, -3.0, 3.0)
 	if info.has("spin"):
@@ -210,6 +212,8 @@ func _physics_process(delta: float):
 		remove_collision_exception_with(game.dock_body)
 		_through_dock = false
 	_prev_vel = linear_velocity
+	if _free and game and not game.updrafts.is_empty():
+		linear_velocity = game.stream_step(global_position, linear_velocity, mass, delta)
 	# off-screen
 	if global_position.y > 820 or global_position.x > 1420 or global_position.x < -160:
 		_finish(false, "lost")
@@ -252,6 +256,7 @@ func _on_body_entered(body: Node):
 		return
 	# wind only pushes while airborne; it shouldn't shove cargo that has landed
 	constant_force = Vector2.ZERO
+	_free = false
 	var impact = _prev_vel.length()
 	if _sound_cd <= 0.0 and impact > 60:
 		_sound_cd = 0.12

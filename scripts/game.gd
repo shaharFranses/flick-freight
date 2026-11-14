@@ -108,6 +108,9 @@ var pile: Array = []
 var clouds: Array[Sprite2D] = []
 var flag: Node2D
 var wind_fx: Node2D
+## Sky Port air streams (level.updrafts): a fan blows flying cargo along a band of air.
+var updrafts: Array = []  # air streams, see _build_updrafts
+var updraft_fx: Node2D
 var streaks: Array = []
 var _time := 0.0
 ## LevelClock (Plan 2 §3.1): physics frames since this level started. A restart builds a new
@@ -148,6 +151,8 @@ func setup(index: int):
 	if wind != 0.0:
 		_build_flag()
 		_build_wind_fx()
+	if level.has("updrafts"):
+		_build_updrafts()
 	cargo_root = Node2D.new()
 	add_child(cargo_root)
 	fx_root = Node2D.new()
@@ -171,6 +176,11 @@ func motion_period() -> int:
 	for pd in pads:
 		if pd.swing != 0.0:
 			p = pd.period if p == 0 else _lcm(p, pd.period)
+	for u in updrafts:
+		if u.swing != 0.0:
+			p = u.period if p == 0 else _lcm(p, u.period)
+		if u.slide != 0.0:
+			p = u.slide_period if p == 0 else _lcm(p, u.slide_period)
 	return min(p, 1200)
 
 
@@ -759,6 +769,102 @@ func _draw_flag():
 	ArtDraw.ink_circle(flag, Vector2(0, -h), 7, ArtPalette.CHROME, 2.0)
 
 
+## level.updrafts: [[x0, y0, x1, y1, width, speed]]: an air stream blown by a fan at (x0, y0)
+## toward (x1, y1). Flying cargo that enters the band is carried along it at `speed` px/s and
+## leaves from its far end in that direction, so the stream shows exactly where cargo will go.
+## Optional 7th entry, a dictionary, makes the fan move on the level clock:
+##   swing (deg), period (frames): the fan turns that far either side of its direction
+##   slide (px), slide_period (frames): the fan rolls that far left and right; phase (frames)
+func _build_updrafts():
+	for d in level.updrafts:
+		var a = Vector2(d[0], d[1])
+		var b = Vector2(d[2], d[3])
+		var o: Dictionary = d[6] if d.size() > 6 else {}
+		updrafts.append({"a": a, "dir": (b - a).normalized(), "len": a.distance_to(b),
+			"half": float(d[4]) * 0.5, "speed": float(d[5]),
+			"swing": deg_to_rad(o.get("swing", 0.0)), "period": int(o.get("period", 300)),
+			"slide": float(o.get("slide", 0.0)), "slide_period": int(o.get("slide_period", 360)),
+			"phase": int(o.get("phase", 0))})
+	updraft_fx = Node2D.new()
+	updraft_fx.z_index = 0
+	updraft_fx.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	updraft_fx.draw.connect(_draw_updrafts)
+	add_child(updraft_fx)
+
+
+## Where a stream's fan is and which way it blows at clock frame f: [origin, direction].
+func stream_pose(u: Dictionary, f: int) -> Array:
+	var a: Vector2 = u.a
+	var d: Vector2 = u.dir
+	var ff := float(f + u.phase)
+	if u.slide != 0.0:
+		a.x += u.slide * sin(TAU * ff / u.slide_period)
+	if u.swing != 0.0:
+		d = d.rotated(u.swing * sin(TAU * ff / u.period))
+	return [a, d]
+
+
+## The air stream at p at clock frame f (-1 = now), as [stream, direction], or null.
+func stream_at(p: Vector2, f := -1) -> Variant:
+	for u in updrafts:
+		var pose = stream_pose(u, frame if f < 0 else f)
+		var l: Vector2 = p - pose[0]
+		var along: float = l.dot(pose[1])
+		if along >= 0.0 and along <= u.len and abs(l.cross(pose[1])) <= u.half:
+			return [u, pose[1]]
+	return null
+
+
+## Velocity of a flying cargo (mass m, at p, velocity v with this step's gravity already in it)
+## after one step of dt: inside a stream gravity is cancelled and the cargo is pulled to the
+## stream's own velocity, heavy cargo a little slower.
+func stream_step(p: Vector2, v: Vector2, m: float, dt: float, f := -1) -> Vector2:
+	var s: Variant = stream_at(p, f)
+	if s == null:
+		return v
+	v.y -= GRAVITY * dt
+	return v.lerp(s[1] * s[0].speed, min(1.0, 14.0 / sqrt(m) * dt))
+
+
+func _draw_updrafts():
+	for u in updrafts:
+		var pose = stream_pose(u, frame)
+		var d: Vector2 = pose[1]
+		var nrm := Vector2(-d.y, d.x)
+		var a: Vector2 = pose[0]
+		var b: Vector2 = a + d * u.len
+		var hw: float = u.half
+		# the band of moving air
+		updraft_fx.draw_colored_polygon(PackedVector2Array([a - nrm * hw, b - nrm * hw, b + nrm * hw, a + nrm * hw]),
+			Color(0.24, 0.55, 0.86, 0.26))
+		for sgn in [-1.0, 1.0]:
+			updraft_fx.draw_dashed_line(a + nrm * hw * sgn, b + nrm * hw * sgn, Color(1, 1, 1, 0.9), 4.0, 14.0)
+		# chevrons racing along it show the direction and the speed
+		var gap := 70.0
+		var off = fposmod(_time * u.speed * 0.6, gap)
+		for lane in [-0.5, 0.0, 0.5]:
+			var s = off + (gap * 0.5 if lane == 0.0 else 0.0)
+			while s < u.len - 10.0:
+				var c: Vector2 = a + d * s + nrm * hw * lane
+				var fade = clamp(min(s, u.len - s) / 60.0, 0.0, 1.0)
+				var pts = PackedVector2Array([c - d * 12 - nrm * 12, c, c - d * 12 + nrm * 12])
+				updraft_fx.draw_polyline(pts, Color(0.106, 0.165, 0.255, 0.55 * fade), 9.0)
+				updraft_fx.draw_polyline(pts, Color(1, 1, 1, fade), 5.0)
+				s += gap
+		# big arrow head at the far end: this is where the cargo leaves
+		var tip: Vector2 = b + d * 34
+		updraft_fx.draw_colored_polygon(PackedVector2Array([tip, b + nrm * 30, b - nrm * 30]), Color(1, 1, 1, 0.75))
+		# the fan that blows it: a drum on a stand, turned to face along the stream
+		ArtDraw.ink_rect(updraft_fx, Rect2(a.x - 10, a.y, 20, max(ROAD_Y - a.y, 0.0)), ArtPalette.STEEL_LIGHT, 3.0)
+		ArtDraw.ink_rect(updraft_fx, Rect2(a.x - 40, ROAD_Y - 12, 80, 12), ArtPalette.DOCK_STEEL, 3.0)
+		var drum = PackedVector2Array([a - d * 30 - nrm * (hw * 0.7), a + d * 16 - nrm * hw, a + d * 16 + nrm * hw, a - d * 30 + nrm * (hw * 0.7)])
+		ArtDraw.ink_poly(updraft_fx, drum, ArtPalette.AMBER, ArtDraw.PROP)
+		for k in 3:
+			var ang = _time * 14.0 + k * TAU / 3.0
+			updraft_fx.draw_line(a - d * 6, a - d * 6 + nrm * (hw * 0.6) * cos(ang), ArtPalette.INK, 5.0)
+		updraft_fx.draw_circle(a - d * 6, 7, ArtPalette.INK)
+
+
 ## Air streaks blowing across the whole screen, so the wind reads at a glance.
 func _build_wind_fx():
 	wind_fx = Node2D.new()
@@ -1343,6 +1449,8 @@ func _process(delta: float):
 			c.position.x += 2 * 1024 * 1.3
 		elif c.position.x > 1024 * 1.3:
 			c.position.x -= 2 * 1024 * 1.3
+	if updraft_fx:
+		updraft_fx.queue_redraw()
 	if wind_fx:
 		for s in streaks:
 			s.x += wind * 2.2 * s.speed * delta
@@ -1383,6 +1491,7 @@ func _draw_aim():
 	var pad_hit := {}
 	while t < t_max:
 		v += acc * dt
+		v = stream_step(p, v, current.mass, dt, frame + i)  # an air stream is part of the place, so the guide shows it
 		p += v * dt
 		t += dt
 		i += 1

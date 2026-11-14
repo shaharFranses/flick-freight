@@ -144,6 +144,7 @@ func score(pull: Vector2, wait := 0) -> float:
 	var inside := {}
 	while t < MAX_T:
 		v += Vector2(g.wind, Game.GRAVITY) * DT
+		v = g.stream_step(p, v, g.current.mass, DT, f0 + int(round(t / DT)))
 		p += v * DT
 		t += DT
 		# M8: pads reflect on entry, like the game's Area2D
