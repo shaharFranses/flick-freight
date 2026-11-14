@@ -1219,12 +1219,22 @@ func _check_end():
 		if queue.count(k) + (1 if current and current.kind == k else 0) + _air_kinds.get(k, 0) <= 0:
 			lost_cause = true
 	var done_early = level.has("need") and delivered >= level.need and in_flight == 0
+	# spare cargo (level.s3): three stars are already in the truck, nothing left to gain
+	var spare_stop := false
+	if level.has("s3") and delivered >= level.s3 and missing_kinds().is_empty() and in_flight == 0 and left > 0:
+		done_early = true
+		spare_stop = true
 	if left == 0 or done_early or (lost_cause and in_flight == 0):
 		ended = true
 		aiming = false
 		aim.queue_redraw()
 		# let the stacks settle (things can still fall out), then strap it all down and score
 		get_tree().create_timer(END_SETTLE, false).timeout.connect(func():
+			if spare_stop and (delivered < level.s3 or not missing_kinds().is_empty()):
+				# something fell out while the load settled: the spare cargo is still there, play on
+				ended = false
+				_check_end()
+				return
 			for t in live_trucks():
 				t.glue_all()
 			_score())
