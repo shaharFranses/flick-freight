@@ -80,8 +80,8 @@ const SETTLE_TIME := 0.3
 const MAX_AIR_TIME := 7.0
 const FRAGILE_HITS := 3  # fragile cargo breaks on this many bumps (level key "fragile_hits")
 const HIT_SPEED := 120.0  # a contact faster than this counts as a bump; settling doesn't
-const CAB_REST := 0.25  # s resting on the cab before it's a miss
-const CAB_MAX := 1.0  # s on the cab at most (sliding/rocking on the hood), then a miss
+const CAB_REST := 0.6  # s resting on the cab before it's a miss
+const CAB_MAX := 1.5  # s on the cab at most (sliding/rocking on the hood), then a miss
 const HIT_GAP := 0.15  # s; one bump can make several contacts, count it once
 
 var kind := "box"
@@ -227,7 +227,7 @@ func _physics_process(delta: float):
 		_cab_time += delta
 		# hanging over the bed it can still tip in: no quick miss, and twice the time
 		var over: bool = game.over_bed(self)
-		if _cab_time > CAB_MAX * (2.0 if over else 1.0) or (not over and _cab_time > CAB_REST and rel.length() < 60.0):
+		if _cab_time > CAB_MAX * (2.0 if over else 1.0) or (not over and _cab_time > CAB_REST and rel.length() < 25.0):
 			_finish(false, "cab")
 			return
 	elif _cab_time > 0.0:

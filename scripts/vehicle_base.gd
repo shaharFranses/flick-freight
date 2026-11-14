@@ -98,7 +98,7 @@ func _build_bodies():
 	_body("truck_floor", [shape.floor], shape.get("floor_friction", 1.0))
 	_body("truck_wall", [shape.rear] + shape.get("walls", []), 0.8, 0.05)
 	if not shape.front.is_empty():
-		_body("truck_cab", shape.front, 0.8, 0.05)
+		_body("truck_cab", shape.front, shape.get("front_friction", 0.8), 0.05)
 
 
 func _build_visuals():

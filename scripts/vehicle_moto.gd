@@ -25,8 +25,11 @@ func _define(_cfg: Dictionary) -> Dictionary:
 		# backrest bar at the front of the rack: stops boxes sliding into the rider
 		"walls": [Rect2(half - 2, -44, 8, 54)],
 		# rider + tank + handlebars, in front of the backrest
-		"front": [PackedVector2Array([Vector2(half + 8, 10), Vector2(half + 8, -62), Vector2(half + 34, -96),
-			Vector2(half + 66, -92), Vector2(half + 84, -40), Vector2(half + 130, -30), Vector2(half + 130, 10)])],
+		# the top slopes back toward the tray and is slippery: cargo that lands on the rider
+		# slides off, into the tray if it is close enough, instead of sitting on the helmet
+		"front_friction": 0.15,
+		"front": [PackedVector2Array([Vector2(half + 8, 10), Vector2(half + 8, -50), Vector2(half + 50, -96),
+			Vector2(half + 66, -90), Vector2(half + 84, -40), Vector2(half + 130, -30), Vector2(half + 130, 10)])],
 		"reach": Rect2(-half - 50, -320, RACK_W + 230, 340),
 		"ride": 74.0,
 		"wheels": [[Vector2(-4, 48), 26.0], [Vector2(half + 116, 48), 26.0]],
