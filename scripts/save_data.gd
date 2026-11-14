@@ -13,7 +13,8 @@ static func _c() -> ConfigFile:
 	if _cfg == null:
 		_cfg = ConfigFile.new()
 		if not fresh:
-			_cfg.load(PATH)  # missing file is fine on first run
+			_cfg.load(PATH)
+			_merge_account_save()  # missing file is fine on first run
 	return _cfg
 
 
@@ -21,6 +22,33 @@ static func _save():
 	if fresh:
 		return
 	_c().save(PATH)
+	Portal.save_set(_c().encode_to_text())  # CrazyGames account (no-op elsewhere)
+
+
+## CrazyGames: fold the account's save into the browser's, keeping the better result per level,
+## so progress follows the player to another device and nothing local is lost.
+static func _merge_account_save():
+	var text := Portal.save_get()
+	if text == "":
+		return
+	var remote := ConfigFile.new()
+	if remote.parse(text) != OK:
+		return
+	var changed := false
+	for section in remote.get_sections():
+		for key in remote.get_section_keys(section):
+			var rv = remote.get_value(section, key)
+			var lv = _cfg.get_value(section, key, null)
+			var better = lv == null
+			if not better and (rv is int or rv is float) and (lv is int or lv is float):
+				better = rv > lv
+			elif not better and rv is bool and lv is bool:
+				better = rv and not lv
+			if better:
+				_cfg.set_value(section, key, rv)
+				changed = true
+	if changed:
+		_cfg.save(PATH)
 
 
 static func stars(level: int) -> int:

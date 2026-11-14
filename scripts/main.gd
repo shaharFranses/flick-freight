@@ -17,7 +17,9 @@ func _ready():
 	screens = Screens.new()
 	add_child(screens)
 	screens.resume.connect(_resume)
-	screens.restart.connect(func(): start_level(level_index))
+	screens.restart.connect(func():
+		_track_leave("level_restart")
+		start_level(level_index))
 	screens.next_level.connect(func(): start_level(Levels.next_of(level_index)))
 	screens.open_levels.connect(func(): screens.show_levels(in_menu or (game != null and not game.ended)))
 	screens.play_level.connect(start_level)
@@ -31,6 +33,8 @@ func _ready():
 	screens.play.connect(func(): start_level(SaveData.first_unbeaten()))
 	screens.open_menu.connect(show_menu)
 	var q = _query()
+	Analytics.track("session_start", {"stars": SaveData.total_stars(), "next_level": Levels.number_of(SaveData.first_unbeaten()),
+		"new_player": not SaveData.get_flag("tutorial_done", false)})
 	# ?unlock=1 / --unlock=1: every level is open for play-testing (same gate as the level
 	# jump). Nothing is written to the save.
 	Levels.dev_unlock = q.get("unlock", "0") == "1" and _dev_jump_allowed()
@@ -48,6 +52,7 @@ func _ready():
 func show_menu():
 	if game and not game.ended and not in_menu:
 		Portal.gameplay_stop()
+		_track_leave("level_quit")
 	in_menu = true
 	get_tree().paused = false
 	level_index = SaveData.first_unbeaten()
@@ -117,6 +122,9 @@ func start_level(i: int):
 	game.start()
 	Sfx.start_music(Levels.world_of(level_index).get("music", Sfx.MUSIC))
 	Portal.gameplay_start()
+	var props = Analytics.level_props(level_index)
+	props["best_stars"] = SaveData.stars(level_index)
+	Analytics.track("level_start", props)
 
 
 ## `auto`: paused because the tab lost focus. CrazyGames handles that itself, so it's no game break.
@@ -135,8 +143,28 @@ func _resume():
 	Portal.gameplay_start()
 
 
+## Left a level before it ended (restart or back to the menu): how far the player got.
+func _track_leave(event: String):
+	if game == null or game.ended or in_menu:
+		return
+	var props = Analytics.level_props(level_index)
+	props["thrown"] = game.thrown
+	props["loaded"] = game.delivered
+	props["seconds"] = snappedf(game.frame / 60.0, 0.1)
+	Analytics.track(event, props)
+
+
 func _on_finished(stars: int, delivered: int, total: int):
 	Portal.gameplay_stop()
+	var props = Analytics.level_props(level_index)
+	props["stars"] = stars
+	props["loaded"] = delivered
+	props["total"] = total
+	props["thrown"] = game.thrown
+	props["seconds"] = snappedf(game.frame / 60.0, 0.1)
+	if stars == 0:
+		props["reason"] = "time" if game.timed_out else ("missing_type" if not game.missing_kinds().is_empty() else "too_few")
+	Analytics.track("level_end", props)
 	var next = Levels.next_of(level_index)
 	if stars > 0 and (next < 0 or Levels.get_level(next).world != Levels.get_level(level_index).world):
 		Portal.happytime()  # the world's last level

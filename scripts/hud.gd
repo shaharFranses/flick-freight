@@ -384,6 +384,8 @@ func _show_tutorial():
 
 
 func _hide_tutorial():
+	if not SaveData.get_flag("tutorial_done", false):
+		Analytics.track("tutorial_done")
 	SaveData.set_flag("tutorial_done", true)
 	if tutorial:
 		tutorial.queue_free()

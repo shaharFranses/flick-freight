@@ -50,6 +50,10 @@ Full design write-up: [Game Design Document (PDF)](docs/Flick_Freight_GDD.pdf).
 - Freddy says a short line in a speech bubble the first time he picks up each special cargo type
   (and always on the level that introduces it); intro banners on mixed levels add the one-of-each note.
 - Progress (stars, mute, tutorial) is saved locally.
+- **Two web builds from one project** (`export_presets.cfg`): `Web` for CrazyGames and
+  `Web Standalone` for your own hosting, which leaves the CrazyGames SDK out and sends anonymous
+  gameplay events to your own endpoint. See `docs/ANALYTICS.md`. On CrazyGames the save also
+  goes to the player's account (SDK Data module), merged with the browser save.
 - **CrazyGames SDK v3:** `custom_html/custom_shell.html` loads it and reports loading start/stop;
   `scripts/portal.gd` reports gameplay start/stop (level start, pause, resume, level end) and
   `happytime` when a world's last level is beaten. Off CrazyGames every call is a no-op;

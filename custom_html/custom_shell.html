@@ -118,7 +118,9 @@ html {
 	z-index: 1;
 }
 		</style>
-		<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+		<!-- per-version scripts come from the export preset (html/head_include):
+		     "Web" = CrazyGames SDK, "Web Standalone" = analytics settings -->
+		$GODOT_HEAD_INCLUDE
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
 <link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
 
@@ -172,6 +174,56 @@ window.ffPortal = (function () {
 		gameplayStart: function () { if (!playing) { playing = true; if (!loading) call('gameplayStart'); } },
 		gameplayStop: function () { if (playing) { playing = false; if (!loading) call('gameplayStop'); } },
 		happytime: function () { call('happytime'); },
+		// CrazyGames Data module: the save follows the player's CrazyGames account.
+		// '' when there is none (or off CrazyGames); the game then keeps its browser save.
+		saveGet: function () {
+			try { return (sdk && sdk.data && sdk.data.getItem('save')) || ''; } catch (e) { console.warn('CrazyGames SDK data', e); return ''; }
+		},
+		saveSet: function (text) {
+			try { if (sdk && sdk.data) sdk.data.setItem('save', text); } catch (e) { console.warn('CrazyGames SDK data', e); }
+		},
+	};
+}());
+
+// Standalone build only (window.FF_PLATFORM === 'standalone'): anonymous gameplay events,
+// batched and POSTed as JSON to window.FF_ANALYTICS_URL. See docs/ANALYTICS.md.
+window.ffAnalytics = (function () {
+	const on = window.FF_PLATFORM === 'standalone';
+	const url = window.FF_ANALYTICS_URL || '';
+	function rid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+	let player = '';
+	try {
+		player = localStorage.getItem('ff_player') || '';
+		if (!player) { player = rid(); localStorage.setItem('ff_player', player); }
+	} catch (e) { player = rid(); }
+	const session = rid();
+	let seq = 0;
+	let queue = [];
+	function flush() {
+		if (!queue.length) return;
+		const body = JSON.stringify({
+			game: 'flick-freight', build: window.FF_BUILD || '', player: player, session: session,
+			screen: window.innerWidth + 'x' + window.innerHeight, lang: navigator.language || '', events: queue,
+		});
+		queue = [];
+		if (!url) { console.log('[ff analytics]', body); return; }
+		try {
+			// text/plain keeps this a "simple" request: no CORS preflight to answer
+			const sent = navigator.sendBeacon && navigator.sendBeacon(url, new Blob([body], { type: 'text/plain' }));
+			if (!sent) fetch(url, { method: 'POST', body: body, keepalive: true, headers: { 'Content-Type': 'text/plain' } }).catch(function () {});
+		} catch (e) { /* analytics never breaks the game */ }
+	}
+	if (on) {
+		setInterval(flush, 5000);
+		window.addEventListener('pagehide', flush);
+		document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flush(); });
+	}
+	return {
+		track: function (name, props) {
+			if (!on) return;
+			queue.push({ name: name, t: Date.now(), seq: seq++, props: props || {} });
+			if (queue.length >= 20) flush();
+		},
 	};
 }());
 

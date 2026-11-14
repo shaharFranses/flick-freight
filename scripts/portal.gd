@@ -18,6 +18,19 @@ static func happytime():
 	_call("happytime")
 
 
+## The save kept on the player's CrazyGames account (Data module), "" when there is none.
+static func save_get() -> String:
+	if not OS.has_feature("web"):
+		return ""
+	var r = JavaScriptBridge.eval("(window.ffPortal && window.ffPortal.saveGet) ? window.ffPortal.saveGet() : ''")
+	return r if r is String else ""
+
+
+static func save_set(text: String):
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window.ffPortal && window.ffPortal.saveSet && window.ffPortal.saveSet(%s)" % JSON.stringify(text))
+
+
 static func _call(fn: String):
 	if OS.has_feature("web"):
 		JavaScriptBridge.eval("window.ffPortal && window.ffPortal.%s()" % fn)

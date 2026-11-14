@@ -93,13 +93,40 @@ jobs:
             !main/build/.nojekyll
           if-no-files-found: error
           retention-days: 30
+      # Standalone build (no CrazyGames SDK, own analytics: docs/ANALYTICS.md). Skipped on a
+      # branch whose export_presets.cfg does not have the preset yet.
+      - name: Export Web Standalone
+        id: main_standalone
+        shell: bash
+        working-directory: main
+        run: |
+          if grep -q 'name="Web Standalone"' export_presets.cfg; then
+            mkdir -p build_standalone
+            godot --headless --verbose --export-release "Web Standalone" build_standalone/index.html
+            echo "built=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No Web Standalone preset on main yet." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload standalone build
+        if: steps.main_standalone.outputs.built == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: flick-freight-standalone-${{ steps.main_co.outputs.commit }}
+          path: main/build_standalone/
+          if-no-files-found: error
+          retention-days: 30
       - name: Export staging Web (single-threaded)
         if: steps.staging_co.outcome == 'success'
+        shell: bash
         working-directory: staging
         run: |
           mkdir -p build
           godot --headless --verbose --import || true
           godot --headless --verbose --export-release "Web" build/index.html
+          if grep -q 'name="Web Standalone"' export_presets.cfg; then
+            mkdir -p build_standalone
+            godot --headless --verbose --export-release "Web Standalone" build_standalone/index.html
+          fi
       - name: Assemble site (main at root, staging under /staging/)
         shell: bash
         run: |
@@ -109,6 +136,11 @@ jobs:
             mkdir -p site/staging
             cp -a staging/build/. site/staging/
             rm -f site/staging/.nojekyll
+            if [ -d staging/build_standalone ]; then
+              mkdir -p site/staging/standalone
+              cp -a staging/build_standalone/. site/staging/standalone/
+              echo "staging standalone build published at /staging/standalone/" >> "$GITHUB_STEP_SUMMARY"
+            fi
             echo "staging ${{ steps.staging_co.outputs.commit }} published at /staging/" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "No staging branch: only main is published." >> "$GITHUB_STEP_SUMMARY"
