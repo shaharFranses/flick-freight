@@ -234,9 +234,9 @@ const DATA = [
 	{"world": 0, "act": 2, "cargo": "bbbbbb", "goal": 3, "s2": 5,
 		"truck": {"x": 900, "amp": 0, "period": 4.0, "vehicle": "garbage"}, "guide": 0.7,
 		"intro": {"title": "GARBAGE TRUCK", "text": "Drop it through the hopper: throw high and steep."}},
-	{"world": 0, "act": 2, "cargo": "bbb", "goal": 1, "s2": 2,
+	{"world": 0, "act": 2, "cargo": "cbcb", "goal": 2, "s2": 3,
 		"truck": {"x": 780, "amp": 0, "period": 4.0, "vehicle": "moto"}, "guide": 0.5,
-		"intro": {"title": "LAST DELIVERY", "text": "Last stop for the courier. Stack all 3 boxes on the rack!"}},
+		"intro": {"title": "LAST DELIVERY", "text": "Last stop for the courier: boxes and heavy crates. Crates first, they make a steady base."}},
 	# ---------------- HARBOR, Act II (IDs 46-50) ----------------
 	{"world": 3, "act": 2, "cargo": "bbbbbb", "goal": 3, "s2": 5,
 		"truck": {"x": 980, "amp": 0, "period": 4.0, "wall": 52}, "guide": 0.8,
@@ -460,7 +460,7 @@ const DATA = [
 			{"type": "tower_crane", "x": 720, "y": 125, "length": 105, "swing": 8, "period": 240, "slide": 80, "slide_period": 480, "phase": 60}],
 		"intro": {"title": "BUSY SITE", "text": "Stack the flatbed while the forklift patrols and the beam swings."}},
 	# ---------------- Added later (IDs 101-106); "slot" places each one in its world ----------------
-	{"world": 0, "act": 2, "slot": 43.5, "cargo": "cbc", "goal": 1, "s2": 2,
+	{"world": 0, "act": 2, "slot": 43.5, "cargo": "ccc", "goal": 1, "s2": 2,
 		"truck": {"x": 860, "amp": 0, "period": 4.0, "vehicle": "moto"}, "guide": 0.6,
 		"intro": {"title": "HEAVY DELIVERY", "text": "Crates for the courier. They fly shorter, so pull back further."}},
 	{"world": 2, "act": 2, "slot": 57.5, "cargo": "fbf", "goal": 1, "s2": 2,

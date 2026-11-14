@@ -832,15 +832,36 @@ func live_trucks() -> Array:
 
 func truck_of(c: Cargo) -> CargoVehicle:
 	for t in live_trucks():
-		if t.contains_point(c.global_position) and t.takes(c.kind):
+		if holds(t, c) and t.takes(c.kind):
 			return t
 	return null
+
+
+## Is the cargo in this vehicle's load zone? Its centre may sit a little outside (up to 30% of
+## its width, 20 px at most): a box resting on the bed but leaning on the cab or the rider
+## is loaded, not a miss.
+func holds(t: CargoVehicle, c: Cargo) -> bool:
+	var s: float = min(c.info.size.x * 0.3, 20.0)
+	for dx in [0.0, -s, s]:
+		if t.contains_point(c.global_position + Vector2(dx, 0)):
+			return true
+	return false
+
+
+## Is any part of the cargo over a load zone (it can still tip or slide into the bed)?
+func over_bed(c: Cargo) -> bool:
+	var hw: float = c.info.size.x * 0.5
+	for t in live_trucks():
+		for dx in [-hw, 0.0, hw]:
+			if t.contains_point(c.global_position + Vector2(dx, 0)):
+				return true
+	return false
 
 
 ## Landed in a vehicle that doesn't take this kind of cargo.
 func wrong_truck(c: Cargo) -> bool:
 	for t in live_trucks():
-		if t.contains_point(c.global_position) and not t.takes(c.kind):
+		if holds(t, c) and not t.takes(c.kind):
 			return true
 	return false
 
@@ -1285,7 +1306,7 @@ func _physics_process(delta: float):
 			for b in c.get_colliding_bodies():
 				if b.is_in_group("ground"):
 					on_road = true
-			if t.contains_point(c.global_position) and not on_road:
+			if holds(t, c) and not on_road:
 				l.out_t = 0.0
 				continue
 			l.out_t = l.get("out_t", 0.0) + delta

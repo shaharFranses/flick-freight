@@ -225,7 +225,9 @@ func _physics_process(delta: float):
 	if _touching_cab():
 		_off_cab = 0.0
 		_cab_time += delta
-		if _cab_time > CAB_MAX or (_cab_time > CAB_REST and rel.length() < 60.0):
+		# hanging over the bed it can still tip in: no quick miss, and twice the time
+		var over: bool = game.over_bed(self)
+		if _cab_time > CAB_MAX * (2.0 if over else 1.0) or (not over and _cab_time > CAB_REST and rel.length() < 60.0):
 			_finish(false, "cab")
 			return
 	elif _cab_time > 0.0:
