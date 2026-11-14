@@ -4,16 +4,22 @@ extends RefCounted
 
 const PATH = "user://flick_freight_v2.cfg"
 static var _cfg: ConfigFile = null
+## Dev (?fresh=1 / --fresh=1): play as a brand-new player. The save starts empty, lives only in
+## memory and is never written, so the real save is untouched.
+static var fresh := false
 
 
 static func _c() -> ConfigFile:
 	if _cfg == null:
 		_cfg = ConfigFile.new()
-		_cfg.load(PATH)  # missing file is fine on first run
+		if not fresh:
+			_cfg.load(PATH)  # missing file is fine on first run
 	return _cfg
 
 
 static func _save():
+	if fresh:
+		return
 	_c().save(PATH)
 
 

@@ -34,6 +34,10 @@ func _ready():
 	# ?unlock=1 / --unlock=1: every level is open for play-testing (same gate as the level
 	# jump). Nothing is written to the save.
 	Levels.dev_unlock = q.get("unlock", "0") == "1" and _dev_jump_allowed()
+	# ?fresh=1 / --fresh=1: start as a new player (tutorial included) without touching the save
+	if q.get("fresh", "0") == "1" and _dev_jump_allowed():
+		SaveData.fresh = true
+		SaveData._cfg = null
 	if q.has("level") and _dev_jump_allowed():
 		start_level(Levels.id_of_number(int(q.level)))  # the number players see; skips the menu
 	else:
