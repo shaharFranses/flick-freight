@@ -168,6 +168,9 @@ func motion_period() -> int:
 		var q: int = m.period_frames()
 		if q > 0:
 			p = q if p == 0 else _lcm(p, q)
+	for pd in pads:
+		if pd.swing != 0.0:
+			p = pd.period if p == 0 else _lcm(p, pd.period)
 	return min(p, 1200)
 
 
@@ -545,8 +548,17 @@ const PAD_H := 30.0
 
 ## level.pads: [[x, y, angle_deg, power]]. (x, y) = middle of the spring plate's face,
 ## angle 0 = facing straight up, +90 = facing right. power = restitution (1 = elastic).
+## Rocking pad: [x, y, angle_deg, power, swing_deg, period_frames, phase_frames]: the pad tilts
+## `swing_deg` either side of `angle_deg` on the level clock, so the bounce direction changes.
 func _build_pads():
 	for d in level.pads:
+		if d.size() > 4:
+			var stand = _static_node()
+			stand.z_index = 0
+			var c = Vector2(d[0], d[1])
+			stand.draw.connect(func():
+				ArtDraw.ink_rect(stand, Rect2(c.x - 9, c.y + 16, 18, ROAD_Y - c.y - 16), ArtPalette.STEEL_LIGHT, 3.0)
+				ArtDraw.ink_rect(stand, Rect2(c.x - 34, ROAD_Y - 12, 68, 12), ArtPalette.DOCK_STEEL, 3.0))
 		var a = Area2D.new()
 		a.position = Vector2(d[0], d[1])
 		a.rotation = deg_to_rad(d[2])
@@ -562,7 +574,9 @@ func _build_pads():
 		vis.z_index = 1
 		vis.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 		a.add_child(vis)
-		var pd = {"node": a, "vis": vis, "n": Vector2.UP.rotated(a.rotation), "power": float(d[3]), "squash": 0.0}
+		var pd = {"node": a, "vis": vis, "n": Vector2.UP.rotated(a.rotation), "power": float(d[3]), "squash": 0.0,
+			"base": a.rotation, "swing": deg_to_rad(d[4]) if d.size() > 4 else 0.0,
+			"period": int(d[5]) if d.size() > 5 else 300, "phase": int(d[6]) if d.size() > 6 else 0}
 		vis.draw.connect(_draw_pad.bind(pd))
 		a.body_entered.connect(_on_pad_body.bind(pd))
 		pads.append(pd)
@@ -574,10 +588,23 @@ func _on_pad_body(body: Node, pd: Dictionary):
 		Sfx.play("boing", -4.0, randf_range(0.95, 1.1))
 
 
+## Angle of a pad at clock frame f (a rocking pad tilts on the level clock).
+func pad_angle(pd: Dictionary, f: int) -> float:
+	if pd.swing == 0.0:
+		return pd.base
+	return pd.base + pd.swing * sin(TAU * (f + pd.phase) / float(pd.period))
+
+
+## The pad's face normal at clock frame f.
+func pad_normal(pd: Dictionary, f: int) -> Vector2:
+	return Vector2.UP.rotated(pad_angle(pd, f))
+
+
 ## Does a cargo centred at p (half extent `half` along the normal) touch the pad's face?
-func pad_contact(pd: Dictionary, p: Vector2, half: float) -> bool:
+## f = clock frame to test at (-1 = now).
+func pad_contact(pd: Dictionary, p: Vector2, half: float, f := -1) -> bool:
 	var a: Area2D = pd.node
-	var l = (p - a.position).rotated(-a.rotation)
+	var l = (p - a.position).rotated(-(a.rotation if f < 0 else pad_angle(pd, f)))
 	return abs(l.x) < PAD_W * 0.5 + half * 0.5 and l.y > -half - 6 and l.y < PAD_H
 
 
@@ -587,6 +614,9 @@ func _draw_pad(pd: Dictionary):
 	var w = PAD_W
 	# base on the ground
 	ArtDraw.ink_rect(n, Rect2(-w * 0.5 - 2, PAD_H - 12, w + 4, 14), ArtPalette.DOCK_STEEL, 2.6)
+	if pd.swing != 0.0:  # rocking pad: the pivot it tilts around
+		ArtDraw.ink_circle(n, Vector2(0, PAD_H - 5), 11, ArtPalette.GOLD, 3.0)
+		n.draw_circle(Vector2(0, PAD_H - 5), 3, ArtPalette.INK)
 	# two coil springs (pushed down by `sq` on a hit)
 	var top = sq + 6.0
 	for sx in [-w * 0.27, w * 0.27]:
@@ -1234,6 +1264,10 @@ func _score():
 ## Delivered loads: anything that has left the bed for a moment (or hit the road) has fallen out.
 func _physics_process(delta: float):
 	frame += 1
+	for pd in pads:
+		if pd.swing != 0.0:
+			pd.node.rotation = pad_angle(pd, frame)
+			pd.n = Vector2.UP.rotated(pd.node.rotation)
 	if not ended:
 		_melt_tick(delta)
 		if clock_running:
@@ -1322,8 +1356,10 @@ func _draw_aim():
 		t += dt
 		i += 1
 		for pd in pads:
-			if not pad_hit.has(pd) and pad_contact(pd, p, 30.0) and v.dot(pd.n) < 0:
-				v -= (1.0 + pd.power) * v.dot(pd.n) * pd.n
+			# a rocking pad is shown where it will be when the cargo gets there
+			var pn = pad_normal(pd, frame + i)
+			if not pad_hit.has(pd) and pad_contact(pd, p, 30.0, frame + i) and v.dot(pn) < 0:
+				v -= (1.0 + pd.power) * v.dot(pn) * pn
 				pad_hit[pd] = true
 		if p.y > ROAD_Y:
 			break

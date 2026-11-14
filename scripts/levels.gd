@@ -15,6 +15,9 @@ extends RefCounted
 ## Expansion keys (all optional; a missing key = mechanic off, see docs/EXPANSION_PLAN.md):
 ## pads   : M8 bounce pads [x, y, angle_deg, power]. (x, y) = middle of the spring face,
 ##          angle 0 = facing up, 90 = facing right; power = restitution (1 = elastic, >1 = boost)
+##          rocking pad: [x, y, angle_deg, power, swing_deg, period_frames, phase_frames]
+## slot   : where a level added later sits in its world's play order: a 0-based DATA index,
+##          e.g. 43.5 = between the levels at index 43 and 44 (IDs never move, so saves hold)
 ## trucks : several trucks at once, instead of "truck": [{x, amp, period, wall, ferry, accepts}]
 ##          accepts: cargo letters that count in that truck (e.g. "m"); leave out for any
 ## ferry  : M10 inside a truck: {amp_y (px), amp_rot (deg), period (s)}; the truck bobs on a ferry
@@ -456,6 +459,37 @@ const DATA = [
 		"movers": [{"type": "forklift", "x0": 330, "x1": 480, "period": 480, "forks": 80},
 			{"type": "tower_crane", "x": 720, "y": 125, "length": 105, "swing": 8, "period": 240, "slide": 80, "slide_period": 480, "phase": 60}],
 		"intro": {"title": "BUSY SITE", "text": "Stack the flatbed while the forklift patrols and the beam swings."}},
+	# ---------------- Added later (IDs 101-106); "slot" places each one in its world ----------------
+	{"world": 0, "act": 2, "slot": 43.5, "cargo": "cbc", "goal": 1, "s2": 2,
+		"truck": {"x": 860, "amp": 0, "period": 4.0, "vehicle": "moto"}, "guide": 0.6,
+		"intro": {"title": "HEAVY DELIVERY", "text": "Crates for the courier. They fly shorter, so pull back further."}},
+	{"world": 2, "act": 2, "slot": 57.5, "cargo": "fbf", "goal": 1, "s2": 2,
+		"truck": {"x": 900, "amp": 0, "period": 4.0, "vehicle": "moto"}, "guide": 0.6,
+		"movers": [{"type": "tumbleweed", "x0": 300, "x1": 700, "period": 420, "hop": 220, "hops": 2, "radius": 36}],
+		"intro": {"title": "HANDLE WITH CARE", "text": "Fragile parcels for the courier. Land them softly, and mind the tumbleweed.", "icon": "fragile"}},
+	{"world": 7, "slot": 88.5, "cargo": "mmmm", "goal": 2, "s2": 3, "time_limit": 14,
+		"truck": {"x": 860, "amp": 50, "period": 5.0, "vehicle": "moto"}, "guide": 0.5,
+		"intro": {"title": "EXPRESS COURIER", "text": "The courier leaves 14 seconds after your first throw, and will not stand still.", "icon": "parcel"}},
+	{"world": 8, "slot": 93.5, "cargo": "bbbbbb", "goal": 3, "s2": 5,
+		"truck": {"x": 1000, "amp": 0, "period": 4.0, "vehicle": "flatbed"}, "guide": 0.8,
+		"blocks": [[380, 300, 420, 36]],
+		"pads": [[560, 565, 4, 1.1, 14, 300]],
+		"intro": {"title": "ROCKING PAD", "text": "The spring tilts back and forth. Watch the dotted line and throw when it points at the truck."}},
+	{"world": 8, "slot": 96.5, "cargo": "cbcbcb", "goal": 3, "s2": 5,
+		"truck": {"x": 1000, "amp": 0, "period": 4.0, "vehicle": "dump", "tilt": 3, "piston": {"amp": 15, "period": 5.0}}, "guide": 0.6,
+		"blocks": [[380, 300, 420, 36]],
+		"pads": [[560, 565, 4, 1.1, 12, 200]],
+		"intro": {"title": "TWO RHYTHMS", "text": "The spring rocks and the bed tips. Throw when both line up."}},
+	{"world": 5, "act": 2, "slot": 68.5, "cargo": "bbcbbc", "goal": 3, "s2": 5,
+		"trucks": [{"x": 580, "vehicle": "flatcar", "start": 1250, "speed": -35, "exit": 580, "once": true},
+			{"x": 580, "vehicle": "flatcar", "start": 1530, "speed": -35, "exit": 580, "once": true},
+			{"x": 580, "vehicle": "flatcar", "start": 1810, "speed": -35, "exit": 580, "once": true},
+			{"x": 580, "vehicle": "flatcar", "start": 2090, "speed": -35, "exit": 580, "once": true}],
+		"guide": 0.5,
+		"blocks": [[300, 150, 980, 40], [384, 390, 30, 235]],
+		"movers": [{"type": "conveyor", "x0": 400, "x1": 740, "y": 390, "speed": 150, "hang": 190,
+			"tilt": 20, "tilt_swing": 8, "tilt_period": 300}],
+		"intro": {"title": "RAMP DROP", "text": "The ramp rocks while the train rolls under it. Drop the cargo on so it tips onto a car."}},
 ]
 
 const LETTER = {"b": "box", "c": "crate", "r": "barrel", "f": "fragile",
@@ -538,9 +572,12 @@ static func order() -> Array:
 	if _order.is_empty():
 		for w in WORLD_ORDER:
 			for act in [1, 2]:
+				var ids: Array = []
 				for i in DATA.size():
 					if DATA[i].world == w and DATA[i].get("act", 1) == act and not i in RETIRED:
-						_order.append(i)
+						ids.append(i)
+				ids.sort_custom(func(a, b): return float(DATA[a].get("slot", a)) < float(DATA[b].get("slot", b)))
+				_order.append_array(ids)
 	return _order
 
 

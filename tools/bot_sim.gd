@@ -148,9 +148,11 @@ func score(pull: Vector2, wait := 0) -> float:
 		t += DT
 		# M8: pads reflect on entry, like the game's Area2D
 		for pd in pads:
-			var touching = g.pad_contact(pd, p, h.y)
-			if touching and not inside.has(pd) and v.dot(pd.n) < 0:
-				v -= (1.0 + pd.power) * v.dot(pd.n) * pd.n
+			var pf = f0 + int(round(t / DT))
+			var touching = g.pad_contact(pd, p, h.y, pf)
+			var pn = g.pad_normal(pd, pf)
+			if touching and not inside.has(pd) and v.dot(pn) < 0:
+				v -= (1.0 + pd.power) * v.dot(pn) * pn
 			if touching:
 				inside[pd] = true
 			else:

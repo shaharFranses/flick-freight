@@ -114,9 +114,14 @@ func _draw():
 	var len = x1 - x0
 	if ramp:
 		# hinge post at the low end, and a piston that pushes the ramp up and down
-		ArtDraw.ink_rect(self, Rect2(x0 - 9, y, 18, Game.ROAD_Y - y), ArtPalette.STEEL_LIGHT, 3.0)
-		var foot = Vector2(x0 + len * 0.45, Game.ROAD_Y)
-		var head = t * Vector2(len * 0.6, T)
+		# ("hang": both come down from a ceiling at that height, so vehicles pass underneath)
+		var hung = cfg.has("hang")
+		if hung:
+			ArtDraw.ink_rect(self, Rect2(x0 - 5, cfg.hang, 10, y - cfg.hang), ArtPalette.STEEL_LIGHT, 3.0)
+		else:
+			ArtDraw.ink_rect(self, Rect2(x0 - 9, y, 18, Game.ROAD_Y - y), ArtPalette.STEEL_LIGHT, 3.0)
+		var foot = Vector2(x0 + len * 0.62, cfg.hang) if hung else Vector2(x0 + len * 0.45, Game.ROAD_Y)
+		var head = t * Vector2(len * 0.6, 0.0 if hung else T)
 		draw_line(foot, head, ArtPalette.INK, 16.0)
 		draw_line(foot, head, ArtPalette.STEEL_LIGHT, 10.0)
 		draw_line(foot.lerp(head, 0.45), head, ArtPalette.CHROME, 5.0)
